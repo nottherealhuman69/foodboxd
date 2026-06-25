@@ -1,0 +1,338 @@
+.page {
+  padding: 2.5rem 2rem;
+  max-width: 720px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #e8e9f0;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.sub {
+  font-size: 14px;
+  color: #6b6f8a;
+}
+
+.sortSelect {
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  color: #a0a4be;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 7px 12px;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sortSelect:focus {
+  border-color: #6366F1;
+}
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: transparent;
+  color: #6b6f8a;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterBtn:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #c4c6db;
+}
+
+.filterActive {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.filterCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.noMatch {
+  font-size: 14px;
+  color: #4e5272;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* ── Empty ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 2rem;
+  background: #16192A;
+  border: 1px dashed rgba(99, 102, 241, 0.15);
+  border-radius: 14px;
+  gap: 10px;
+}
+
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.emptyText {
+  font-size: 14px;
+  color: #6b6f8a;
+}
+
+.ctaBtn {
+  margin-top: 4px;
+  padding: 9px 22px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ctaBtn:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+/* ── Review cards ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 1.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.cardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dishName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8e9f0;
+}
+
+.restaurant {
+  font-size: 12px;
+  color: #6b6f8a;
+}
+
+.cardRight {
+  flex-shrink: 0;
+}
+
+.typePill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.typePill[data-type="restaurant"] {
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+}
+
+.typePill[data-type="homemade"] {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.ratingLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #818cf8;
+}
+
+.dot {
+  color: #3d4060;
+  font-size: 14px;
+}
+
+.date {
+  font-size: 12px;
+  color: #4e5272;
+}
+
+.reviewText {
+  font-size: 14px;
+  color: #8b8fa8;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+/* Recipe accordion */
+.recipeDetails {
+  margin-top: 4px;
+  border-top: 1px solid rgba(99, 102, 241, 0.08);
+  padding-top: 10px;
+}
+
+.recipeSummary {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6366F1;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.recipeSummary::-webkit-details-marker { display: none; }
+.recipeSummary::before { content: '▸ '; }
+details[open] .recipeSummary::before { content: '▾ '; }
+
+.recipeText {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8b8fa8;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+  .page { padding: 1.5rem 1.25rem; }
+  .header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Loading / Error ── */
+.loadingWrap,
+.errorWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 5rem 2rem;
+  text-align: center;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(99, 102, 241, 0.15);
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingText {
+  font-size: 14px;
+  color: #6b6f8a;
+}
+
+.errorText {
+  font-size: 14px;
+  color: #f87171;
+}
+
+/* ── Card actions ── */
+.cardActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: #4e5272;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.deleteBtn:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
