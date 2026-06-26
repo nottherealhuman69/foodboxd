@@ -1,8 +1,28 @@
+import { useState, useEffect } from 'react'
 import styles from './Profile.module.css'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
 export default function Profile({ entries = [], loading, fetchError, onNavigate }) {
+  const [friendCount, setFriendCount] = useState(null)
+
+  const token = localStorage.getItem('token')
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+
+  useEffect(() => {
+    async function loadFriends() {
+      try {
+        const res = await fetch('/api/friends', { headers: authHeaders })
+        if (!res.ok) return
+        const data = await res.json()
+        setFriendCount(data.length)
+      } catch {
+        setFriendCount(0)
+      }
+    }
+    loadFriends()
+  }, [token])
+
   const avgRating = entries.length
     ? (entries.reduce((s, e) => s + e.rating, 0) / entries.length).toFixed(1)
     : null
@@ -31,7 +51,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate 
         <p className={styles.sub}>Your food diary at a glance.</p>
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — now 5 cards */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <span className={styles.statCount}>{entries.length}</span>
@@ -48,6 +68,10 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate 
         <div className={styles.statCard}>
           <span className={styles.statCount}>{entries.filter(e => e.type === 'homemade').length}</span>
           <span className={styles.statLabel}>Homemade</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statCount}>{friendCount ?? '—'}</span>
+          <span className={styles.statLabel}>Friends</span>
         </div>
       </div>
 
@@ -92,7 +116,6 @@ function DiaryCard({ entry }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric'
   })
-
   return (
     <div className={styles.diaryCard}>
       <div className={styles.diaryMain}>

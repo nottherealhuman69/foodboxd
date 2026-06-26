@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Search.module.css'
+import UserProfile from './UserProfile'
+import DishPage from './DishPage'
 
 // ─── Fuzzy match ─────────────────────────────────────────────────────────────
 function fuzzyScore(needle, haystack) {
@@ -48,12 +50,12 @@ function Stars({ rating }) {
 }
 
 // ─── Review Card ──────────────────────────────────────────────────────────────
-function ReviewCard({ item }) {
+function ReviewCard({ item, onViewDish }) {
   const date = new Date(item.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric'
   })
   return (
-    <div className={styles.card}>
+    <div className={styles.card} style={{cursor: item.restaurantName ? 'pointer' : 'default'}} onClick={() => item.restaurantName && onViewDish && onViewDish(item.dishName, item.restaurantName)}>
       <div className={styles.cardIcon} data-type="review">✍️</div>
       <div className={styles.cardBody}>
         <div className={styles.cardMeta}>
@@ -77,7 +79,7 @@ function ReviewCard({ item }) {
 }
 
 // ─── User Card ────────────────────────────────────────────────────────────────
-function UserCard({ item, onRequestSent }) {
+function UserCard({ item, onRequestSent, onViewProfile }) {
   const [status,  setStatus]  = useState(item.friendship_status)
   const [loading, setLoading] = useState(false)
 
@@ -114,7 +116,7 @@ function UserCard({ item, onRequestSent }) {
   }
 
   return (
-    <div className={styles.card}>
+    <div className={styles.card} style={{cursor:'pointer'}} onClick={() => onViewProfile && onViewProfile(item.email)}>
       <div className={styles.cardAvatar}>{item.username.charAt(0).toUpperCase()}</div>
       <div className={styles.cardBody}>
         <div className={styles.cardMeta}>
@@ -134,9 +136,9 @@ function UserCard({ item, onRequestSent }) {
   )
 }
 
-function ResultCard({ item, onRequestSent }) {
-  if (item.type === 'review') return <ReviewCard item={item} />
-  if (item.type === 'user')   return <UserCard item={item} onRequestSent={onRequestSent} />
+function ResultCard({ item, onRequestSent, onViewProfile, onViewDish }) {
+  if (item.type === 'review') return <ReviewCard item={item} onViewDish={onViewDish} />
+  if (item.type === 'user')   return <UserCard item={item} onRequestSent={onRequestSent} onViewProfile={onViewProfile} />
   return null
 }
 
@@ -147,6 +149,8 @@ export default function Search() {
   const [reviews,   setReviews]   = useState([])
   const [users,     setUsers]     = useState([])
   const [loading,   setLoading]   = useState(true)
+  const [viewingUser, setViewingUser] = useState(null)
+  const [viewingDish, setViewingDish] = useState(null) // { dishName, restaurantName }
   const [error,     setError]     = useState('')
   const inputRef = useRef(null)
 
@@ -162,7 +166,7 @@ export default function Search() {
       setError('')
       try {
         const [revRes, userRes] = await Promise.all([
-          fetch('/api/reviews',         { headers: authHeaders }),
+          fetch('/api/reviews/all',     { headers: authHeaders }),
           fetch('/api/users/search?q=', { headers: authHeaders }),
         ])
         if (!revRes.ok || !userRes.ok) throw new Error()
@@ -178,7 +182,7 @@ export default function Search() {
           review:         r.review || '',
           rating:         r.rating,
           loggedAt:       r.logged_at,
-          user:           myUsername,
+          user:           r.user_email ? r.user_email.split('@')[0] : myUsername,
         })))
 
         setUsers(rawUsers.map(u => ({
@@ -230,6 +234,14 @@ export default function Search() {
   }
 
   const isEmpty = query.trim() && results.length === 0 && !loading
+
+  if (viewingDish) {
+    return <DishPage dishName={viewingDish.dishName} restaurantName={viewingDish.restaurantName} onBack={() => setViewingDish(null)} />
+  }
+
+  if (viewingUser) {
+    return <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} />
+  }
 
   return (
     <div className={styles.page}>
@@ -317,7 +329,7 @@ export default function Search() {
             </p>
             <div className={styles.resultsList}>
               {results.map(item => (
-                <ResultCard key={item.id} item={item} />
+                <ResultCard key={item.id} item={item} onViewProfile={setViewingUser} onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })} />
               ))}
             </div>
           </div>

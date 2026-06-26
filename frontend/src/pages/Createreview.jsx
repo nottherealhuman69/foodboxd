@@ -1,23 +1,162 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import styles from './CreateReview.module.css'
 
 const MAX_REVIEW_CHARS = 1000
+const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
+// ── Searchable dropdown ───────────────────────────────────────────────────────
+function SearchDropdown({ id, label, placeholder, options, value, onChange, disabled }) {
+  const [query,  setQuery]  = useState(value || '')
+  const [open,   setOpen]   = useState(false)
+  const [focused, setFocused] = useState(false)
+  const ref = useRef(null)
+
+  // Sync external value changes (e.g. reset)
+  useEffect(() => { setQuery(value || '') }, [value])
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()))
+
+  const select = (val) => {
+    setQuery(val)
+    onChange(val)
+    setOpen(false)
+  }
+
+  const handleInput = (e) => {
+    setQuery(e.target.value)
+    onChange('')   // clear selection until they pick from list
+    setOpen(true)
+  }
+
+  return (
+    <div className={styles.dropdownWrap} ref={ref}>
+      <div className={`${styles.dropdownInput} ${focused ? styles.dropdownFocused : ''} ${disabled ? styles.dropdownDisabled : ''}`}>
+        <input
+          id={id}
+          type="text"
+          className={styles.dropdownText}
+          placeholder={placeholder}
+          value={query}
+          onChange={handleInput}
+          onFocus={() => { setFocused(true); setOpen(true) }}
+          onBlur={() => setFocused(false)}
+          disabled={disabled}
+          autoComplete="off"
+        />
+        <span className={styles.dropdownChevron} onClick={() => !disabled && setOpen(o => !o)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      </div>
+
+      {open && !disabled && (
+        <div className={styles.dropdownList}>
+          {filtered.length === 0 ? (
+            <div className={styles.dropdownEmpty}>No matches — use "Add new" below</div>
+          ) : (
+            filtered.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                className={`${styles.dropdownItem} ${opt === value ? styles.dropdownItemActive : ''}`}
+                onMouseDown={() => select(opt)}
+              >
+                {opt}
+                {opt === value && <span className={styles.checkmark}>✓</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function CreateReview({ onSave }) {
   const [form, setForm] = useState({
-    dishName: '',
-    type: 'restaurant',       // 'restaurant' | 'homemade'
+    type:           'restaurant',
     restaurantName: '',
-    recipe: '',
-    rating: 0,
-    hoverRating: 0,
-    review: '',
+    dishName:       '',
+    recipe:         '',
+    rating:         0,
+    hoverRating:    0,
+    review:         '',
   })
-
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
-  const [saving, setSaving] = useState(false)
+  const [saving,    setSaving]    = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  // Catalog data
+  const [restaurants,   setRestaurants]   = useState([])
+  const [dishes,        setDishes]        = useState([])
+  const [loadingCatalog, setLoadingCatalog] = useState(false)
+
+  // "Add new" toggles
+  const [newRestaurant, setNewRestaurant] = useState(false)
+  const [newDish,       setNewDish]       = useState(false)
+
+  const token = localStorage.getItem('token')
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+
+  // Load restaurants on mount
+  useEffect(() => {
+    async function load() {
+      setLoadingCatalog(true)
+      try {
+        const res = await fetch('/api/restaurants', { headers: authHeaders })
+        if (res.ok) setRestaurants(await res.json())
+      } catch {}
+      finally { setLoadingCatalog(false) }
+    }
+    if (form.type === 'restaurant') load()
+  }, [form.type, token])
+
+  // Load dishes when restaurant is selected
+  useEffect(() => {
+    if (!form.restaurantName || newRestaurant) { setDishes([]); return }
+    async function load() {
+      try {
+        const res = await fetch(
+          `/api/restaurants/${encodeURIComponent(form.restaurantName)}/dishes`,
+          { headers: authHeaders }
+        )
+        if (res.ok) setDishes(await res.json())
+      } catch {}
+    }
+    load()
+  }, [form.restaurantName, newRestaurant, token])
+
+  // When switching to "add new restaurant", clear dish too
+  const toggleNewRestaurant = () => {
+    setNewRestaurant(v => !v)
+    setNewDish(false)
+    set('restaurantName', '')
+    set('dishName', '')
+    setDishes([])
+  }
+
+  // When switching to "add new dish"
+  const toggleNewDish = () => {
+    setNewDish(v => !v)
+    set('dishName', '')
+  }
+
+  // When restaurant changes via dropdown, reset dish
+  const handleRestaurantChange = (val) => {
+    set('restaurantName', val)
+    set('dishName', '')
+    setNewDish(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,12 +165,12 @@ export default function CreateReview({ onSave }) {
     setSaveError('')
     try {
       await onSave({
-        dishName: form.dishName,
-        type: form.type,
+        dishName:       form.dishName,
+        type:           form.type,
         restaurantName: form.restaurantName,
-        recipe: form.recipe,
-        rating: form.rating,
-        review: form.review,
+        recipe:         form.recipe,
+        rating:         form.rating,
+        review:         form.review,
       })
       handleReset()
     } catch (err) {
@@ -42,19 +181,15 @@ export default function CreateReview({ onSave }) {
   }
 
   const handleReset = () => {
-    setForm({
-      dishName: '',
-      type: 'restaurant',
-      restaurantName: '',
-      recipe: '',
-      rating: 0,
-      hoverRating: 0,
-      review: '',
-    })
+    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', rating: 0, hoverRating: 0, review: '' })
+    setNewRestaurant(false)
+    setNewDish(false)
+    setDishes([])
   }
 
-
   const charsLeft = MAX_REVIEW_CHARS - form.review.length
+  const restaurantSelected = !!form.restaurantName.trim()
+  const dishDisabled = form.type === 'restaurant' && !restaurantSelected && !newDish
 
   return (
     <div className={styles.page}>
@@ -65,28 +200,13 @@ export default function CreateReview({ onSave }) {
 
       <form onSubmit={handleSubmit} className={styles.form}>
 
-        {/* Dish name */}
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="dishName">Dish name <span className={styles.required}>*</span></label>
-          <input
-            id="dishName"
-            className={styles.input}
-            type="text"
-            placeholder="e.g. Chicken Biryani, Masala Dosa…"
-            value={form.dishName}
-            onChange={e => set('dishName', e.target.value)}
-            required
-          />
-        </div>
-
-        {/* Type toggle */}
+        {/* 1. Type toggle */}
         <div className={styles.field}>
           <label className={styles.label}>Where was this?</label>
           <div className={styles.toggle}>
-            <button
-              type="button"
+            <button type="button"
               className={`${styles.toggleBtn} ${form.type === 'restaurant' ? styles.toggleActive : ''}`}
-              onClick={() => set('type', 'restaurant')}
+              onClick={() => { set('type', 'restaurant'); handleReset() }}
             >
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
                 <path d="M3 17V8.5M17 17V8.5M10 3v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -95,10 +215,9 @@ export default function CreateReview({ onSave }) {
               </svg>
               Restaurant
             </button>
-            <button
-              type="button"
+            <button type="button"
               className={`${styles.toggleBtn} ${form.type === 'homemade' ? styles.toggleActive : ''}`}
-              onClick={() => set('type', 'homemade')}
+              onClick={() => { set('type', 'homemade'); handleReset(); set('type', 'homemade') }}
             >
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
                 <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -109,26 +228,85 @@ export default function CreateReview({ onSave }) {
           </div>
         </div>
 
-        {/* Conditional fields */}
+        {/* 2. Restaurant section */}
         {form.type === 'restaurant' && (
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="restaurantName">Restaurant</label>
-            <input
-              id="restaurantName"
-              className={styles.input}
-              type="text"
-              placeholder="e.g. Paradise Biryani, MTR…"
-              value={form.restaurantName}
-              onChange={e => set('restaurantName', e.target.value)}
-            />
+            <div className={styles.labelRow}>
+              <label className={styles.label} htmlFor="restaurantName">Restaurant</label>
+              <button type="button" className={styles.toggleLink} onClick={toggleNewRestaurant}>
+                {newRestaurant ? '← Pick existing' : '+ Add new restaurant'}
+              </button>
+            </div>
+
+            {newRestaurant ? (
+              <input
+                id="restaurantName"
+                className={styles.input}
+                type="text"
+                placeholder="Type the restaurant name…"
+                value={form.restaurantName}
+                onChange={e => set('restaurantName', e.target.value)}
+                autoFocus
+              />
+            ) : (
+              <SearchDropdown
+                id="restaurantName"
+                placeholder={loadingCatalog ? 'Loading…' : 'Search restaurants…'}
+                options={restaurants}
+                value={form.restaurantName}
+                onChange={handleRestaurantChange}
+                disabled={loadingCatalog}
+              />
+            )}
           </div>
         )}
 
+        {/* 3. Dish name section */}
+        <div className={styles.field}>
+          <div className={styles.labelRow}>
+            <label className={styles.label} htmlFor="dishName">
+              Dish name <span className={styles.required}>*</span>
+            </label>
+            {form.type === 'restaurant' && restaurantSelected && !newRestaurant && (
+              <button type="button" className={styles.toggleLink} onClick={toggleNewDish}>
+                {newDish ? '← Pick existing' : '+ Add new dish'}
+              </button>
+            )}
+          </div>
+
+          {form.type === 'homemade' || newDish || newRestaurant ? (
+            <input
+              id="dishName"
+              className={styles.input}
+              type="text"
+              placeholder="e.g. Chicken Biryani, Masala Dosa…"
+              value={form.dishName}
+              onChange={e => set('dishName', e.target.value)}
+              required
+            />
+          ) : (
+            <SearchDropdown
+              id="dishName"
+              placeholder={
+                dishDisabled
+                  ? 'Select a restaurant first'
+                  : dishes.length === 0 && restaurantSelected
+                  ? 'No dishes yet — use "+ Add new dish"'
+                  : 'Search dishes…'
+              }
+              options={dishes}
+              value={form.dishName}
+              onChange={(val) => set('dishName', val)}
+              disabled={dishDisabled}
+            />
+          )}
+        </div>
+
+        {/* 4. Recipe (homemade only) */}
         {form.type === 'homemade' && (
           <div className={styles.field}>
             <label className={styles.label} htmlFor="recipe">
-              Recipe
-              <span className={styles.labelHint}>optional</span>
+              Recipe <span className={styles.labelHint}>optional</span>
             </label>
             <textarea
               id="recipe"
@@ -141,12 +319,9 @@ export default function CreateReview({ onSave }) {
           </div>
         )}
 
-        {/* Photo */}
+        {/* 5. Photo */}
         <div className={styles.field}>
-          <label className={styles.label}>
-            Photo
-            <span className={styles.labelHint}>optional</span>
-          </label>
+          <label className={styles.label}>Photo <span className={styles.labelHint}>optional</span></label>
           <button type="button" className={styles.photoBtn} disabled>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -157,15 +332,12 @@ export default function CreateReview({ onSave }) {
           </button>
         </div>
 
-        {/* Star rating */}
+        {/* 6. Star rating */}
         <div className={styles.field}>
           <label className={styles.label}>Rating <span className={styles.required}>*</span></label>
           <div className={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map(n => (
-              <button
-                key={n}
-                type="button"
-                className={styles.starBtn}
+            {[1,2,3,4,5].map(n => (
+              <button key={n} type="button" className={styles.starBtn}
                 onMouseEnter={() => set('hoverRating', n)}
                 onMouseLeave={() => set('hoverRating', 0)}
                 onClick={() => set('rating', n)}
@@ -180,12 +352,11 @@ export default function CreateReview({ onSave }) {
           </div>
         </div>
 
-        {/* Review text */}
+        {/* 7. Review text */}
         <div className={styles.field}>
           <div className={styles.labelRow}>
             <label className={styles.label} htmlFor="review">
-              Review
-              <span className={styles.labelHint}>optional</span>
+              Review <span className={styles.labelHint}>optional</span>
             </label>
             <span className={`${styles.charCount} ${charsLeft < 100 ? styles.charCountWarn : ''}`}>
               {charsLeft}
@@ -202,39 +373,21 @@ export default function CreateReview({ onSave }) {
           />
         </div>
 
-        {/* Submit */}
         {saveError && <p className={styles.saveError}>{saveError}</p>}
         <div className={styles.actions}>
-          <button
-            type="submit"
-            className={styles.primaryBtn}
+          <button type="submit" className={styles.primaryBtn}
             disabled={!form.dishName.trim() || form.rating === 0 || saving}
           >
             {saving ? 'Saving…' : 'Save to diary'}
           </button>
           {(form.dishName || form.rating || form.review) && (
-            <button type="button" className={styles.ghostBtn} onClick={handleReset}>
-              Clear
-            </button>
+            <button type="button" className={styles.ghostBtn} onClick={handleReset}>Clear</button>
           )}
         </div>
 
       </form>
     </div>
   )
-}
-
-/* ── Helpers ── */
-const RATING_LABELS = {
-  1: 'Poor',
-  2: 'Fair',
-  3: 'Good',
-  4: 'Great',
-  5: 'Outstanding',
-}
-
-function renderStars(n) {
-  return '★'.repeat(n) + '☆'.repeat(5 - n)
 }
 
 function StarIcon({ filled }) {
@@ -244,8 +397,7 @@ function StarIcon({ filled }) {
         d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
         fill={filled ? '#6366F1' : 'transparent'}
         stroke={filled ? '#6366F1' : '#2d3155'}
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+        strokeWidth="1.5" strokeLinejoin="round"
       />
     </svg>
   )

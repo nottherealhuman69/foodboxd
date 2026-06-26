@@ -397,3 +397,185 @@ def get_friends(email: str = Depends(get_current_user), db=Depends(get_db)):
         }
         for r in rows
     ]
+
+
+# ── Public user reviews endpoint ──────────────────────────────────────────────
+
+@app.get("/users/{user_email}/reviews", response_model=List[ReviewOut])
+def get_user_reviews(
+    user_email: str,
+    email: str = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """Returns another user's reviews. Available to anyone who is logged in."""
+    cur = db.cursor()
+    cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="User not found")
+    cur.execute(
+        "SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC",
+        (user_email,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+# ── All reviews (for search) ──────────────────────────────────────────────────
+
+@app.get("/reviews/all")
+def get_all_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
+    """Returns all reviews from all users for the search page."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT r.*, u.email AS author_email
+        FROM dish_reviews r
+        JOIN users u ON u.email = r.user_email
+        ORDER BY r.logged_at DESC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    return [
+        {
+            "id":              row["id"],
+            "dish_name":       row["dish_name"],
+            "type":            row["type"],
+            "restaurant_name": row["restaurant_name"],
+            "rating":          row["rating"],
+            "review":          row["review"],
+            "logged_at":       row["logged_at"],
+            "user_email":      row["author_email"],
+        }
+        for row in rows
+    ]
+
+
+# ── Dish pages ────────────────────────────────────────────────────────────────
+
+@app.get("/dishes")
+def get_all_dishes(email: str = Depends(get_current_user), db=Depends(get_db)):
+    """Returns unique (dish_name, restaurant_name) combos with aggregate stats."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT
+            dish_name,
+            restaurant_name,
+            COUNT(*)                                      AS review_count,
+            ROUND(AVG(rating)::numeric, 1)               AS avg_rating,
+            MIN(logged_at)                               AS first_logged,
+            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+        FROM dish_reviews
+        WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
+        GROUP BY dish_name, restaurant_name
+        ORDER BY review_count DESC, first_logged DESC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    return [
+        {
+            "dish_name":     r["dish_name"],
+            "restaurant_name": r["restaurant_name"],
+            "review_count":  r["review_count"],
+            "avg_rating":    float(r["avg_rating"]),
+            "created_by":    r["created_by"].split("@")[0],
+            "created_by_email": r["created_by"],
+        }
+        for r in rows
+    ]
+
+
+@app.get("/dishes/{dish_name}/restaurant/{restaurant_name}")
+def get_dish_page(
+    dish_name: str,
+    restaurant_name: str,
+    email: str = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """Returns full dish page: stats + all reviews for this dish at this restaurant."""
+    cur = db.cursor()
+
+    # Aggregate stats
+    cur.execute("""
+        SELECT
+            dish_name,
+            restaurant_name,
+            COUNT(*)                                      AS review_count,
+            ROUND(AVG(rating)::numeric, 1)               AS avg_rating,
+            MIN(logged_at)                               AS first_logged,
+            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+        FROM dish_reviews
+        WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
+        GROUP BY dish_name, restaurant_name
+    """, (dish_name, restaurant_name))
+    stats = cur.fetchone()
+
+    if not stats:
+        raise HTTPException(status_code=404, detail="Dish not found")
+
+    # All reviews for this dish
+    cur.execute("""
+        SELECT id, user_email, rating, review, logged_at
+        FROM dish_reviews
+        WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
+        ORDER BY logged_at DESC
+    """, (dish_name, restaurant_name))
+    reviews = cur.fetchall()
+    cur.close()
+
+    return {
+        "dish_name":        stats["dish_name"],
+        "restaurant_name":  stats["restaurant_name"],
+        "review_count":     stats["review_count"],
+        "avg_rating":       float(stats["avg_rating"]),
+        "created_by":       stats["created_by"].split("@")[0],
+        "created_by_email": stats["created_by"],
+        "first_logged":     stats["first_logged"],
+        "reviews": [
+            {
+                "id":        r["id"],
+                "username":  r["user_email"].split("@")[0],
+                "user_email": r["user_email"],
+                "rating":    r["rating"],
+                "review":    r["review"] or "",
+                "logged_at": r["logged_at"],
+            }
+            for r in reviews
+        ],
+    }
+
+
+# ── Restaurant + dish catalog endpoints ───────────────────────────────────────
+
+@app.get("/restaurants")
+def get_restaurants(email: str = Depends(get_current_user), db=Depends(get_db)):
+    """All unique restaurant names across all reviews."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT DISTINCT restaurant_name
+        FROM dish_reviews
+        WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
+        ORDER BY restaurant_name ASC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    return [r["restaurant_name"] for r in rows]
+
+
+@app.get("/restaurants/{restaurant_name}/dishes")
+def get_restaurant_dishes(
+    restaurant_name: str,
+    email: str = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """All unique dish names logged at a specific restaurant."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT DISTINCT dish_name
+        FROM dish_reviews
+        WHERE type = 'restaurant'
+          AND restaurant_name ILIKE %s
+        ORDER BY dish_name ASC
+    """, (restaurant_name,))
+    rows = cur.fetchall()
+    cur.close()
+    return [r["dish_name"] for r in rows]
