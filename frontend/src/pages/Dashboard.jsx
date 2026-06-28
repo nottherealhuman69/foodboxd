@@ -1,58 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Profile from './Profile'
+import Feed from './Feed'
 import Reviews from './Reviews'
 import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
 import styles from './Dashboard.module.css'
 
-// ── Icons ──────────────────────────────────────────────────────────────────
-function ProfileIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6"/>
-      <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
-}
-function ReviewsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
-}
-function CreateIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6"/>
-      <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
-}
-function SearchIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6"/>
-      <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
-}
-function BellIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )
-}
-
 const NAV = [
-  { id: 'profile', label: 'Profile',    icon: ProfileIcon },
-  { id: 'reviews', label: 'Reviews',    icon: ReviewsIcon },
-  { id: 'create',  label: 'Log a Dish', icon: CreateIcon  },
-  { id: 'search',  label: 'Search',     icon: SearchIcon  },
-  { id: 'notifs',  label: 'Notifications', icon: BellIcon   },
+  { id: 'profile', label: 'Profile',       icon: ProfileIcon },
+  { id: 'feed',    label: 'Feed',           icon: FeedIcon    },
+  { id: 'reviews', label: 'Reviews',        icon: ReviewsIcon },
+  { id: 'create',  label: 'Log a Dish',     icon: CreateIcon  },
+  { id: 'search',  label: 'Search',         icon: SearchIcon  },
+  { id: 'notifs',  label: 'Notifications',  icon: BellIcon    },
 ]
 
 function normalise(r) {
@@ -60,24 +22,25 @@ function normalise(r) {
     id:             r.id,
     dishName:       r.dish_name,
     type:           r.type,
-    restaurantName: r.restaurant_name || '',
-    recipe:         r.recipe || '',
+    restaurantName: r.restaurant_name ?? '',
+    recipe:         r.recipe ?? '',
     rating:         r.rating,
-    review:         r.review || '',
+    review:         r.review ?? '',
     loggedAt:       new Date(r.logged_at),
   }
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const email   = localStorage.getItem('email') || ''
-  const handle  = email.split('@')[0]
-  const [active,    setActive]    = useState('profile')
-  const [notifCount, setNotifCount] = useState(0)
-  const [menuOpen,  setMenuOpen]  = useState(false)
-  const [entries,   setEntries]   = useState([])
-  const [loading,   setLoading]   = useState(true)
-  const [fetchError,setFetchError]= useState('')
+  const email  = localStorage.getItem('email') || ''
+  const handle = email.split('@')[0]
+
+  const [active,      setActive]      = useState('profile')
+  const [menuOpen,    setMenuOpen]    = useState(false)
+  const [entries,     setEntries]     = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [fetchError,  setFetchError]  = useState('')
+  const [notifCount,  setNotifCount]  = useState(0)
 
   const token = localStorage.getItem('token')
   const authHeaders = {
@@ -109,7 +72,7 @@ export default function Dashboard() {
 
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
-  const addEntry = async (formData) => {
+  const handleSave = async (formData) => {
     const res = await fetch('/api/reviews', {
       method: 'POST',
       headers: authHeaders,
@@ -131,22 +94,15 @@ export default function Dashboard() {
     goTo('profile')
   }
 
-  const deleteEntry = async (id) => {
-    try {
-      const res = await fetch(`/api/reviews/${id}`, {
-        method: 'DELETE',
-        headers: authHeaders,
-      })
-      if (!res.ok) throw new Error()
-      setEntries(prev => prev.filter(e => e.id !== id))
-    } catch {
-      alert('Failed to delete. Please try again.')
-    }
+  const handleDelete = async (id) => {
+    const res = await fetch(`/api/reviews/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders,
+    })
+    if (res.ok) setEntries(prev => prev.filter(e => e.id !== id))
   }
 
   const goTo = (id) => { setActive(id); setMenuOpen(false) }
-
-  const reviewCount = entries.length
 
   return (
     <div className={styles.shell}>
@@ -154,7 +110,7 @@ export default function Dashboard() {
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.brand}>
           <span className={styles.brandDot} />
-          <span className={styles.brandName}>forkd</span>
+          <span className={styles.brandName}>dishlog</span>
         </div>
 
         <nav className={styles.nav}>
@@ -164,10 +120,10 @@ export default function Dashboard() {
               className={`${styles.navItem} ${active === id ? styles.navActive : ''}`}
               onClick={() => goTo(id)}
             >
-              <span className={styles.navIcon}><Icon /></span>
-              <span className={styles.navLabel}>{label}</span>
-              {id === 'reviews' && reviewCount > 0 && (
-                <span className={styles.badge}>{reviewCount}</span>
+              <Icon className={styles.navIcon} />
+              <span>{label}</span>
+              {id === 'reviews' && entries.length > 0 && (
+                <span className={styles.badge}>{entries.length}</span>
               )}
               {id === 'notifs' && notifCount > 0 && (
                 <span className={styles.badge}>{notifCount}</span>
@@ -178,45 +134,41 @@ export default function Dashboard() {
 
         <div className={styles.sidebarFooter}>
           <div className={styles.userRow}>
-            <div className={styles.avatar}>{handle.charAt(0).toUpperCase()}</div>
+            <div className={styles.avatar}>{handle[0]?.toUpperCase()}</div>
             <div className={styles.userInfo}>
-              <span className={styles.userHandle}>@{handle}</span>
+              <span className={styles.userName}>{handle}</span>
               <span className={styles.userEmail}>{email}</span>
             </div>
           </div>
           <button onClick={logout} className={styles.logoutBtn} title="Sign out">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <LogoutIcon />
           </button>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile header */}
+      <header className={styles.mobileHeader}>
+        <span className={styles.brandName} style={{ fontSize: 16 }}>dishlog</span>
+        <button className={styles.menuBtn} onClick={() => setMenuOpen(o => !o)}>
+          <MenuIcon />
+        </button>
+      </header>
+
       {menuOpen && <div className={styles.overlay} onClick={() => setMenuOpen(false)} />}
 
-      {/* Main content */}
-      <div className={styles.main}>
-        {/* Mobile top bar */}
-        <div className={styles.topbar}>
-          <button className={styles.menuBtn} onClick={() => setMenuOpen(o => !o)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-          </button>
-          <span className={styles.topbarTitle}>{NAV.find(n => n.id === active)?.label}</span>
-        </div>
-
-        {fetchError && <div className={styles.errorBanner}>{fetchError}</div>}
-
+      {/* Main */}
+      <main className={styles.main}>
         {active === 'profile' && (
           <Profile entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} />
         )}
+        {active === 'feed' && (
+          <Feed />
+        )}
         {active === 'reviews' && (
-          <Reviews entries={entries} loading={loading} fetchError={fetchError} onDelete={deleteEntry} />
+          <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} />
         )}
         {active === 'create' && (
-          <CreateReview onSave={addEntry} />
+          <CreateReview onSave={handleSave} />
         )}
         {active === 'search' && (
           <Search />
@@ -224,7 +176,81 @@ export default function Dashboard() {
         {active === 'notifs' && (
           <Notifications onBadgeChange={setNotifCount} />
         )}
-      </div>
+      </main>
     </div>
+  )
+}
+
+/* ── Icons ── */
+function ProfileIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3.5 17c0-3.314 2.91-6 6.5-6s6.5 2.686 6.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function FeedIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M2 4h16M2 8h10M2 12h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="15" cy="14" r="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M15 12.5v1.5l1 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function ReviewsIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M3 5h14M3 10h10M3 15h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="16" cy="14.5" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M17.5 16.5l1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function CreateIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M10 7v6M7 10h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function SearchIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function BellIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M15 8A5 5 0 005 8c0 5.5-2.5 7-2.5 7h15S15 13.5 15 8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M11.44 17.5a1.65 1.65 0 01-2.88 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M13 4.5h2.5A1.5 1.5 0 0117 6v8a1.5 1.5 0 01-1.5 1.5H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M8.5 13.5L12 10l-3.5-3.5M12 10H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
   )
 }

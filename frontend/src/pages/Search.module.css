@@ -406,3 +406,17 @@
   font-weight: 500;
   flex-shrink: 0;
 }
+
+.restaurantLink {
+  background: none;
+  border: none;
+  color: #6366F1;
+  font-size: 13px;
+  font-weight: 400;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 0.15s;
+}
+.restaurantLink:hover { color: #a5b4fc; }

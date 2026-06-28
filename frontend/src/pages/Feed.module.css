@@ -1,0 +1,243 @@
+.page {
+  padding: 2.5rem 2rem;
+  max-width: 640px;
+}
+
+.header {
+  margin-bottom: 1.75rem;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #e8e9f0;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.sub { font-size: 14px; color: #6b6f8a; }
+
+/* ── Feed list ── */
+.feed {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Card ── */
+.card {
+  display: flex;
+  gap: 14px;
+  position: relative;
+}
+
+/* Remove timeline line from the last card */
+.card:last-child .timelineLine {
+  display: none;
+}
+
+/* ── Avatar column ── */
+.avatarCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366F1, #818cf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timelineLine {
+  width: 1px;
+  flex: 1;
+  min-height: 20px;
+  background: rgba(99, 102, 241, 0.15);
+  margin: 6px 0;
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 1.5rem;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9f0;
+}
+
+.dot { color: #3d4060; font-size: 12px; }
+
+.time {
+  font-size: 12px;
+  color: #4e5272;
+}
+
+.typePill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.typePill[data-type="restaurant"] {
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+}
+.typePill[data-type="homemade"] {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+/* ── Dish + restaurant ── */
+.dishRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.dishName {
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8e9f0;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: -0.01em;
+  transition: color 0.15s;
+}
+.dishName:hover:not(:disabled) { color: #a5b4fc; }
+.dishName:disabled { cursor: default; }
+
+.restaurantLink {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #6366F1;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.restaurantLink:hover { color: #818cf8; }
+
+/* ── Rating ── */
+.ratingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stars { display: flex; gap: 2px; align-items: center; }
+
+.ratingLabel {
+  font-size: 12px;
+  color: #818cf8;
+  font-weight: 500;
+}
+
+/* ── Review text ── */
+.reviewText {
+  font-size: 14px;
+  color: #8b8fa8;
+  line-height: 1.6;
+  background: #16192A;
+  border-left: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  margin-top: 4px;
+}
+
+/* ── Empty ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 2rem;
+  background: #16192A;
+  border: 1px dashed rgba(99, 102, 241, 0.12);
+  border-radius: 14px;
+  gap: 8px;
+}
+
+.emptyIcon {
+  width: 56px;
+  height: 56px;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #c4c6db;
+}
+
+.emptyHint {
+  font-size: 13px;
+  color: #6b6f8a;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* ── States ── */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1rem;
+  gap: 10px;
+  color: #8b8fa8;
+  font-size: 14px;
+}
+
+.stateIcon { font-size: 32px; }
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

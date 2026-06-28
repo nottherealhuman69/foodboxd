@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Search.module.css'
 import UserProfile from './UserProfile'
 import DishPage from './DishPage'
+import RestaurantPage from './RestaurantPage'
 
 // ─── Fuzzy match ─────────────────────────────────────────────────────────────
 function fuzzyScore(needle, haystack) {
@@ -50,7 +51,7 @@ function Stars({ rating }) {
 }
 
 // ─── Review Card ──────────────────────────────────────────────────────────────
-function ReviewCard({ item, onViewDish }) {
+function ReviewCard({ item, onViewDish, onViewRestaurant }) {
   const date = new Date(item.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric'
   })
@@ -65,7 +66,9 @@ function ReviewCard({ item, onViewDish }) {
         <h3 className={styles.cardTitle}>
           {item.dishName}
           {item.restaurantName && (
-            <span className={styles.atRestaurant}> at {item.restaurantName}</span>
+            <button className={styles.restaurantLink} onClick={e => { e.stopPropagation(); onViewRestaurant && onViewRestaurant(item.restaurantName) }}>
+              at {item.restaurantName} →
+            </button>
           )}
         </h3>
         {item.review && <p className={styles.cardExcerpt}>{item.review}</p>}
@@ -136,8 +139,8 @@ function UserCard({ item, onRequestSent, onViewProfile }) {
   )
 }
 
-function ResultCard({ item, onRequestSent, onViewProfile, onViewDish }) {
-  if (item.type === 'review') return <ReviewCard item={item} onViewDish={onViewDish} />
+function ResultCard({ item, onRequestSent, onViewProfile, onViewDish, onViewRestaurant }) {
+  if (item.type === 'review') return <ReviewCard item={item} onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
   if (item.type === 'user')   return <UserCard item={item} onRequestSent={onRequestSent} onViewProfile={onViewProfile} />
   return null
 }
@@ -151,6 +154,7 @@ export default function Search() {
   const [loading,   setLoading]   = useState(true)
   const [viewingUser, setViewingUser] = useState(null)
   const [viewingDish, setViewingDish] = useState(null) // { dishName, restaurantName }
+  const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [error,     setError]     = useState('')
   const inputRef = useRef(null)
 
@@ -234,6 +238,10 @@ export default function Search() {
   }
 
   const isEmpty = query.trim() && results.length === 0 && !loading
+
+  if (viewingRestaurant) {
+    return <RestaurantPage restaurantName={viewingRestaurant} onBack={() => setViewingRestaurant(null)} />
+  }
 
   if (viewingDish) {
     return <DishPage dishName={viewingDish.dishName} restaurantName={viewingDish.restaurantName} onBack={() => setViewingDish(null)} />
@@ -329,7 +337,7 @@ export default function Search() {
             </p>
             <div className={styles.resultsList}>
               {results.map(item => (
-                <ResultCard key={item.id} item={item} onViewProfile={setViewingUser} onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })} />
+                <ResultCard key={item.id} item={item} onViewProfile={setViewingUser} onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })} onViewRestaurant={setViewingRestaurant} />
               ))}
             </div>
           </div>

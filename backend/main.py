@@ -579,3 +579,142 @@ def get_restaurant_dishes(
     rows = cur.fetchall()
     cur.close()
     return [r["dish_name"] for r in rows]
+
+
+# ── Restaurant page endpoint ───────────────────────────────────────────────────
+
+@app.get("/restaurants/{restaurant_name}/page")
+def get_restaurant_page(
+    restaurant_name: str,
+    email: str = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """Full restaurant page: overall stats, dish breakdown, and all reviews."""
+    cur = db.cursor()
+
+    # Overall stats
+    cur.execute("""
+        SELECT
+            restaurant_name,
+            COUNT(*)                                          AS total_reviews,
+            ROUND(AVG(rating)::numeric, 1)                   AS avg_rating,
+            COUNT(DISTINCT dish_name)                        AS total_dishes,
+            MIN(logged_at)                                   AS first_logged,
+            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+        FROM dish_reviews
+        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+        GROUP BY restaurant_name
+    """, (restaurant_name,))
+    stats = cur.fetchone()
+
+    if not stats:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    # Dishes at this restaurant with per-dish stats
+    cur.execute("""
+        SELECT
+            dish_name,
+            COUNT(*)                           AS review_count,
+            ROUND(AVG(rating)::numeric, 1)     AS avg_rating
+        FROM dish_reviews
+        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+        GROUP BY dish_name
+        ORDER BY avg_rating DESC, review_count DESC
+    """, (restaurant_name,))
+    dishes = cur.fetchall()
+
+    # All reviews for this restaurant
+    cur.execute("""
+        SELECT id, user_email, dish_name, rating, review, logged_at
+        FROM dish_reviews
+        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+        ORDER BY logged_at DESC
+    """, (restaurant_name,))
+    reviews = cur.fetchall()
+    cur.close()
+
+    return {
+        "restaurant_name": stats["restaurant_name"],
+        "total_reviews":   stats["total_reviews"],
+        "avg_rating":      float(stats["avg_rating"]),
+        "total_dishes":    stats["total_dishes"],
+        "created_by":      stats["created_by"].split("@")[0],
+        "created_by_email": stats["created_by"],
+        "first_logged":    stats["first_logged"],
+        "dishes": [
+            {
+                "dish_name":    d["dish_name"],
+                "review_count": d["review_count"],
+                "avg_rating":   float(d["avg_rating"]),
+            }
+            for d in dishes
+        ],
+        "reviews": [
+            {
+                "id":         r["id"],
+                "username":   r["user_email"].split("@")[0],
+                "user_email": r["user_email"],
+                "dish_name":  r["dish_name"],
+                "rating":     r["rating"],
+                "review":     r["review"] or "",
+                "logged_at":  r["logged_at"],
+            }
+            for r in reviews
+        ],
+    }
+
+
+# ── Activity feed endpoint ────────────────────────────────────────────────────
+
+@app.get("/feed")
+def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
+    """Returns latest dish reviews from people you follow (accepted friends)."""
+    cur = db.cursor()
+
+    # Get all accepted friends
+    cur.execute("""
+        SELECT
+            CASE WHEN requester_email = %s THEN addressee_email
+                 ELSE requester_email END AS friend_email
+        FROM friendships
+        WHERE (requester_email = %s OR addressee_email = %s)
+          AND status = 'accepted'
+    """, (email, email, email))
+    friends = [r["friend_email"] for r in cur.fetchall()]
+
+    if not friends:
+        cur.close()
+        return []
+
+    cur.execute("""
+        SELECT
+            r.id,
+            r.user_email,
+            r.dish_name,
+            r.type,
+            r.restaurant_name,
+            r.rating,
+            r.review,
+            r.logged_at
+        FROM dish_reviews r
+        WHERE r.user_email = ANY(%s::text[])
+        ORDER BY r.logged_at DESC
+        LIMIT 50
+    """, (friends,))
+    rows = cur.fetchall()
+    cur.close()
+
+    return [
+        {
+            "id":              r["id"],
+            "username":        r["user_email"].split("@")[0],
+            "user_email":      r["user_email"],
+            "dish_name":       r["dish_name"],
+            "type":            r["type"],
+            "restaurant_name": r["restaurant_name"] or "",
+            "rating":          r["rating"],
+            "review":          r["review"] or "",
+            "logged_at":       r["logged_at"],
+        }
+        for r in rows
+    ]
