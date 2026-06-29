@@ -32,12 +32,12 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-function FeedCard({ item, onViewRestaurant, onViewDish }) {
+function FeedCard({ item, onViewRestaurant, onViewDish, onViewUser }) {
   return (
     <div className={styles.card}>
       {/* Left: avatar + timeline line */}
       <div className={styles.avatarCol}>
-        <div className={styles.avatar}>{item.username.charAt(0).toUpperCase()}</div>
+        <button className={styles.avatarBtn} onClick={() => onViewUser && onViewUser(item.user_email)}>{item.username.charAt(0).toUpperCase()}</button>
         <div className={styles.timelineLine} />
       </div>
 
@@ -45,7 +45,7 @@ function FeedCard({ item, onViewRestaurant, onViewDish }) {
       <div className={styles.content}>
         <div className={styles.cardHeader}>
           <div className={styles.meta}>
-            <span className={styles.username}>@{item.username}</span>
+            <button className={styles.usernameBtn} onClick={() => onViewUser && onViewUser(item.user_email)}>@{item.username}</button>
             <span className={styles.dot}>·</span>
             <span className={styles.time}>{timeAgo(item.logged_at)}</span>
           </div>
@@ -82,7 +82,7 @@ function FeedCard({ item, onViewRestaurant, onViewDish }) {
   )
 }
 
-export default function Feed({ onViewDish, onViewRestaurant }) {
+export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -151,6 +151,7 @@ export default function Feed({ onViewDish, onViewRestaurant }) {
               item={item}
               onViewDish={onViewDish}
               onViewRestaurant={onViewRestaurant}
+              onViewUser={onViewUser}
             />
           ))}
         </div>

@@ -1,3 +1,4 @@
+/* ── Shell ── */
 .shell {
   display: flex;
   min-height: 100vh;
@@ -179,7 +180,7 @@
 .main {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 /* ── Mobile ── */
@@ -189,6 +190,16 @@
 
 .overlay {
   display: none;
+}
+
+.menuBtn {
+  background: transparent;
+  border: none;
+  color: #8b8fa8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
 }
 
 @media (max-width: 768px) {
@@ -223,16 +234,6 @@
     z-index: 50;
   }
 
-  .menuBtn {
-    background: transparent;
-    border: none;
-    color: #8b8fa8;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-  }
-
   .overlay {
     display: block;
     position: fixed;
@@ -240,4 +241,13 @@
     background: rgba(0, 0, 0, 0.5);
     z-index: 90;
   }
+}
+
+/* ── Full-screen overlay for dish / restaurant / user pages ── */
+.overlayPage {
+  position: fixed;
+  inset: 0;
+  background: #0F1117;
+  overflow-y: auto;
+  z-index: 200;
 }

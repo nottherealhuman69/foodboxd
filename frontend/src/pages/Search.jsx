@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Search.module.css'
-import UserProfile from './UserProfile'
-import DishPage from './DishPage'
-import RestaurantPage from './RestaurantPage'
 
 // ─── Fuzzy match ─────────────────────────────────────────────────────────────
 function fuzzyScore(needle, haystack) {
@@ -146,15 +143,13 @@ function ResultCard({ item, onRequestSent, onViewProfile, onViewDish, onViewRest
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function Search() {
+export default function Search({ onViewDish, onViewRestaurant, onViewUser }) {
   const [query,     setQuery]     = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [reviews,   setReviews]   = useState([])
   const [users,     setUsers]     = useState([])
   const [loading,   setLoading]   = useState(true)
-  const [viewingUser, setViewingUser] = useState(null)
-  const [viewingDish, setViewingDish] = useState(null) // { dishName, restaurantName }
-  const [viewingRestaurant, setViewingRestaurant] = useState(null)
+
   const [error,     setError]     = useState('')
   const inputRef = useRef(null)
 
@@ -238,18 +233,6 @@ export default function Search() {
   }
 
   const isEmpty = query.trim() && results.length === 0 && !loading
-
-  if (viewingRestaurant) {
-    return <RestaurantPage restaurantName={viewingRestaurant} onBack={() => setViewingRestaurant(null)} />
-  }
-
-  if (viewingDish) {
-    return <DishPage dishName={viewingDish.dishName} restaurantName={viewingDish.restaurantName} onBack={() => setViewingDish(null)} />
-  }
-
-  if (viewingUser) {
-    return <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} />
-  }
 
   return (
     <div className={styles.page}>
@@ -337,7 +320,7 @@ export default function Search() {
             </p>
             <div className={styles.resultsList}>
               {results.map(item => (
-                <ResultCard key={item.id} item={item} onViewProfile={setViewingUser} onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })} onViewRestaurant={setViewingRestaurant} />
+                <ResultCard key={item.id} item={item} onViewProfile={onViewUser} onViewDish={(d, r) => onViewDish && onViewDish(d, r)} onViewRestaurant={onViewRestaurant} />
               ))}
             </div>
           </div>

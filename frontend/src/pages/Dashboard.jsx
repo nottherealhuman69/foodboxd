@@ -6,6 +6,9 @@ import Reviews from './Reviews'
 import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
+import DishPage from './DishPage'
+import RestaurantPage from './RestaurantPage'
+import UserProfile from './UserProfile'
 import styles from './Dashboard.module.css'
 
 const NAV = [
@@ -41,6 +44,9 @@ export default function Dashboard() {
   const [loading,     setLoading]     = useState(true)
   const [fetchError,  setFetchError]  = useState('')
   const [notifCount,  setNotifCount]  = useState(0)
+  const [viewingDish,       setViewingDish]       = useState(null) // { dishName, restaurantName }
+  const [viewingRestaurant, setViewingRestaurant] = useState(null)
+  const [viewingUser,       setViewingUser]       = useState(null)
 
   const token = localStorage.getItem('token')
   const authHeaders = {
@@ -106,6 +112,33 @@ export default function Dashboard() {
 
   return (
     <div className={styles.shell}>
+      {/* Dish / Restaurant / User overlays */}
+      {viewingDish && (
+        <div className={styles.overlayPage}>
+          <DishPage
+            dishName={viewingDish.dishName}
+            restaurantName={viewingDish.restaurantName}
+            onBack={() => setViewingDish(null)}
+          />
+        </div>
+      )}
+      {viewingRestaurant && !viewingDish && (
+        <div className={styles.overlayPage}>
+          <RestaurantPage
+            restaurantName={viewingRestaurant}
+            onBack={() => setViewingRestaurant(null)}
+          />
+        </div>
+      )}
+      {viewingUser && !viewingDish && !viewingRestaurant && (
+        <div className={styles.overlayPage}>
+          <UserProfile
+            userEmail={viewingUser}
+            onBack={() => setViewingUser(null)}
+          />
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.brand}>
@@ -162,7 +195,11 @@ export default function Dashboard() {
           <Profile entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} />
         )}
         {active === 'feed' && (
-          <Feed />
+          <Feed
+            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewRestaurant={setViewingRestaurant}
+            onViewUser={setViewingUser}
+          />
         )}
         {active === 'reviews' && (
           <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} />
@@ -171,7 +208,11 @@ export default function Dashboard() {
           <CreateReview onSave={handleSave} />
         )}
         {active === 'search' && (
-          <Search />
+          <Search
+            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewRestaurant={setViewingRestaurant}
+            onViewUser={setViewingUser}
+          />
         )}
         {active === 'notifs' && (
           <Notifications onBadgeChange={setNotifCount} />

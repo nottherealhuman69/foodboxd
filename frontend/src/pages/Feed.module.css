@@ -241,3 +241,35 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.avatarBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366F1, #818cf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  z-index: 1;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.avatarBtn:hover { opacity: 0.85; transform: scale(1.05); }
+
+.usernameBtn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9f0;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.usernameBtn:hover { color: #a5b4fc; }
