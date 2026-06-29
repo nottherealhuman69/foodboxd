@@ -6,7 +6,7 @@ export default function AuthCard({ children }) {
       <div className={styles.card}>
         <div className={styles.logo}>
           <span className={styles.logoDot} />
-          <span className={styles.logoText}>myapp</span>
+          <span className={styles.logoText}>dishlog</span>
         </div>
         {children}
       </div>

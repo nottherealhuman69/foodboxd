@@ -1,25 +1,24 @@
 import { useState, useEffect } from 'react'
-import styles from './DishPage.module.css'
+import { apiFetch } from '../hooks/useApi'
+import { StarRating } from '../components/StarRating'
+import { RATING_LABELS } from '../utils/reviews'
+import PageState from '../components/PageState'
 import TrylistButton from './TrylistButton'
-
-const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
+import shared from '../components/shared.module.css'
+import styles from './DishPage.module.css'
 
 export default function DishPage({ dishName, restaurantName, onBack }) {
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
 
-  const token = localStorage.getItem('token')
-  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   useEffect(() => {
     async function load() {
       setLoading(true)
       setError('')
       try {
-        const res = await fetch(
-          `/api/dishes/${encodeURIComponent(dishName)}/restaurant/${encodeURIComponent(restaurantName)}`,
-          { headers: authHeaders }
+        const res = await apiFetch(
+          `/api/dishes/${encodeURIComponent(dishName)}/restaurant/${encodeURIComponent(restaurantName)}`
         )
         if (!res.ok) throw new Error()
         setDish(await res.json())
@@ -34,30 +33,17 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
 
   return (
     <div className={styles.page}>
-      <button className={styles.backBtn} onClick={onBack}>
+      <button className={shared.backBtn} onClick={onBack}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         Back to search
       </button>
 
-      {loading && (
-        <div className={styles.state}>
-          <div className={styles.spinner} />
-          <p>Loading…</p>
-        </div>
-      )}
-
-      {error && !loading && (
-        <div className={styles.state}>
-          <div className={styles.stateIcon}>⚠️</div>
-          <p>{error}</p>
-        </div>
-      )}
+      <PageState loading={loading} error={error} />
 
       {!loading && !error && dish && (
         <>
-          {/* Hero */}
           <div className={styles.hero}>
             <div className={styles.dishIcon}>🍽️</div>
             <div className={styles.heroBody}>
@@ -70,21 +56,15 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
                 </svg>
                 <span className={styles.restaurantName}>{dish.restaurant_name}</span>
               </div>
-              {/* ── Trylist button ── */}
               <div style={{ marginTop: 12 }}>
-                <TrylistButton
-                  itemType="dish"
-                  dishName={dish.dish_name}
-                  restaurantName={dish.restaurant_name}
-                />
+                <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
               </div>
             </div>
           </div>
 
-          {/* Stats strip */}
           <div className={styles.statsStrip}>
             <div className={styles.statItem}>
-              <BigStars rating={dish.avg_rating} />
+              <StarRating rating={dish.avg_rating} size={20} />
               <span className={styles.avgRating}>{dish.avg_rating.toFixed(1)}</span>
               <span className={styles.statLabel}>avg rating</span>
             </div>
@@ -100,13 +80,10 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
             </div>
           </div>
 
-          {/* Reviews */}
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>All reviews</h3>
+            <h3 className={shared.sectionTitle}>All reviews</h3>
             <div className={styles.reviewList}>
-              {dish.reviews.map(r => (
-                <ReviewCard key={r.id} review={r} />
-              ))}
+              {dish.reviews.map(r => <ReviewCard key={r.id} review={r} />)}
             </div>
           </div>
         </>
@@ -117,7 +94,7 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
 
 function ReviewCard({ review }) {
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric'
+    day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
     <div className={styles.card}>
@@ -128,49 +105,10 @@ function ReviewCard({ review }) {
           <span className={styles.cardDate}>{date}</span>
         </div>
         <div className={styles.cardRating}>
-          <SmallStars rating={review.rating} />
-          <span className={styles.cardRatingLabel}>{RATING_LABELS[review.rating]}</span>
+          <StarRating rating={review.rating} showLabel />
         </div>
       </div>
-      {review.review && (
-        <p className={styles.cardReview}>{review.review}</p>
-      )}
+      {review.review && <p className={styles.cardReview}>{review.review}</p>}
     </div>
-  )
-}
-
-function BigStars({ rating }) {
-  return (
-    <span className={styles.bigStars}>
-      {[1,2,3,4,5].map(n => (
-        <svg key={n} width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-            fill={n <= Math.round(rating) ? '#6366F1' : 'transparent'}
-            stroke={n <= Math.round(rating) ? '#6366F1' : '#2d3155'}
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ))}
-    </span>
-  )
-}
-
-function SmallStars({ rating }) {
-  return (
-    <span className={styles.smallStars}>
-      {[1,2,3,4,5].map(n => (
-        <svg key={n} width="13" height="13" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-            fill={n <= rating ? '#6366F1' : 'transparent'}
-            stroke={n <= rating ? '#6366F1' : '#2d3155'}
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ))}
-    </span>
   )
 }

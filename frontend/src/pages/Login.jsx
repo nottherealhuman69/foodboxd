@@ -5,8 +5,8 @@ import styles from './Auth.module.css'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', password: '' })
-  const [error, setError] = useState('')
+  const [form,    setForm]    = useState({ email: '', password: '' })
+  const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
@@ -18,7 +18,6 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -26,12 +25,7 @@ export default function Login() {
         body: JSON.stringify(form),
       })
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.detail || 'Login failed')
-        return
-      }
-
+      if (!res.ok) { setError(data.detail || 'Login failed'); return }
       localStorage.setItem('token', data.token)
       localStorage.setItem('email', data.email)
       navigate('/dashboard')
@@ -50,36 +44,17 @@ export default function Login() {
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder="you@example.com"
-            value={form.email}
-            onChange={handleChange}
-            className={styles.input}
-          />
+          <input id="email" name="email" type="email" autoComplete="email" required
+            placeholder="you@example.com" value={form.email}
+            onChange={handleChange} className={styles.input} />
         </div>
-
         <div className={styles.field}>
           <label className={styles.label} htmlFor="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            placeholder="••••••••"
-            value={form.password}
-            onChange={handleChange}
-            className={styles.input}
-          />
+          <input id="password" name="password" type="password" autoComplete="current-password" required
+            placeholder="••••••••" value={form.password}
+            onChange={handleChange} className={styles.input} />
         </div>
-
         {error && <p className={styles.error}>{error}</p>}
-
         <button type="submit" disabled={loading} className={styles.primaryBtn}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>

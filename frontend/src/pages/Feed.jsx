@@ -1,24 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useFetch } from '../hooks/useApi'
+import { StarRating } from '../components/StarRating'
+import PageState from '../components/PageState'
+import { usernameFrom } from '../utils/reviews'
+import shared from '../components/shared.module.css'
 import styles from './Feed.module.css'
-
-const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
-
-function Stars({ rating }) {
-  return (
-    <span className={styles.stars}>
-      {[1,2,3,4,5].map(n => (
-        <svg key={n} width="13" height="13" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-            fill={n <= rating ? '#6366F1' : 'transparent'}
-            stroke={n <= rating ? '#6366F1' : '#2d3155'}
-            strokeWidth="1.5" strokeLinejoin="round"
-          />
-        </svg>
-      ))}
-    </span>
-  )
-}
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -32,109 +18,8 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-// Derive a display username safely from whatever the API gives us
-function toUsername(item) {
-  if (item.username) return item.username
-  if (item.user_email) return item.user_email.split('@')[0]
-  return '?'
-}
-
-function FeedCard({ item, onViewRestaurant, onViewDish, onViewUser }) {
-  const username = toUsername(item)
-  return (
-    <div className={styles.card}>
-      {/* Left: avatar + timeline line */}
-      <div className={styles.avatarCol}>
-        <button
-          className={styles.avatarBtn}
-          onClick={() => onViewUser && onViewUser(item.user_email)}
-        >
-          {username.charAt(0).toUpperCase()}
-        </button>
-        <div className={styles.timelineLine} />
-      </div>
-
-      {/* Right: content */}
-      <div className={styles.content}>
-        <div className={styles.cardHeader}>
-          <div className={styles.meta}>
-            <button
-              className={styles.usernameBtn}
-              onClick={() => onViewUser && onViewUser(item.user_email)}
-            >
-              @{username}
-            </button>
-            <span className={styles.dot}>·</span>
-            <span className={styles.time}>{timeAgo(item.logged_at)}</span>
-          </div>
-          <span className={styles.typePill} data-type={item.type}>
-            {item.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
-          </span>
-        </div>
-
-        <div className={styles.dishRow}>
-          <button
-            className={styles.dishName}
-            onClick={() =>
-              item.restaurant_name &&
-              onViewDish &&
-              onViewDish(item.dish_name, item.restaurant_name)
-            }
-            disabled={!item.restaurant_name}
-          >
-            {item.dish_name}
-          </button>
-          {item.restaurant_name && (
-            <button
-              className={styles.restaurantLink}
-              onClick={() => onViewRestaurant && onViewRestaurant(item.restaurant_name)}
-            >
-              at {item.restaurant_name}
-            </button>
-          )}
-        </div>
-
-        <div className={styles.ratingRow}>
-          <Stars rating={item.rating} />
-          <span className={styles.ratingLabel}>{RATING_LABELS[item.rating]}</span>
-        </div>
-
-        {item.review && (
-          <p className={styles.reviewText}>{item.review}</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
-  const [items,   setItems]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState('')
-
-  const token = localStorage.getItem('token')
-  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/feed', { headers: authHeaders })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      // Normalise: ensure every item has a username field
-      setItems(data.map(item => ({
-        ...item,
-        username: item.username || (item.user_email ? item.user_email.split('@')[0] : '?'),
-      })))
-    } catch {
-      setError('Could not load your feed.')
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => { load() }, [load])
+  const { data: items, loading, error } = useFetch('/api/feed')
 
   return (
     <div className={styles.page}>
@@ -143,37 +28,15 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
         <p className={styles.sub}>Latest dishes from people you follow</p>
       </div>
 
-      {loading && (
-        <div className={styles.state}>
-          <div className={styles.spinner} />
-          <p>Loading feed…</p>
-        </div>
-      )}
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && (!items || items.length === 0)}
+        emptyTitle="Nothing here yet"
+        emptyHint="Follow people from the Search page to see their dishes here"
+      />
 
-      {error && !loading && (
-        <div className={styles.state}>
-          <div className={styles.stateIcon}>⚠️</div>
-          <p>{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && items.length === 0 && (
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#4e5272" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="9" cy="7" r="4" stroke="#4e5272" strokeWidth="1.5"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="#4e5272" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <p className={styles.emptyTitle}>Nothing here yet</p>
-          <p className={styles.emptyHint}>
-            Follow people from the Search page to see their dishes here
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && items.length > 0 && (
+      {!loading && !error && items?.length > 0 && (
         <div className={styles.feed}>
           {items.map(item => (
             <FeedCard
@@ -186,6 +49,52 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
+  const username = usernameFrom(item.username || item.user_email)
+  return (
+    <div className={styles.card}>
+      <div className={styles.avatarCol}>
+        <button className={styles.avatarBtn} onClick={() => onViewUser?.(item.user_email)}>
+          {username.charAt(0).toUpperCase()}
+        </button>
+        <div className={styles.timelineLine} />
+      </div>
+      <div className={styles.content}>
+        <div className={styles.cardHeader}>
+          <div className={styles.meta}>
+            <button className={styles.usernameBtn} onClick={() => onViewUser?.(item.user_email)}>
+              @{username}
+            </button>
+            <span className={styles.dot}>·</span>
+            <span className={styles.time}>{timeAgo(item.logged_at)}</span>
+          </div>
+          <span className={shared.typePill} data-type={item.type}>
+            {item.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
+          </span>
+        </div>
+        <div className={styles.dishRow}>
+          <button
+            className={styles.dishName}
+            onClick={() => item.restaurant_name && onViewDish?.(item.dish_name, item.restaurant_name)}
+            disabled={!item.restaurant_name}
+          >
+            {item.dish_name}
+          </button>
+          {item.restaurant_name && (
+            <button className={styles.restaurantLink} onClick={() => onViewRestaurant?.(item.restaurant_name)}>
+              at {item.restaurant_name}
+            </button>
+          )}
+        </div>
+        <div className={styles.ratingRow}>
+          <StarRating rating={item.rating} showLabel />
+        </div>
+        {item.review && <p className={styles.reviewText}>{item.review}</p>}
+      </div>
     </div>
   )
 }

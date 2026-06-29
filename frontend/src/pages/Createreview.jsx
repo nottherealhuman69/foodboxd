@@ -1,20 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
+import { apiFetch } from '../hooks/useApi'
+import { StarPicker } from '../components/StarRating'
+import { RATING_LABELS } from '../utils/reviews'
 import styles from './CreateReview.module.css'
 
 const MAX_REVIEW_CHARS = 1000
-const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
-// ── Searchable dropdown ───────────────────────────────────────────────────────
-function SearchDropdown({ id, label, placeholder, options, value, onChange, disabled }) {
-  const [query,  setQuery]  = useState(value || '')
-  const [open,   setOpen]   = useState(false)
+function SearchDropdown({ id, placeholder, options, value, onChange, disabled }) {
+  const [query,   setQuery]   = useState(value || '')
+  const [open,    setOpen]    = useState(false)
   const [focused, setFocused] = useState(false)
   const ref = useRef(null)
 
-  // Sync external value changes (e.g. reset)
   useEffect(() => { setQuery(value || '') }, [value])
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', handler)
@@ -22,18 +21,8 @@ function SearchDropdown({ id, label, placeholder, options, value, onChange, disa
   }, [])
 
   const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()))
-
-  const select = (val) => {
-    setQuery(val)
-    onChange(val)
-    setOpen(false)
-  }
-
-  const handleInput = (e) => {
-    setQuery(e.target.value)
-    onChange('')   // clear selection until they pick from list
-    setOpen(true)
-  }
+  const select = (val) => { setQuery(val); onChange(val); setOpen(false) }
+  const handleInput = (e) => { setQuery(e.target.value); onChange(''); setOpen(true) }
 
   return (
     <div className={styles.dropdownWrap} ref={ref}>
@@ -56,87 +45,61 @@ function SearchDropdown({ id, label, placeholder, options, value, onChange, disa
           </svg>
         </span>
       </div>
-
       {open && !disabled && (
         <div className={styles.dropdownList}>
-          {filtered.length === 0 ? (
-            <div className={styles.dropdownEmpty}>No matches — use "Add new" below</div>
-          ) : (
-            filtered.map(opt => (
-              <button
-                key={opt}
-                type="button"
-                className={`${styles.dropdownItem} ${opt === value ? styles.dropdownItemActive : ''}`}
-                onMouseDown={() => select(opt)}
-              >
-                {opt}
-                {opt === value && <span className={styles.checkmark}>✓</span>}
-              </button>
-            ))
-          )}
+          {filtered.length === 0
+            ? <div className={styles.dropdownEmpty}>No matches — use "Add new" below</div>
+            : filtered.map(opt => (
+                <button
+                  key={opt}
+                  type="button"
+                  className={`${styles.dropdownItem} ${opt === value ? styles.dropdownItemActive : ''}`}
+                  onMouseDown={() => select(opt)}
+                >
+                  {opt}
+                  {opt === value && <span className={styles.checkmark}>✓</span>}
+                </button>
+              ))
+          }
         </div>
       )}
     </div>
   )
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
 export default function CreateReview({ onSave }) {
   const [form, setForm] = useState({
-    type:           'restaurant',
-    restaurantName: '',
-    dishName:       '',
-    recipe:         '',
-    rating:         0,
-    hoverRating:    0,
-    review:         '',
+    type: 'restaurant', restaurantName: '', dishName: '',
+    recipe: '', rating: 0, hoverRating: 0, review: '',
   })
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
-  const [saving,    setSaving]    = useState(false)
-  const [saveError, setSaveError] = useState('')
-
-  // Catalog data
-  const [restaurants,   setRestaurants]   = useState([])
-  const [dishes,        setDishes]        = useState([])
+  const [saving,         setSaving]         = useState(false)
+  const [saveError,      setSaveError]      = useState('')
+  const [restaurants,    setRestaurants]    = useState([])
+  const [dishes,         setDishes]         = useState([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
+  const [newRestaurant,  setNewRestaurant]  = useState(false)
+  const [newDish,        setNewDish]        = useState(false)
 
-  // "Add new" toggles
-  const [newRestaurant, setNewRestaurant] = useState(false)
-  const [newDish,       setNewDish]       = useState(false)
-
-  const token = localStorage.getItem('token')
-  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
-  // Load restaurants on mount
   useEffect(() => {
-    async function load() {
-      setLoadingCatalog(true)
-      try {
-        const res = await fetch('/api/restaurants', { headers: authHeaders })
-        if (res.ok) setRestaurants(await res.json())
-      } catch {}
-      finally { setLoadingCatalog(false) }
-    }
-    if (form.type === 'restaurant') load()
-  }, [form.type, token])
+    if (form.type !== 'restaurant') return
+    setLoadingCatalog(true)
+    apiFetch('/api/restaurants')
+      .then(r => r.ok ? r.json() : [])
+      .then(setRestaurants)
+      .catch(() => {})
+      .finally(() => setLoadingCatalog(false))
+  }, [form.type])
 
-  // Load dishes when restaurant is selected
   useEffect(() => {
     if (!form.restaurantName || newRestaurant) { setDishes([]); return }
-    async function load() {
-      try {
-        const res = await fetch(
-          `/api/restaurants/${encodeURIComponent(form.restaurantName)}/dishes`,
-          { headers: authHeaders }
-        )
-        if (res.ok) setDishes(await res.json())
-      } catch {}
-    }
-    load()
-  }, [form.restaurantName, newRestaurant, token])
+    apiFetch(`/api/restaurants/${encodeURIComponent(form.restaurantName)}/dishes`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setDishes)
+      .catch(() => {})
+  }, [form.restaurantName, newRestaurant])
 
-  // When switching to "add new restaurant", clear dish too
   const toggleNewRestaurant = () => {
     setNewRestaurant(v => !v)
     setNewDish(false)
@@ -145,13 +108,8 @@ export default function CreateReview({ onSave }) {
     setDishes([])
   }
 
-  // When switching to "add new dish"
-  const toggleNewDish = () => {
-    setNewDish(v => !v)
-    set('dishName', '')
-  }
+  const toggleNewDish = () => { setNewDish(v => !v); set('dishName', '') }
 
-  // When restaurant changes via dropdown, reset dish
   const handleRestaurantChange = (val) => {
     set('restaurantName', val)
     set('dishName', '')
@@ -165,12 +123,9 @@ export default function CreateReview({ onSave }) {
     setSaveError('')
     try {
       await onSave({
-        dishName:       form.dishName,
-        type:           form.type,
-        restaurantName: form.restaurantName,
-        recipe:         form.recipe,
-        rating:         form.rating,
-        review:         form.review,
+        dishName: form.dishName, type: form.type,
+        restaurantName: form.restaurantName, recipe: form.recipe,
+        rating: form.rating, review: form.review,
       })
       handleReset()
     } catch (err) {
@@ -187,9 +142,9 @@ export default function CreateReview({ onSave }) {
     setDishes([])
   }
 
-  const charsLeft = MAX_REVIEW_CHARS - form.review.length
+  const charsLeft          = MAX_REVIEW_CHARS - form.review.length
   const restaurantSelected = !!form.restaurantName.trim()
-  const dishDisabled = form.type === 'restaurant' && !restaurantSelected && !newDish
+  const dishDisabled       = form.type === 'restaurant' && !restaurantSelected && !newDish
 
   return (
     <div className={styles.page}>
@@ -228,7 +183,7 @@ export default function CreateReview({ onSave }) {
           </div>
         </div>
 
-        {/* 2. Restaurant section */}
+        {/* 2. Restaurant */}
         {form.type === 'restaurant' && (
           <div className={styles.field}>
             <div className={styles.labelRow}>
@@ -237,31 +192,19 @@ export default function CreateReview({ onSave }) {
                 {newRestaurant ? '← Pick existing' : '+ Add new restaurant'}
               </button>
             </div>
-
-            {newRestaurant ? (
-              <input
-                id="restaurantName"
-                className={styles.input}
-                type="text"
-                placeholder="Type the restaurant name…"
-                value={form.restaurantName}
-                onChange={e => set('restaurantName', e.target.value)}
-                autoFocus
-              />
-            ) : (
-              <SearchDropdown
-                id="restaurantName"
-                placeholder={loadingCatalog ? 'Loading…' : 'Search restaurants…'}
-                options={restaurants}
-                value={form.restaurantName}
-                onChange={handleRestaurantChange}
-                disabled={loadingCatalog}
-              />
-            )}
+            {newRestaurant
+              ? <input id="restaurantName" className={styles.input} type="text"
+                  placeholder="Type the restaurant name…" value={form.restaurantName}
+                  onChange={e => set('restaurantName', e.target.value)} autoFocus />
+              : <SearchDropdown id="restaurantName"
+                  placeholder={loadingCatalog ? 'Loading…' : 'Search restaurants…'}
+                  options={restaurants} value={form.restaurantName}
+                  onChange={handleRestaurantChange} disabled={loadingCatalog} />
+            }
           </div>
         )}
 
-        {/* 3. Dish name section */}
+        {/* 3. Dish name */}
         <div className={styles.field}>
           <div className={styles.labelRow}>
             <label className={styles.label} htmlFor="dishName">
@@ -273,33 +216,19 @@ export default function CreateReview({ onSave }) {
               </button>
             )}
           </div>
-
-          {form.type === 'homemade' || newDish || newRestaurant ? (
-            <input
-              id="dishName"
-              className={styles.input}
-              type="text"
-              placeholder="e.g. Chicken Biryani, Masala Dosa…"
-              value={form.dishName}
-              onChange={e => set('dishName', e.target.value)}
-              required
-            />
-          ) : (
-            <SearchDropdown
-              id="dishName"
-              placeholder={
-                dishDisabled
-                  ? 'Select a restaurant first'
-                  : dishes.length === 0 && restaurantSelected
-                  ? 'No dishes yet — use "+ Add new dish"'
+          {form.type === 'homemade' || newDish || newRestaurant
+            ? <input id="dishName" className={styles.input} type="text"
+                placeholder="e.g. Chicken Biryani, Masala Dosa…" value={form.dishName}
+                onChange={e => set('dishName', e.target.value)} required />
+            : <SearchDropdown id="dishName"
+                placeholder={
+                  dishDisabled ? 'Select a restaurant first'
+                  : dishes.length === 0 && restaurantSelected ? 'No dishes yet — use "+ Add new dish"'
                   : 'Search dishes…'
-              }
-              options={dishes}
-              value={form.dishName}
-              onChange={(val) => set('dishName', val)}
-              disabled={dishDisabled}
-            />
-          )}
+                }
+                options={dishes} value={form.dishName}
+                onChange={val => set('dishName', val)} disabled={dishDisabled} />
+          }
         </div>
 
         {/* 4. Recipe (homemade only) */}
@@ -308,18 +237,13 @@ export default function CreateReview({ onSave }) {
             <label className={styles.label} htmlFor="recipe">
               Recipe <span className={styles.labelHint}>optional</span>
             </label>
-            <textarea
-              id="recipe"
-              className={`${styles.input} ${styles.textarea}`}
+            <textarea id="recipe" className={`${styles.input} ${styles.textarea}`}
               placeholder="Share ingredients, steps, or a link to the recipe…"
-              rows={4}
-              value={form.recipe}
-              onChange={e => set('recipe', e.target.value)}
-            />
+              rows={4} value={form.recipe} onChange={e => set('recipe', e.target.value)} />
           </div>
         )}
 
-        {/* 5. Photo */}
+        {/* 5. Photo placeholder */}
         <div className={styles.field}>
           <label className={styles.label}>Photo <span className={styles.labelHint}>optional</span></label>
           <button type="button" className={styles.photoBtn} disabled>
@@ -336,16 +260,14 @@ export default function CreateReview({ onSave }) {
         <div className={styles.field}>
           <label className={styles.label}>Rating <span className={styles.required}>*</span></label>
           <div className={styles.starsRow}>
-            {[1,2,3,4,5].map(n => (
-              <button key={n} type="button" className={styles.starBtn}
-                onMouseEnter={() => set('hoverRating', n)}
-                onMouseLeave={() => set('hoverRating', 0)}
-                onClick={() => set('rating', n)}
-                aria-label={`${n} star${n > 1 ? 's' : ''}`}
-              >
-                <StarIcon filled={(form.hoverRating || form.rating) >= n} />
-              </button>
-            ))}
+            <StarPicker
+              value={form.rating}
+              hoverValue={form.hoverRating}
+              onHover={n => set('hoverRating', n)}
+              onLeave={() => set('hoverRating', 0)}
+              onChange={n => set('rating', n)}
+              size={28}
+            />
             {form.rating > 0 && (
               <span className={styles.ratingLabel}>{RATING_LABELS[form.rating]}</span>
             )}
@@ -362,22 +284,17 @@ export default function CreateReview({ onSave }) {
               {charsLeft}
             </span>
           </div>
-          <textarea
-            id="review"
-            className={`${styles.input} ${styles.textarea} ${styles.reviewArea}`}
+          <textarea id="review" className={`${styles.input} ${styles.textarea} ${styles.reviewArea}`}
             placeholder="What made it special? How was the texture, flavour, presentation…"
-            rows={5}
-            maxLength={MAX_REVIEW_CHARS}
-            value={form.review}
-            onChange={e => set('review', e.target.value)}
-          />
+            rows={5} maxLength={MAX_REVIEW_CHARS}
+            value={form.review} onChange={e => set('review', e.target.value)} />
         </div>
 
         {saveError && <p className={styles.saveError}>{saveError}</p>}
+
         <div className={styles.actions}>
           <button type="submit" className={styles.primaryBtn}
-            disabled={!form.dishName.trim() || form.rating === 0 || saving}
-          >
+            disabled={!form.dishName.trim() || form.rating === 0 || saving}>
             {saving ? 'Saving…' : 'Save to diary'}
           </button>
           {(form.dishName || form.rating || form.review) && (
@@ -387,18 +304,5 @@ export default function CreateReview({ onSave }) {
 
       </form>
     </div>
-  )
-}
-
-function StarIcon({ filled }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-        fill={filled ? '#6366F1' : 'transparent'}
-        stroke={filled ? '#6366F1' : '#2d3155'}
-        strokeWidth="1.5" strokeLinejoin="round"
-      />
-    </svg>
   )
 }

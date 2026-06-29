@@ -10,8 +10,9 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-#foodboxd
-load_dotenv()
+from utils import with_cursor, serialise_review, username_from
+
+load_dotenv(override=True)
 
 app = FastAPI(title="Dishlog API")
 
@@ -23,12 +24,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
-
+security  = HTTPBearer()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
-DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/authdb")
+ALGORITHM  = "HS256"
+DB_URL     = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/authdb")
 
+
+# ── DB connection ─────────────────────────────────────────────────────────────
 
 def get_db():
     conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
@@ -38,90 +40,61 @@ def get_db():
         conn.close()
 
 
+# ── Table setup ───────────────────────────────────────────────────────────────
+
 def create_tables():
     conn = psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
-    cur = conn.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            hashed_password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS dish_reviews (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-            dish_name VARCHAR(255) NOT NULL,
-            type VARCHAR(20) NOT NULL CHECK (type IN ('restaurant', 'homemade')),
-            restaurant_name VARCHAR(255),
-            recipe TEXT,
-            rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-            review TEXT,
-            logged_at TIMESTAMP DEFAULT NOW()
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS friendships (
-            id SERIAL PRIMARY KEY,
-            requester_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-            addressee_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-            status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE (requester_email, addressee_email)
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS trylists (
-            id               SERIAL PRIMARY KEY,
-            user_email       VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-            item_type        VARCHAR(20)  NOT NULL CHECK (item_type IN ('dish', 'restaurant')),
-            dish_name        VARCHAR(255),
-            restaurant_name  VARCHAR(255),
-            added_at         TIMESTAMP DEFAULT NOW(),
-            UNIQUE (user_email, item_type, dish_name, restaurant_name)
-        )
-    """)
-
-    # ── Lists tables ──────────────────────────────────────────────────────────
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_lists (
-            id          SERIAL PRIMARY KEY,
-            user_email  VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-            name        VARCHAR(255) NOT NULL,
-            is_public   BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at  TIMESTAMP DEFAULT NOW(),
-            updated_at  TIMESTAMP DEFAULT NOW()
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS list_items (
-            id              SERIAL PRIMARY KEY,
-            list_id         INTEGER NOT NULL REFERENCES user_lists(id) ON DELETE CASCADE,
-            item_type       VARCHAR(20) NOT NULL CHECK (item_type IN ('dish', 'restaurant', 'recipe')),
-            name            VARCHAR(255) NOT NULL,
-            restaurant_name VARCHAR(255),
-            note            TEXT,
-            added_at        TIMESTAMP DEFAULT NOW()
-        )
-    """)
-
-    conn.commit()
-    cur.close()
+    with with_cursor(conn) as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                hashed_password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS dish_reviews (
+                id SERIAL PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                dish_name VARCHAR(255) NOT NULL,
+                type VARCHAR(20) NOT NULL CHECK (type IN ('restaurant', 'homemade')),
+                restaurant_name VARCHAR(255),
+                recipe TEXT,
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                review TEXT,
+                logged_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS friendships (
+                id SERIAL PRIMARY KEY,
+                requester_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                addressee_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (requester_email, addressee_email)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS trylists (
+                id               SERIAL PRIMARY KEY,
+                user_email       VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                item_type        VARCHAR(20)  NOT NULL CHECK (item_type IN ('dish', 'restaurant')),
+                dish_name        VARCHAR(255),
+                restaurant_name  VARCHAR(255),
+                added_at         TIMESTAMP DEFAULT NOW(),
+                UNIQUE (user_email, item_type, dish_name, restaurant_name)
+            )
+        """)
+        conn.commit()
     conn.close()
-
 
 create_tables()
 
 
-# ── Models ────────────────────────────────────────────────────────────────────
+# ── Pydantic models ───────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
     email: EmailStr
@@ -153,7 +126,7 @@ class FriendRequestBody(BaseModel):
     addressee_email: EmailStr
 
 class FriendActionBody(BaseModel):
-    action: str  # 'accept' | 'decline'
+    action: str
 
 class FriendRequestOut(BaseModel):
     id: int
@@ -162,32 +135,16 @@ class FriendRequestOut(BaseModel):
     status: str
     created_at: datetime
 
-class UserSearchOut(BaseModel):
-    email: str
-    username: str
-    review_count: int
-    friendship_status: Optional[str] = None
-
 class TrylistAdd(BaseModel):
-    item_type: str                    # 'dish' | 'restaurant'
+    item_type: str
     dish_name: Optional[str] = None
     restaurant_name: Optional[str] = None
 
-class ListCreate(BaseModel):
-    name: str
-    is_public: bool = True
 
-class ListItemCreate(BaseModel):
-    item_type: str                    # 'dish' | 'restaurant' | 'recipe'
-    name: str
-    restaurant_name: Optional[str] = None
-    note: Optional[str] = None
+# ── Auth helpers ──────────────────────────────────────────────────────────────
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+def hash_password(p: str) -> str:
+    return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
@@ -210,26 +167,25 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 @app.post("/signup", status_code=201)
 def signup(body: SignupRequest, db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM users WHERE email = %s", (body.email,))
-    if cur.fetchone():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    hashed = hash_password(body.password)
-    cur.execute("INSERT INTO users (email, hashed_password) VALUES (%s, %s)", (body.email, hashed))
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (body.email,))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="Email already registered")
+        cur.execute(
+            "INSERT INTO users (email, hashed_password) VALUES (%s, %s)",
+            (body.email, hash_password(body.password))
+        )
+        db.commit()
     return {"message": "Account created. Please log in."}
 
 @app.post("/login")
 def login(body: LoginRequest, db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT * FROM users WHERE email = %s", (body.email,))
-    user = cur.fetchone()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT * FROM users WHERE email = %s", (body.email,))
+        user = cur.fetchone()
     if not user or not verify_password(body.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_token(body.email)
-    return {"token": token, "email": body.email}
+    return {"token": create_token(body.email), "email": body.email}
 
 @app.get("/me")
 def me(email: str = Depends(get_current_user)):
@@ -244,508 +200,342 @@ def create_review(body: ReviewCreate, email: str = Depends(get_current_user), db
         raise HTTPException(status_code=400, detail="type must be 'restaurant' or 'homemade'")
     if not 1 <= body.rating <= 5:
         raise HTTPException(status_code=400, detail="rating must be between 1 and 5")
-    cur = db.cursor()
-    cur.execute(
-        """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, rating, review)
-           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
-        (email, body.dish_name.strip(), body.type,
-         body.restaurant_name.strip() if body.restaurant_name else None,
-         body.recipe.strip() if body.recipe else None,
-         body.rating,
-         body.review.strip() if body.review else None)
-    )
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute(
+            """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, rating, review)
+               VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+            (email, body.dish_name.strip(), body.type,
+             body.restaurant_name.strip() if body.restaurant_name else None,
+             body.recipe.strip() if body.recipe else None,
+             body.rating,
+             body.review.strip() if body.review else None)
+        )
+        row = cur.fetchone()
+        db.commit()
     return row
 
 @app.get("/reviews", response_model=List[ReviewOut])
 def get_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (email,))
-    rows = cur.fetchall()
-    cur.close()
-    return rows
+    with with_cursor(db) as cur:
+        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (email,))
+        return cur.fetchall()
 
 @app.delete("/reviews/{review_id}", status_code=204)
 def delete_review(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND user_email = %s", (review_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Review not found")
-    cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND user_email = %s", (review_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Review not found")
+        cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
+        db.commit()
 
 
-# ── User search endpoint ──────────────────────────────────────────────────────
+# ── User search ───────────────────────────────────────────────────────────────
 
 @app.get("/users/search")
 def search_users(q: str = "", email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT u.email,
-               u.email AS username,
-               COUNT(r.id) AS review_count
-        FROM users u
-        LEFT JOIN dish_reviews r ON r.user_email = u.email
-        WHERE u.email != %s
-          AND u.email ILIKE %s
-        GROUP BY u.email
-        ORDER BY review_count DESC
-        LIMIT 20
-    """, (email, f"%{q}%"))
-    users = cur.fetchall()
-
-    result = []
-    for u in users:
+    with with_cursor(db) as cur:
         cur.execute("""
-            SELECT status, requester_email
-            FROM friendships
-            WHERE (requester_email = %s AND addressee_email = %s)
-               OR (requester_email = %s AND addressee_email = %s)
-        """, (email, u["email"], u["email"], email))
-        rel = cur.fetchone()
+            SELECT u.email, COUNT(r.id) AS review_count
+            FROM users u
+            LEFT JOIN dish_reviews r ON r.user_email = u.email
+            WHERE u.email != %s AND u.email ILIKE %s
+            GROUP BY u.email
+            ORDER BY review_count DESC
+            LIMIT 20
+        """, (email, f"%{q}%"))
+        users = cur.fetchall()
 
-        if rel is None:
-            status = None
-        elif rel["status"] == "accepted":
-            status = "accepted"
-        elif rel["status"] == "declined":
-            status = None
-        elif rel["requester_email"] == email:
-            status = "pending_sent"
-        else:
-            status = "pending_received"
+        result = []
+        for u in users:
+            cur.execute("""
+                SELECT status, requester_email FROM friendships
+                WHERE (requester_email = %s AND addressee_email = %s)
+                   OR (requester_email = %s AND addressee_email = %s)
+            """, (email, u["email"], u["email"], email))
+            rel = cur.fetchone()
 
-        result.append({
-            "email": u["email"],
-            "username": u["email"].split("@")[0],
-            "review_count": u["review_count"],
-            "friendship_status": status,
-        })
+            if rel is None:                             status = None
+            elif rel["status"] == "accepted":           status = "accepted"
+            elif rel["status"] == "declined":           status = None
+            elif rel["requester_email"] == email:       status = "pending_sent"
+            else:                                       status = "pending_received"
 
-    cur.close()
+            result.append({
+                "email":             u["email"],
+                "username":          username_from(u["email"]),
+                "review_count":      u["review_count"],
+                "friendship_status": status,
+            })
     return result
 
+@app.get("/users/{user_email}/reviews", response_model=List[ReviewOut])
+def get_user_reviews(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (user_email,))
+        return cur.fetchall()
 
-# ── Friend request endpoints ──────────────────────────────────────────────────
+
+# ── Friend endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/friends/request", status_code=201)
 def send_friend_request(body: FriendRequestBody, email: str = Depends(get_current_user), db=Depends(get_db)):
     if body.addressee_email == email:
         raise HTTPException(status_code=400, detail="Cannot send request to yourself")
-
-    cur = db.cursor()
-    cur.execute("SELECT id FROM users WHERE email = %s", (body.addressee_email,))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="User not found")
-
-    cur.execute("""
-        SELECT id, status, requester_email
-        FROM friendships
-        WHERE (requester_email = %s AND addressee_email = %s)
-           OR (requester_email = %s AND addressee_email = %s)
-    """, (email, body.addressee_email, body.addressee_email, email))
-    existing = cur.fetchone()
-    if existing:
-        if existing["status"] == "accepted":
-            raise HTTPException(status_code=400, detail="Already friends")
-        if existing["status"] == "pending":
-            raise HTTPException(status_code=400, detail="Request already pending")
-
-    cur.execute(
-        "INSERT INTO friendships (requester_email, addressee_email) VALUES (%s, %s) RETURNING *",
-        (email, body.addressee_email)
-    )
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (body.addressee_email,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        cur.execute("""
+            SELECT id, status FROM friendships
+            WHERE (requester_email = %s AND addressee_email = %s)
+               OR (requester_email = %s AND addressee_email = %s)
+        """, (email, body.addressee_email, body.addressee_email, email))
+        existing = cur.fetchone()
+        if existing and existing["status"] == "pending":
+            raise HTTPException(status_code=409, detail="Request already pending")
+        if existing and existing["status"] == "accepted":
+            raise HTTPException(status_code=409, detail="Already friends")
+        cur.execute(
+            "INSERT INTO friendships (requester_email, addressee_email) VALUES (%s, %s) RETURNING *",
+            (email, body.addressee_email)
+        )
+        row = cur.fetchone()
+        db.commit()
     return row
-
 
 @app.get("/friends/requests/pending")
 def get_pending_requests(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT f.id, f.requester_email, f.created_at,
-               COUNT(r.id) AS review_count
-        FROM friendships f
-        LEFT JOIN dish_reviews r ON r.user_email = f.requester_email
-        WHERE f.addressee_email = %s AND f.status = 'pending'
-        GROUP BY f.id, f.requester_email, f.created_at
-        ORDER BY f.created_at DESC
-    """, (email,))
-    rows = cur.fetchall()
-    cur.close()
-    return [
-        {
-            "id": r["id"],
-            "requester_email": r["requester_email"],
-            "username": r["requester_email"].split("@")[0],
-            "review_count": r["review_count"],
-            "created_at": r["created_at"],
-        }
-        for r in rows
-    ]
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT id, requester_email, created_at FROM friendships
+            WHERE addressee_email = %s AND status = 'pending'
+            ORDER BY created_at DESC
+        """, (email,))
+        return cur.fetchall()
 
-
-@app.patch("/friends/requests/{request_id}")
-def respond_to_request(
-    request_id: int,
-    body: FriendActionBody,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db)
-):
+@app.patch("/friends/requests/{request_id}", response_model=FriendRequestOut)
+def respond_to_request(request_id: int, body: FriendActionBody, email: str = Depends(get_current_user), db=Depends(get_db)):
     if body.action not in ("accept", "decline"):
         raise HTTPException(status_code=400, detail="action must be 'accept' or 'decline'")
-
-    cur = db.cursor()
-    cur.execute(
-        "SELECT * FROM friendships WHERE id = %s AND addressee_email = %s AND status = 'pending'",
-        (request_id, email)
-    )
-    req = cur.fetchone()
-    if not req:
-        raise HTTPException(status_code=404, detail="Request not found")
-
-    new_status = "accepted" if body.action == "accept" else "declined"
-    cur.execute(
-        "UPDATE friendships SET status = %s, updated_at = NOW() WHERE id = %s RETURNING *",
-        (new_status, request_id)
-    )
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM friendships WHERE id = %s AND addressee_email = %s", (request_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Request not found")
+        new_status = "accepted" if body.action == "accept" else "declined"
+        cur.execute(
+            "UPDATE friendships SET status = %s, updated_at = NOW() WHERE id = %s RETURNING *",
+            (new_status, request_id)
+        )
+        row = cur.fetchone()
+        db.commit()
     return row
-
 
 @app.get("/friends")
 def get_friends(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT
-            CASE WHEN requester_email = %s THEN addressee_email ELSE requester_email END AS friend_email,
-            COUNT(r.id) AS review_count
-        FROM friendships f
-        LEFT JOIN dish_reviews r
-            ON r.user_email = CASE WHEN f.requester_email = %s THEN f.addressee_email ELSE f.requester_email END
-        WHERE (requester_email = %s OR addressee_email = %s) AND status = 'accepted'
-        GROUP BY friend_email
-    """, (email, email, email, email))
-    rows = cur.fetchall()
-    cur.close()
-    return [
-        {
-            "email": r["friend_email"],
-            "username": r["friend_email"].split("@")[0],
-            "review_count": r["review_count"],
-        }
-        for r in rows
-    ]
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT
+                CASE WHEN requester_email = %s THEN addressee_email ELSE requester_email END AS friend_email,
+                COUNT(r.id) AS review_count
+            FROM friendships f
+            LEFT JOIN dish_reviews r
+                ON r.user_email = CASE WHEN f.requester_email = %s THEN f.addressee_email ELSE f.requester_email END
+            WHERE (requester_email = %s OR addressee_email = %s) AND status = 'accepted'
+            GROUP BY friend_email
+        """, (email, email, email, email))
+        rows = cur.fetchall()
+    return [{"email": r["friend_email"], "username": username_from(r["friend_email"]), "review_count": r["review_count"]} for r in rows]
 
 
-# ── Public user reviews endpoint ──────────────────────────────────────────────
+# ── Activity feed ─────────────────────────────────────────────────────────────
 
-@app.get("/users/{user_email}/reviews", response_model=List[ReviewOut])
-def get_user_reviews(
-    user_email: str,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="User not found")
-    cur.execute(
-        "SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC",
-        (user_email,)
-    )
-    rows = cur.fetchall()
-    cur.close()
-    return rows
+@app.get("/feed")
+def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT requester_email, addressee_email FROM friendships
+            WHERE (requester_email = %s OR addressee_email = %s) AND status = 'accepted'
+        """, (email, email))
+        friend_emails = [
+            r["addressee_email"] if r["requester_email"] == email else r["requester_email"]
+            for r in cur.fetchall()
+        ]
+        if not friend_emails:
+            return []
+        placeholders = ",".join(["%s"] * len(friend_emails))
+        cur.execute(f"""
+            SELECT id, user_email, dish_name, type, restaurant_name, rating, review, logged_at
+            FROM dish_reviews WHERE user_email IN ({placeholders})
+            ORDER BY logged_at DESC LIMIT 50
+        """, friend_emails)
+        return [serialise_review(r) for r in cur.fetchall()]
 
 
-# ── All reviews (for search) ──────────────────────────────────────────────────
+# ── All reviews (search) ──────────────────────────────────────────────────────
 
 @app.get("/reviews/all")
 def get_all_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT r.*, u.email AS author_email
-        FROM dish_reviews r
-        JOIN users u ON u.email = r.user_email
-        ORDER BY r.logged_at DESC
-    """)
-    rows = cur.fetchall()
-    cur.close()
-    return [
-        {
-            "id":              row["id"],
-            "dish_name":       row["dish_name"],
-            "type":            row["type"],
-            "restaurant_name": row["restaurant_name"],
-            "rating":          row["rating"],
-            "review":          row["review"],
-            "logged_at":       row["logged_at"],
-            "user_email":      row["author_email"],
-        }
-        for row in rows
-    ]
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT r.*, u.email AS user_email
+            FROM dish_reviews r JOIN users u ON u.email = r.user_email
+            ORDER BY r.logged_at DESC
+        """)
+        return [serialise_review(r) for r in cur.fetchall()]
 
 
-# ── Dish pages ────────────────────────────────────────────────────────────────
-
-@app.get("/dishes")
-def get_all_dishes(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT
-            dish_name,
-            restaurant_name,
-            COUNT(*)                                      AS review_count,
-            ROUND(AVG(rating)::numeric, 1)               AS avg_rating,
-            MIN(logged_at)                               AS first_logged,
-            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
-        FROM dish_reviews
-        WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
-        GROUP BY dish_name, restaurant_name
-        ORDER BY review_count DESC, first_logged DESC
-    """)
-    rows = cur.fetchall()
-    cur.close()
-    return [
-        {
-            "dish_name":        r["dish_name"],
-            "restaurant_name":  r["restaurant_name"],
-            "review_count":     r["review_count"],
-            "avg_rating":       float(r["avg_rating"]),
-            "created_by":       r["created_by"].split("@")[0],
-            "created_by_email": r["created_by"],
-        }
-        for r in rows
-    ]
-
-
-@app.get("/dishes/{dish_name}/restaurant/{restaurant_name}")
-def get_dish_page(
-    dish_name: str,
-    restaurant_name: str,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    cur = db.cursor()
-
-    cur.execute("""
-        SELECT
-            dish_name,
-            restaurant_name,
-            COUNT(*)                                      AS review_count,
-            ROUND(AVG(rating)::numeric, 1)               AS avg_rating,
-            MIN(logged_at)                               AS first_logged,
-            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
-        FROM dish_reviews
-        WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
-        GROUP BY dish_name, restaurant_name
-    """, (dish_name, restaurant_name))
-    stats = cur.fetchone()
-
-    if not stats:
-        raise HTTPException(status_code=404, detail="Dish not found")
-
-    cur.execute("""
-        SELECT id, user_email, rating, review, logged_at
-        FROM dish_reviews
-        WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
-        ORDER BY logged_at DESC
-    """, (dish_name, restaurant_name))
-    reviews = cur.fetchall()
-    cur.close()
-
-    return {
-        "dish_name":        stats["dish_name"],
-        "restaurant_name":  stats["restaurant_name"],
-        "review_count":     stats["review_count"],
-        "avg_rating":       float(stats["avg_rating"]),
-        "created_by":       stats["created_by"].split("@")[0],
-        "created_by_email": stats["created_by"],
-        "first_logged":     stats["first_logged"],
-        "reviews": [
-            {
-                "id":         r["id"],
-                "username":   r["user_email"].split("@")[0],
-                "user_email": r["user_email"],
-                "rating":     r["rating"],
-                "review":     r["review"] or "",
-                "logged_at":  r["logged_at"],
-            }
-            for r in reviews
-        ],
-    }
-
-
-# ── Restaurant + dish catalog endpoints ───────────────────────────────────────
+# ── Restaurant catalog ────────────────────────────────────────────────────────
 
 @app.get("/restaurants")
 def get_restaurants(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT DISTINCT restaurant_name
-        FROM dish_reviews
-        WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
-        ORDER BY restaurant_name ASC
-    """)
-    rows = cur.fetchall()
-    cur.close()
-    return [r["restaurant_name"] for r in rows]
-
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT DISTINCT restaurant_name FROM dish_reviews
+            WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
+            ORDER BY restaurant_name ASC
+        """)
+        return [r["restaurant_name"] for r in cur.fetchall()]
 
 @app.get("/restaurants/{restaurant_name}/dishes")
-def get_restaurant_dishes(
-    restaurant_name: str,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT DISTINCT dish_name
-        FROM dish_reviews
-        WHERE type = 'restaurant'
-          AND restaurant_name ILIKE %s
-        ORDER BY dish_name ASC
-    """, (restaurant_name,))
-    rows = cur.fetchall()
-    cur.close()
-    return [r["dish_name"] for r in rows]
-
-
-# ── Restaurant page endpoint ───────────────────────────────────────────────────
+def get_restaurant_dishes(restaurant_name: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT DISTINCT dish_name FROM dish_reviews
+            WHERE type = 'restaurant' AND restaurant_name ILIKE %s
+            ORDER BY dish_name ASC
+        """, (restaurant_name,))
+        return [r["dish_name"] for r in cur.fetchall()]
 
 @app.get("/restaurants/{restaurant_name}/page")
-def get_restaurant_page(
-    restaurant_name: str,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    cur = db.cursor()
+def get_restaurant_page(restaurant_name: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT restaurant_name,
+                   COUNT(*) AS total_reviews,
+                   ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                   COUNT(DISTINCT dish_name) AS total_dishes,
+                   MIN(logged_at) AS first_logged,
+                   (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+            FROM dish_reviews
+            WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+            GROUP BY restaurant_name
+        """, (restaurant_name,))
+        stats = cur.fetchone()
+        if not stats:
+            raise HTTPException(status_code=404, detail="Restaurant not found")
 
-    cur.execute("""
-        SELECT
-            restaurant_name,
-            COUNT(*)                                          AS total_reviews,
-            ROUND(AVG(rating)::numeric, 1)                   AS avg_rating,
-            COUNT(DISTINCT dish_name)                        AS total_dishes,
-            MIN(logged_at)                                   AS first_logged,
-            (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
-        FROM dish_reviews
-        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
-        GROUP BY restaurant_name
-    """, (restaurant_name,))
-    stats = cur.fetchone()
+        cur.execute("""
+            SELECT dish_name, COUNT(*) AS review_count, ROUND(AVG(rating)::numeric,1) AS avg_rating
+            FROM dish_reviews WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+            GROUP BY dish_name ORDER BY avg_rating DESC, review_count DESC
+        """, (restaurant_name,))
+        dishes = cur.fetchall()
 
-    if not stats:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-
-    cur.execute("""
-        SELECT
-            dish_name,
-            COUNT(*)                           AS review_count,
-            ROUND(AVG(rating)::numeric, 1)     AS avg_rating
-        FROM dish_reviews
-        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
-        GROUP BY dish_name
-        ORDER BY avg_rating DESC, review_count DESC
-    """, (restaurant_name,))
-    dishes = cur.fetchall()
-
-    cur.execute("""
-        SELECT id, user_email, dish_name, rating, review, logged_at
-        FROM dish_reviews
-        WHERE restaurant_name ILIKE %s AND type = 'restaurant'
-        ORDER BY logged_at DESC
-    """, (restaurant_name,))
-    reviews = cur.fetchall()
-    cur.close()
+        cur.execute("""
+            SELECT id, user_email, dish_name, rating, review, logged_at
+            FROM dish_reviews WHERE restaurant_name ILIKE %s AND type = 'restaurant'
+            ORDER BY logged_at DESC
+        """, (restaurant_name,))
+        reviews = cur.fetchall()
 
     return {
         "restaurant_name": stats["restaurant_name"],
         "total_reviews":   stats["total_reviews"],
         "avg_rating":      float(stats["avg_rating"]),
         "total_dishes":    stats["total_dishes"],
-        "created_by":      stats["created_by"].split("@")[0],
+        "created_by":      username_from(stats["created_by"]),
         "created_by_email": stats["created_by"],
         "first_logged":    stats["first_logged"],
-        "dishes": [
-            {
-                "dish_name":    d["dish_name"],
-                "review_count": d["review_count"],
-                "avg_rating":   float(d["avg_rating"]),
-            }
-            for d in dishes
-        ],
-        "reviews": [
-            {
-                "id":         r["id"],
-                "username":   r["user_email"].split("@")[0],
-                "user_email": r["user_email"],
-                "dish_name":  r["dish_name"],
-                "rating":     r["rating"],
-                "review":     r["review"] or "",
-                "logged_at":  r["logged_at"],
-            }
-            for r in reviews
-        ],
+        "dishes":  [{"dish_name": d["dish_name"], "review_count": d["review_count"], "avg_rating": float(d["avg_rating"])} for d in dishes],
+        "reviews": [serialise_review(r) for r in reviews],
     }
 
 
-# ── Activity feed endpoint ────────────────────────────────────────────────────
+# ── Dish pages ────────────────────────────────────────────────────────────────
 
-@app.get("/feed")
-def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT f.requester_email, f.addressee_email
-        FROM friendships f
-        WHERE (f.requester_email = %s OR f.addressee_email = %s)
-          AND f.status = 'accepted'
-    """, (email, email))
-    friendships = cur.fetchall()
-    friend_emails = [
-        row["addressee_email"] if row["requester_email"] == email else row["requester_email"]
-        for row in friendships
-    ]
-    if not friend_emails:
-        cur.close()
-        return []
-    placeholders = ",".join(["%s"] * len(friend_emails))
-    cur.execute(f"""
-        SELECT id, user_email, dish_name, type, restaurant_name, rating, review, logged_at
-        FROM dish_reviews
-        WHERE user_email IN ({placeholders})
-        ORDER BY logged_at DESC
-        LIMIT 50
-    """, friend_emails)
-    rows = cur.fetchall()
-    cur.close()
-    return [
-        {
-            "id":              r["id"],
-            "user_email":      r["user_email"],
-            "username":        r["user_email"].split("@")[0],
-            "dish_name":       r["dish_name"],
-            "type":            r["type"],
-            "restaurant_name": r["restaurant_name"],
-            "rating":          r["rating"],
-            "review":          r["review"] or "",
-            "logged_at":       r["logged_at"],
-        }
-        for r in rows
-    ]
+@app.get("/dishes")
+def get_all_dishes(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT dish_name, restaurant_name,
+                   COUNT(*) AS review_count,
+                   ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                   MIN(logged_at) AS first_logged,
+                   (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+            FROM dish_reviews
+            WHERE type = 'restaurant' AND restaurant_name IS NOT NULL
+            GROUP BY dish_name, restaurant_name
+            ORDER BY review_count DESC, first_logged DESC
+        """)
+        rows = cur.fetchall()
+    return [{"dish_name": r["dish_name"], "restaurant_name": r["restaurant_name"],
+             "review_count": r["review_count"], "avg_rating": float(r["avg_rating"]),
+             "created_by": username_from(r["created_by"]), "created_by_email": r["created_by"]} for r in rows]
+
+@app.get("/dishes/{dish_name}/restaurant/{restaurant_name}")
+def get_dish_page(dish_name: str, restaurant_name: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT dish_name, restaurant_name,
+                   COUNT(*) AS review_count,
+                   ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                   MIN(logged_at) AS first_logged,
+                   (ARRAY_AGG(user_email ORDER BY logged_at ASC))[1] AS created_by
+            FROM dish_reviews
+            WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
+            GROUP BY dish_name, restaurant_name
+        """, (dish_name, restaurant_name))
+        stats = cur.fetchone()
+        if not stats:
+            raise HTTPException(status_code=404, detail="Dish not found")
+
+        cur.execute("""
+            SELECT id, user_email, rating, review, logged_at FROM dish_reviews
+            WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
+            ORDER BY logged_at DESC
+        """, (dish_name, restaurant_name))
+        reviews = cur.fetchall()
+
+    return {
+        "dish_name":        stats["dish_name"],
+        "restaurant_name":  stats["restaurant_name"],
+        "review_count":     stats["review_count"],
+        "avg_rating":       float(stats["avg_rating"]),
+        "created_by":       username_from(stats["created_by"]),
+        "created_by_email": stats["created_by"],
+        "first_logged":     stats["first_logged"],
+        "reviews": [serialise_review(r) for r in reviews],
+    }
 
 
-# ── Trylist (wishlist) endpoints ──────────────────────────────────────────────
-# NOTE: /trylist/check MUST be defined before /trylist/{item_id} so FastAPI
-# does not treat the literal string "check" as an integer item_id parameter.
+# ── Trylist ───────────────────────────────────────────────────────────────────
+# NOTE: /trylist/check must be defined before /trylist/{item_id}
+
+@app.get("/trylist/check")
+def check_trylist(item_type: str, restaurant_name: str, dish_name: Optional[str] = None,
+                  email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT id FROM trylists
+            WHERE user_email = %s AND item_type = %s
+              AND (dish_name IS NOT DISTINCT FROM %s)
+              AND restaurant_name ILIKE %s
+        """, (email, item_type, dish_name, restaurant_name))
+        row = cur.fetchone()
+    return {"in_trylist": row is not None, "id": row["id"] if row else None}
+
+@app.get("/trylist")
+def get_trylist(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT id, item_type, dish_name, restaurant_name, added_at
+            FROM trylists WHERE user_email = %s ORDER BY added_at DESC
+        """, (email,))
+        return cur.fetchall()
 
 @app.post("/trylist", status_code=201)
 def add_to_trylist(body: TrylistAdd, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -755,163 +545,27 @@ def add_to_trylist(body: TrylistAdd, email: str = Depends(get_current_user), db=
         raise HTTPException(status_code=400, detail="dish_name and restaurant_name required for dish")
     if body.item_type == "restaurant" and not body.restaurant_name:
         raise HTTPException(status_code=400, detail="restaurant_name required for restaurant")
-
-    cur = db.cursor()
-    cur.execute("""
-        SELECT id FROM trylists
-        WHERE user_email = %s AND item_type = %s
-          AND (dish_name IS NOT DISTINCT FROM %s)
-          AND (restaurant_name ILIKE %s)
-    """, (email, body.item_type, body.dish_name, body.restaurant_name))
-    if cur.fetchone():
-        cur.close()
-        raise HTTPException(status_code=409, detail="Already in trylist")
-
-    cur.execute("""
-        INSERT INTO trylists (user_email, item_type, dish_name, restaurant_name)
-        VALUES (%s, %s, %s, %s) RETURNING *
-    """, (email, body.item_type, body.dish_name, body.restaurant_name))
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT id FROM trylists
+            WHERE user_email = %s AND item_type = %s
+              AND (dish_name IS NOT DISTINCT FROM %s) AND (restaurant_name ILIKE %s)
+        """, (email, body.item_type, body.dish_name, body.restaurant_name))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Already in trylist")
+        cur.execute(
+            "INSERT INTO trylists (user_email, item_type, dish_name, restaurant_name) VALUES (%s,%s,%s,%s) RETURNING *",
+            (email, body.item_type, body.dish_name, body.restaurant_name)
+        )
+        row = cur.fetchone()
+        db.commit()
     return row
-
-
-@app.get("/trylist")
-def get_trylist(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT id, item_type, dish_name, restaurant_name, added_at
-        FROM trylists
-        WHERE user_email = %s
-        ORDER BY added_at DESC
-    """, (email,))
-    rows = cur.fetchall()
-    cur.close()
-    return rows
-
-
-@app.get("/trylist/check")
-def check_trylist(
-    item_type: str,
-    restaurant_name: str,
-    dish_name: Optional[str] = None,
-    email: str = Depends(get_current_user),
-    db=Depends(get_db),
-):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT id FROM trylists
-        WHERE user_email = %s AND item_type = %s
-          AND (dish_name IS NOT DISTINCT FROM %s)
-          AND restaurant_name ILIKE %s
-    """, (email, item_type, dish_name, restaurant_name))
-    row = cur.fetchone()
-    cur.close()
-    return {"in_trylist": row is not None, "id": row["id"] if row else None}
-
 
 @app.delete("/trylist/{item_id}", status_code=204)
 def remove_from_trylist(item_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM trylists WHERE id = %s AND user_email = %s", (item_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Item not found")
-    cur.execute("DELETE FROM trylists WHERE id = %s", (item_id,))
-    db.commit()
-    cur.close()
-
-
-# ── Lists endpoints ───────────────────────────────────────────────────────────
-
-@app.post("/lists", status_code=201)
-def create_list(body: ListCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
-    if not body.name.strip():
-        raise HTTPException(status_code=400, detail="List name cannot be empty")
-    cur = db.cursor()
-    cur.execute(
-        """INSERT INTO user_lists (user_email, name, is_public)
-           VALUES (%s, %s, %s) RETURNING *""",
-        (email, body.name.strip(), body.is_public)
-    )
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
-    return {**row, "item_count": 0}
-
-
-@app.get("/lists")
-def get_lists(email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT ul.*,
-               COUNT(li.id) AS item_count
-        FROM user_lists ul
-        LEFT JOIN list_items li ON li.list_id = ul.id
-        WHERE ul.user_email = %s
-        GROUP BY ul.id
-        ORDER BY ul.created_at DESC
-    """, (email,))
-    rows = cur.fetchall()
-    cur.close()
-    return rows
-
-
-@app.delete("/lists/{list_id}", status_code=204)
-def delete_list(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="List not found")
-    cur.execute("DELETE FROM user_lists WHERE id = %s", (list_id,))
-    db.commit()
-    cur.close()
-
-
-@app.post("/lists/{list_id}/items", status_code=201)
-def add_list_item(list_id: int, body: ListItemCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
-    if body.item_type not in ("dish", "restaurant", "recipe"):
-        raise HTTPException(status_code=400, detail="item_type must be dish, restaurant, or recipe")
-    if not body.name.strip():
-        raise HTTPException(status_code=400, detail="Name cannot be empty")
-    cur = db.cursor()
-    cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="List not found")
-    cur.execute(
-        """INSERT INTO list_items (list_id, item_type, name, restaurant_name, note)
-           VALUES (%s, %s, %s, %s, %s) RETURNING *""",
-        (list_id, body.item_type, body.name.strip(),
-         body.restaurant_name.strip() if body.restaurant_name else None,
-         body.note.strip() if body.note else None)
-    )
-    row = cur.fetchone()
-    db.commit()
-    cur.close()
-    return row
-
-
-@app.get("/lists/{list_id}/items")
-def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="List not found")
-    cur.execute(
-        "SELECT * FROM list_items WHERE list_id = %s ORDER BY added_at ASC",
-        (list_id,)
-    )
-    rows = cur.fetchall()
-    cur.close()
-    return rows
-
-
-@app.delete("/lists/{list_id}/items/{item_id}", status_code=204)
-def delete_list_item(list_id: int, item_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="List not found")
-    cur.execute("DELETE FROM list_items WHERE id = %s AND list_id = %s", (item_id, list_id))
-    db.commit()
-    cur.close()
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM trylists WHERE id = %s AND user_email = %s", (item_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Item not found")
+        cur.execute("DELETE FROM trylists WHERE id = %s", (item_id,))
+        db.commit()

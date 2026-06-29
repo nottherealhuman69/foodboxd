@@ -5,8 +5,8 @@ import styles from './Auth.module.css'
 
 export default function Signup() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', password: '', confirm: '' })
-  const [error, setError] = useState('')
+  const [form,    setForm]    = useState({ email: '', password: '', confirm: '' })
+  const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
@@ -16,18 +16,10 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (form.password !== form.confirm) {
-      setError('Passwords do not match')
-      return
-    }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
-    }
-
+    if (form.password !== form.confirm) { setError('Passwords do not match'); return }
+    if (form.password.length < 8)       { setError('Password must be at least 8 characters'); return }
     setLoading(true)
     setError('')
-
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
@@ -35,12 +27,7 @@ export default function Signup() {
         body: JSON.stringify({ email: form.email, password: form.password }),
       })
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.detail || 'Signup failed')
-        return
-      }
-
+      if (!res.ok) { setError(data.detail || 'Signup failed'); return }
       navigate('/login', { state: { message: 'Account created! Please sign in.' } })
     } catch {
       setError('Could not reach the server. Please try again.')
@@ -57,51 +44,23 @@ export default function Signup() {
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder="you@example.com"
-            value={form.email}
-            onChange={handleChange}
-            className={styles.input}
-          />
+          <input id="email" name="email" type="email" autoComplete="email" required
+            placeholder="you@example.com" value={form.email}
+            onChange={handleChange} className={styles.input} />
         </div>
-
         <div className={styles.field}>
           <label className={styles.label} htmlFor="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            placeholder="Min. 8 characters"
-            value={form.password}
-            onChange={handleChange}
-            className={styles.input}
-          />
+          <input id="password" name="password" type="password" autoComplete="new-password" required
+            placeholder="Min. 8 characters" value={form.password}
+            onChange={handleChange} className={styles.input} />
         </div>
-
         <div className={styles.field}>
           <label className={styles.label} htmlFor="confirm">Confirm password</label>
-          <input
-            id="confirm"
-            name="confirm"
-            type="password"
-            autoComplete="new-password"
-            required
-            placeholder="••••••••"
-            value={form.confirm}
-            onChange={handleChange}
-            className={styles.input}
-          />
+          <input id="confirm" name="confirm" type="password" autoComplete="new-password" required
+            placeholder="••••••••" value={form.confirm}
+            onChange={handleChange} className={styles.input} />
         </div>
-
         {error && <p className={styles.error}>{error}</p>}
-
         <button type="submit" disabled={loading} className={styles.primaryBtn}>
           {loading ? 'Creating account…' : 'Create account'}
         </button>

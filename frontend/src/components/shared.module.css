@@ -1,0 +1,213 @@
+/* ─── shared.module.css ───────────────────────────────────────────────────────
+   Import this in any page that needs stat cards, spinners, empty states,
+   or the standard review card shell. Keeps those styles in one place.
+─────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Page wrapper ── */
+.page {
+  padding: 2.5rem 2rem;
+  max-width: 720px;
+}
+
+/* ── Stat grid ── */
+.statsRow {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 12px;
+  padding: 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.statCount {
+  font-size: 24px;
+  font-weight: 700;
+  color: #e8e9f0;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 10px;
+  color: #6b6f8a;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Loading / error states ── */
+.state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #8b8fa8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.stateIcon { font-size: 32px; }
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Empty state ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 2rem;
+  background: #16192A;
+  border: 1px dashed rgba(99, 102, 241, 0.15);
+  border-radius: 14px;
+  gap: 10px;
+}
+
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.emptyTitle { font-size: 15px; font-weight: 500; color: #6b6f8a; }
+.emptyHint  { font-size: 13px; color: #3d4060; }
+
+/* ── Standard review card ── */
+.card {
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: rgba(99, 102, 241, 0.25); }
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.dishName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8e9f0;
+  margin-bottom: 2px;
+}
+
+.restaurant { font-size: 12px; color: #6b6f8a; }
+
+.typePill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.typePill[data-type='restaurant'] { background: rgba(99,102,241,0.1); color: #818cf8; }
+.typePill[data-type='homemade']   { background: rgba(52,211,153,0.1); color: #6ee7b7; }
+
+.ratingLabel { font-size: 12px; color: #818cf8; font-weight: 500; }
+.dot         { color: #3d4060; }
+.date        { font-size: 12px; color: #4e5272; }
+.reviewText  { font-size: 13px; color: #8b8fa8; line-height: 1.6; }
+
+/* ── Stars ── */
+.stars { display: flex; gap: 2px; align-items: center; }
+
+/* ── Section header ── */
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #c4c6db;
+  margin-bottom: 1rem;
+}
+
+/* ── Back button ── */
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #8b8fa8;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1.75rem;
+  transition: color 0.15s;
+}
+.backBtn:hover { color: #e8e9f0; }
+
+/* ── CTA button ── */
+.ctaBtn {
+  padding: 9px 22px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ctaBtn:hover { background: rgba(99, 102, 241, 0.2); }
+
+/* ── Friend badges (Search + UserProfile) ── */
+.addFriendBtn {
+  padding: 5px 14px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  color: #a5b4fc;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.addFriendBtn:hover:not(:disabled) { background: rgba(99, 102, 241, 0.22); color: #e8e9f0; }
+.addFriendBtn:disabled             { opacity: 0.5; cursor: not-allowed; }
+
+.friendsBadge { font-size: 12px; color: #34d399; font-weight: 500; flex-shrink: 0; }
+.pendingBadge { font-size: 12px; color: #8b8fa8; font-weight: 500; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .page { padding: 1.5rem 1.25rem; }
+}
