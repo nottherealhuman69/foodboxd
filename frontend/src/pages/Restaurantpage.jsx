@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import styles from './RestaurantPage.module.css'
 import DishPage from './DishPage'
+import TrylistButton from './TrylistButton'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
@@ -22,11 +23,11 @@ function Stars({ rating, size = 13 }) {
 }
 
 export default function RestaurantPage({ restaurantName, onBack }) {
-  const [data,       setData]       = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
+  const [data,        setData]        = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
   const [viewingDish, setViewingDish] = useState(null)
-  const [activeTab,  setActiveTab]  = useState('dishes') // 'dishes' | 'reviews'
+  const [activeTab,   setActiveTab]   = useState('dishes')
 
   const token = localStorage.getItem('token')
   const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -51,7 +52,6 @@ export default function RestaurantPage({ restaurantName, onBack }) {
     load()
   }, [restaurantName])
 
-  // Drill into a dish page
   if (viewingDish) {
     return (
       <DishPage
@@ -95,6 +95,13 @@ export default function RestaurantPage({ restaurantName, onBack }) {
               <p className={styles.createdBy}>
                 Page created by <span className={styles.creator}>@{data.created_by}</span>
               </p>
+              {/* Add the RESTAURANT itself to trylist — no dish_name */}
+              <div style={{ marginTop: 10 }}>
+                <TrylistButton
+                  itemType="restaurant"
+                  restaurantName={data.restaurant_name}
+                />
+              </div>
             </div>
           </div>
 
@@ -135,32 +142,41 @@ export default function RestaurantPage({ restaurantName, onBack }) {
             </button>
           </div>
 
-          {/* Dishes tab */}
+          {/* Dishes tab — each dish card has its own TrylistButton for that dish */}
           {activeTab === 'dishes' && (
             <div className={styles.dishList}>
               {data.dishes.map(dish => (
-                <button
-                  key={dish.dish_name}
-                  className={styles.dishCard}
-                  onClick={() => setViewingDish(dish.dish_name)}
-                >
-                  <div className={styles.dishCardLeft}>
-                    <span className={styles.dishIcon}>🍽️</span>
-                    <div>
-                      <p className={styles.dishName}>{dish.dish_name}</p>
-                      <p className={styles.dishReviewCount}>
-                        {dish.review_count} review{dish.review_count !== 1 ? 's' : ''}
-                      </p>
+                <div key={dish.dish_name} className={styles.dishCard}>
+                  <button
+                    className={styles.dishCardClickable}
+                    onClick={() => setViewingDish(dish.dish_name)}
+                  >
+                    <div className={styles.dishCardLeft}>
+                      <span className={styles.dishIcon}>🍽️</span>
+                      <div>
+                        <p className={styles.dishName}>{dish.dish_name}</p>
+                        <p className={styles.dishReviewCount}>
+                          {dish.review_count} review{dish.review_count !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                     </div>
+                    <div className={styles.dishCardRight}>
+                      <Stars rating={dish.avg_rating} />
+                      <span className={styles.dishAvg}>{dish.avg_rating.toFixed(1)}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={styles.chevron}>
+                        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </button>
+                  {/* Add the individual DISH to trylist */}
+                  <div className={styles.dishCardTrylist}>
+                    <TrylistButton
+                      itemType="dish"
+                      dishName={dish.dish_name}
+                      restaurantName={data.restaurant_name}
+                    />
                   </div>
-                  <div className={styles.dishCardRight}>
-                    <Stars rating={dish.avg_rating} />
-                    <span className={styles.dishAvg}>{dish.avg_rating.toFixed(1)}</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={styles.chevron}>
-                      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

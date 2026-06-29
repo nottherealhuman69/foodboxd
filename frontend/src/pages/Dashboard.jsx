@@ -6,18 +6,20 @@ import Reviews from './Reviews'
 import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
+import Trylist from './Trylist'
 import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
 import styles from './Dashboard.module.css'
 
 const NAV = [
-  { id: 'profile', label: 'Profile',       icon: ProfileIcon },
-  { id: 'feed',    label: 'Feed',           icon: FeedIcon    },
-  { id: 'reviews', label: 'Reviews',        icon: ReviewsIcon },
-  { id: 'create',  label: 'Log a Dish',     icon: CreateIcon  },
-  { id: 'search',  label: 'Search',         icon: SearchIcon  },
-  { id: 'notifs',  label: 'Notifications',  icon: BellIcon    },
+  { id: 'profile', label: 'Profile',       icon: ProfileIcon  },
+  { id: 'feed',    label: 'Feed',           icon: FeedIcon     },
+  { id: 'reviews', label: 'Reviews',        icon: ReviewsIcon  },
+  { id: 'create',  label: 'Log a Dish',     icon: CreateIcon   },
+  { id: 'search',  label: 'Search',         icon: SearchIcon   },
+  { id: 'trylist', label: 'Trylist',        icon: TrylistIcon  },
+  { id: 'notifs',  label: 'Notifications',  icon: BellIcon     },
 ]
 
 function normalise(r) {
@@ -44,7 +46,7 @@ export default function Dashboard() {
   const [loading,     setLoading]     = useState(true)
   const [fetchError,  setFetchError]  = useState('')
   const [notifCount,  setNotifCount]  = useState(0)
-  const [viewingDish,       setViewingDish]       = useState(null) // { dishName, restaurantName }
+  const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
 
@@ -214,6 +216,12 @@ export default function Dashboard() {
             onViewUser={setViewingUser}
           />
         )}
+        {active === 'trylist' && (
+          <Trylist
+            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewRestaurant={setViewingRestaurant}
+          />
+        )}
         {active === 'notifs' && (
           <Notifications onBadgeChange={setNotifCount} />
         )}
@@ -266,6 +274,15 @@ function SearchIcon({ className }) {
     <svg className={className} viewBox="0 0 20 20" fill="none">
       <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
       <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function TrylistIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M4 2.5h12a.75.75 0 01.75.75v13.5l-6.75-3-6.75 3V3.25A.75.75 0 014 2.5z"
+        stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
     </svg>
   )
 }

@@ -23,7 +23,7 @@
 /* ── Hero ── */
 .hero {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   margin-bottom: 1.5rem;
 }
@@ -51,7 +51,7 @@
   margin-bottom: 4px;
 }
 
-.createdBy { font-size: 13px; color: #6b6f8a; }
+.createdBy { font-size: 13px; color: #6b6f8a; margin: 0; }
 .creator   { color: #818cf8; font-weight: 500; }
 
 /* ── Stats strip ── */
@@ -135,11 +135,7 @@
   border-color: rgba(99, 102, 241, 0.4);
   color: #a5b4fc;
 }
-
-.tabCount {
-  font-size: 11px;
-  color: #4e5272;
-}
+.tabCount { font-size: 11px; color: #4e5272; }
 .tabActive .tabCount { color: #6366F1; }
 
 /* ── Dish list ── */
@@ -149,24 +145,35 @@
   gap: 8px;
 }
 
+/* Dish card: outer wrapper div */
 .dishCard {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 14px 16px;
+  gap: 8px;
   background: #16192A;
   border: 1px solid rgba(99, 102, 241, 0.1);
   border-radius: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
-  text-align: left;
+  padding: 6px 10px 6px 6px;
+  transition: border-color 0.15s, background 0.15s;
 }
 .dishCard:hover {
   border-color: rgba(99, 102, 241, 0.3);
   background: #1a1d30;
-  transform: translateY(-1px);
+}
+
+/* Clickable left portion */
+.dishCardClickable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  padding: 8px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  min-width: 0;
 }
 
 .dishCardLeft {
@@ -193,6 +200,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .dishAvg {
@@ -202,6 +210,8 @@
 }
 
 .chevron { color: #4e5272; flex-shrink: 0; }
+
+.dishCardTrylist { flex-shrink: 0; }
 
 /* ── Review list ── */
 .reviewList {

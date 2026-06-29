@@ -32,12 +32,25 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
+// Derive a display username safely from whatever the API gives us
+function toUsername(item) {
+  if (item.username) return item.username
+  if (item.user_email) return item.user_email.split('@')[0]
+  return '?'
+}
+
 function FeedCard({ item, onViewRestaurant, onViewDish, onViewUser }) {
+  const username = toUsername(item)
   return (
     <div className={styles.card}>
       {/* Left: avatar + timeline line */}
       <div className={styles.avatarCol}>
-        <button className={styles.avatarBtn} onClick={() => onViewUser && onViewUser(item.user_email)}>{item.username.charAt(0).toUpperCase()}</button>
+        <button
+          className={styles.avatarBtn}
+          onClick={() => onViewUser && onViewUser(item.user_email)}
+        >
+          {username.charAt(0).toUpperCase()}
+        </button>
         <div className={styles.timelineLine} />
       </div>
 
@@ -45,7 +58,12 @@ function FeedCard({ item, onViewRestaurant, onViewDish, onViewUser }) {
       <div className={styles.content}>
         <div className={styles.cardHeader}>
           <div className={styles.meta}>
-            <button className={styles.usernameBtn} onClick={() => onViewUser && onViewUser(item.user_email)}>@{item.username}</button>
+            <button
+              className={styles.usernameBtn}
+              onClick={() => onViewUser && onViewUser(item.user_email)}
+            >
+              @{username}
+            </button>
             <span className={styles.dot}>·</span>
             <span className={styles.time}>{timeAgo(item.logged_at)}</span>
           </div>
@@ -57,13 +75,20 @@ function FeedCard({ item, onViewRestaurant, onViewDish, onViewUser }) {
         <div className={styles.dishRow}>
           <button
             className={styles.dishName}
-            onClick={() => item.restaurant_name && onViewDish && onViewDish(item.dish_name, item.restaurant_name)}
+            onClick={() =>
+              item.restaurant_name &&
+              onViewDish &&
+              onViewDish(item.dish_name, item.restaurant_name)
+            }
             disabled={!item.restaurant_name}
           >
             {item.dish_name}
           </button>
           {item.restaurant_name && (
-            <button className={styles.restaurantLink} onClick={() => onViewRestaurant && onViewRestaurant(item.restaurant_name)}>
+            <button
+              className={styles.restaurantLink}
+              onClick={() => onViewRestaurant && onViewRestaurant(item.restaurant_name)}
+            >
               at {item.restaurant_name}
             </button>
           )}
@@ -96,7 +121,12 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
     try {
       const res = await fetch('/api/feed', { headers: authHeaders })
       if (!res.ok) throw new Error()
-      setItems(await res.json())
+      const data = await res.json()
+      // Normalise: ensure every item has a username field
+      setItems(data.map(item => ({
+        ...item,
+        username: item.username || (item.user_email ? item.user_email.split('@')[0] : '?'),
+      })))
     } catch {
       setError('Could not load your feed.')
     } finally {

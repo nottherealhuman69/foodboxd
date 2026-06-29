@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import styles from './DishPage.module.css'
+import TrylistButton from './TrylistButton'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
@@ -68,6 +69,14 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
                   <path d="M2 17h16" stroke="#8b8fa8" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
                 <span className={styles.restaurantName}>{dish.restaurant_name}</span>
+              </div>
+              {/* ── Trylist button ── */}
+              <div style={{ marginTop: 12 }}>
+                <TrylistButton
+                  itemType="dish"
+                  dishName={dish.dish_name}
+                  restaurantName={dish.restaurant_name}
+                />
               </div>
             </div>
           </div>
