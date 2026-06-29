@@ -7,19 +7,21 @@ import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
 import Trylist from './Trylist'
+import MyLists from './MyLists'
 import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
 import styles from './Dashboard.module.css'
 
 const NAV = [
-  { id: 'profile', label: 'Profile',       icon: ProfileIcon  },
-  { id: 'feed',    label: 'Feed',           icon: FeedIcon     },
-  { id: 'reviews', label: 'Reviews',        icon: ReviewsIcon  },
-  { id: 'create',  label: 'Log a Dish',     icon: CreateIcon   },
-  { id: 'search',  label: 'Search',         icon: SearchIcon   },
-  { id: 'trylist', label: 'Trylist',        icon: TrylistIcon  },
-  { id: 'notifs',  label: 'Notifications',  icon: BellIcon     },
+  { id: 'profile', label: 'Profile',      icon: ProfileIcon  },
+  { id: 'feed',    label: 'Feed',          icon: FeedIcon     },
+  { id: 'reviews', label: 'Reviews',       icon: ReviewsIcon  },
+  { id: 'create',  label: 'Log a Dish',    icon: CreateIcon   },
+  { id: 'search',  label: 'Search',        icon: SearchIcon   },
+  { id: 'trylist', label: 'Trylist',       icon: TrylistIcon  },
+  { id: 'lists',   label: 'Make a List',   icon: ListsIcon    },
+  { id: 'notifs',  label: 'Notifications', icon: BellIcon     },
 ]
 
 function normalise(r) {
@@ -204,7 +206,7 @@ export default function Dashboard() {
           />
         )}
         {active === 'reviews' && (
-          <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} />
+          <Reviews entries={entries} loading={loading} fetchError={fetchError} onDelete={handleDelete} />
         )}
         {active === 'create' && (
           <CreateReview onSave={handleSave} />
@@ -221,6 +223,9 @@ export default function Dashboard() {
             onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
             onViewRestaurant={setViewingRestaurant}
           />
+        )}
+        {active === 'lists' && (
+          <MyLists />
         )}
         {active === 'notifs' && (
           <Notifications onBadgeChange={setNotifCount} />
@@ -283,6 +288,16 @@ function TrylistIcon({ className }) {
     <svg className={className} viewBox="0 0 20 20" fill="none">
       <path d="M4 2.5h12a.75.75 0 01.75.75v13.5l-6.75-3-6.75 3V3.25A.75.75 0 014 2.5z"
         stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function ListsIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="2.5" width="5.5" height="5.5" rx="1.25" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="2" y="12" width="5.5" height="5.5" rx="1.25" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M10.5 5.25h7M10.5 8h5M10.5 14.75h7M10.5 17.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
