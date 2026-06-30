@@ -10,6 +10,7 @@ import Trylist from './Trylist'
 import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
+import ListDetail from './ListDetail'
 import styles from './Dashboard.module.css'
 
 const NAV = [
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
+  const [viewingList,       setViewingList]       = useState(null)
 
   const token = localStorage.getItem('token')
   const authHeaders = {
@@ -140,6 +142,14 @@ export default function Dashboard() {
           />
         </div>
       )}
+      {viewingList && !viewingDish && !viewingRestaurant && !viewingUser && (
+        <div className={styles.overlayPage}>
+          <ListDetail
+            listId={viewingList}
+            onBack={() => setViewingList(null)}
+          />
+        </div>
+      )}
 
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
@@ -220,6 +230,7 @@ export default function Dashboard() {
           <Trylist
             onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
             onViewRestaurant={setViewingRestaurant}
+            onViewList={setViewingList}
           />
         )}
         {active === 'notifs' && (

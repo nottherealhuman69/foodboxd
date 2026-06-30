@@ -1,0 +1,439 @@
+.page {
+  padding: 2.5rem 2rem;
+  max-width: 680px;
+}
+
+/* ── Back button ── */
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #6b6f8a;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 1.75rem;
+  transition: color 0.15s;
+}
+.backBtn:hover { color: #a5b4fc; }
+
+/* ── Loading / error states ── */
+.loadingState {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(99, 102, 241, 0.15);
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorText { color: #f87171; font-size: 14px; }
+
+/* ── Header card ── */
+.headerCard {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 1.75rem;
+}
+
+.headerIconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.headerBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.headerText { flex: 1; min-width: 0; }
+
+.listTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e8e9f0;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  word-break: break-word;
+}
+
+.listDesc {
+  font-size: 13px;
+  color: #8b8fa8;
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.listMeta {
+  font-size: 12px;
+  color: #4e5272;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.editBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.editBtn:hover { background: rgba(99, 102, 241, 0.15); }
+
+.deleteListBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #f87171;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.deleteListBtn:hover:not(:disabled) { background: rgba(239, 68, 68, 0.12); }
+.deleteListBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Edit form ── */
+.editForm {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editNameInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #e8e9f0;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.editNameInput:focus { border-color: rgba(99, 102, 241, 0.5); }
+
+.editDescInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #c4c6db;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+}
+.editDescInput:focus { border-color: rgba(99, 102, 241, 0.35); }
+
+.editActions {
+  display: flex;
+  gap: 8px;
+}
+
+.saveBtn {
+  padding: 7px 16px;
+  background: #6366F1;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.saveBtn:hover:not(:disabled) { background: #4f46e5; }
+.saveBtn:disabled { opacity: 0.5; cursor: default; }
+
+.cancelEditBtn {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  color: #6b6f8a;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.cancelEditBtn:hover { color: #e8e9f0; border-color: rgba(99, 102, 241, 0.35); }
+
+/* ── Section label ── */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4e5272;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.itemCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366F1;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+/* ── Add section ── */
+.addSection {
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 1.5rem;
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.typeToggle {
+  display: flex;
+  gap: 6px;
+}
+
+.typeBtn {
+  flex: 1;
+  padding: 7px 0;
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  color: #6b6f8a;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.typeBtn:hover { border-color: rgba(99, 102, 241, 0.3); color: #e8e9f0; }
+.typeBtnActive {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+}
+
+.addInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #e8e9f0;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.addInput::placeholder { color: #4e5272; }
+.addInput:focus { border-color: rgba(99, 102, 241, 0.4); }
+
+.addError {
+  font-size: 12px;
+  color: #f87171;
+  margin: 0;
+}
+
+.addBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #6366F1;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.addBtn:hover:not(:disabled) { background: #4f46e5; }
+.addBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Items section ── */
+.itemsSection {
+  /* intentionally no extra bg — items stand alone */
+}
+
+.emptyItems {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.emptyItemsText {
+  font-size: 13px;
+  color: #4e5272;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Item cards ── */
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.itemCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  padding: 12px 0 12px 14px;
+}
+.itemCard:hover { border-color: rgba(99, 102, 241, 0.22); }
+
+.itemTypeIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.dishType {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+.restaurantType {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.itemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9f0;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemSub {
+  font-size: 12px;
+  color: #6b6f8a;
+  margin: 0;
+}
+
+.itemPill {
+  font-size: 11px;
+  color: #6b6f8a;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.removeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(99, 102, 241, 0.08);
+  color: #4e5272;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.removeBtn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
+.removeBtn:disabled { cursor: default; }
+
+.removingDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4e5272;
+  animation: pulse 0.8s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

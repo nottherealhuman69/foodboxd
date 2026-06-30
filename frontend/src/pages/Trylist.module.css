@@ -281,3 +281,282 @@
 .emptyHint strong {
   color: #818cf8;
 }
+
+/* ── Header row (title + Create List button) ── */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.createBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #6366F1;
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.createBtn:hover { background: #4f46e5; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  padding-bottom: 0;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #6b6f8a;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.tab:hover { color: #c4c6db; }
+.tabActive {
+  color: #a5b4fc;
+  border-bottom-color: #6366F1;
+}
+
+.tabBadge {
+  font-size: 11px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366F1;
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+.tabActive .tabBadge {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+
+/* ── My Lists grid ── */
+.listsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+.listCard:hover {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: #191c30;
+}
+
+.listCardIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.listCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.listCardName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9f0;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.listCardDesc {
+  font-size: 12px;
+  color: #6b6f8a;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.listCardMeta {
+  font-size: 11px;
+  color: #4e5272;
+  margin: 0;
+}
+
+/* ── Create btn in empty state ── */
+.createBtnEmpty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 9px 20px;
+  background: #6366F1;
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.createBtnEmpty:hover { background: #4f46e5; }
+
+/* ── Modal ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+}
+
+.modal {
+  background: #1a1d2e;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8e9f0;
+  margin: 0 0 20px;
+  letter-spacing: -0.01em;
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modalLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b8fa8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.required { color: #f87171; }
+.optional { color: #4e5272; font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.modalInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 9px;
+  padding: 10px 14px;
+  color: #e8e9f0;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.modalInput::placeholder { color: #4e5272; }
+.modalInput:focus { border-color: rgba(99, 102, 241, 0.5); }
+
+.modalTextarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 9px;
+  padding: 10px 14px;
+  color: #c4c6db;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+.modalTextarea::placeholder { color: #4e5272; }
+.modalTextarea:focus { border-color: rgba(99, 102, 241, 0.35); }
+
+.modalError {
+  font-size: 12px;
+  color: #f87171;
+  margin: 0;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.modalSubmit {
+  flex: 1;
+  padding: 10px;
+  background: #6366F1;
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.modalSubmit:hover:not(:disabled) { background: #4f46e5; }
+.modalSubmit:disabled { opacity: 0.5; cursor: default; }
+
+.modalCancel {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 9px;
+  color: #6b6f8a;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.modalCancel:hover { color: #e8e9f0; border-color: rgba(99, 102, 241, 0.35); }
