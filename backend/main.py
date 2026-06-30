@@ -10,8 +10,9 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-#foodboxd
-load_dotenv()
+
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(dotenv_path=dotenv_path, override=True)
 
 app = FastAPI(title="Dishlog API")
 
@@ -90,6 +91,29 @@ def create_tables():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS custom_lists (
+            id          SERIAL PRIMARY KEY,
+            user_email  VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+            name        VARCHAR(255) NOT NULL,
+            description TEXT,
+            created_at  TIMESTAMP DEFAULT NOW(),
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS custom_list_items (
+            id              SERIAL PRIMARY KEY,
+            list_id         INTEGER NOT NULL REFERENCES custom_lists(id) ON DELETE CASCADE,
+            item_type       VARCHAR(20) NOT NULL CHECK (item_type IN ('dish', 'restaurant')),
+            dish_name       VARCHAR(255),
+            restaurant_name VARCHAR(255),
+            added_at        TIMESTAMP DEFAULT NOW(),
+            UNIQUE (list_id, item_type, dish_name, restaurant_name)
+        )
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -145,8 +169,22 @@ class UserSearchOut(BaseModel):
     review_count: int
     friendship_status: Optional[str] = None
 
-# ── NEW: Trylist model ────────────────────────────────────────────────────────
+# ── Trylist model ─────────────────────────────────────────────────────────────
 class TrylistAdd(BaseModel):
+    item_type: str                    # 'dish' | 'restaurant'
+    dish_name: Optional[str] = None
+    restaurant_name: Optional[str] = None
+
+# ── Custom list models ─────────────────────────────────────────────────────────
+class CustomListCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class CustomListUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class CustomListItemAdd(BaseModel):
     item_type: str                    # 'dish' | 'restaurant'
     dish_name: Optional[str] = None
     restaurant_name: Optional[str] = None
@@ -785,5 +823,154 @@ def remove_from_trylist(item_id: int, email: str = Depends(get_current_user), db
     if not cur.fetchone():
         raise HTTPException(status_code=404, detail="Item not found")
     cur.execute("DELETE FROM trylists WHERE id = %s", (item_id,))
+    db.commit()
+    cur.close()
+
+
+# ── Custom list endpoints ─────────────────────────────────────────────────────
+
+@app.post("/lists", status_code=201)
+def create_custom_list(body: CustomListCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="name is required")
+    cur = db.cursor()
+    cur.execute(
+        "INSERT INTO custom_lists (user_email, name, description) VALUES (%s, %s, %s) RETURNING *",
+        (email, body.name.strip(), body.description.strip() if body.description else None)
+    )
+    row = dict(cur.fetchone())
+    db.commit()
+    cur.close()
+    row["item_count"] = 0
+    return row
+
+
+@app.get("/lists")
+def get_custom_lists(email: str = Depends(get_current_user), db=Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("""
+        SELECT cl.id, cl.name, cl.description, cl.created_at, cl.updated_at,
+               COUNT(cli.id) AS item_count
+        FROM custom_lists cl
+        LEFT JOIN custom_list_items cli ON cli.list_id = cl.id
+        WHERE cl.user_email = %s
+        GROUP BY cl.id
+        ORDER BY cl.updated_at DESC
+    """, (email,))
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+@app.get("/lists/{list_id}")
+def get_custom_list(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("SELECT * FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
+    lst = cur.fetchone()
+    if not lst:
+        raise HTTPException(status_code=404, detail="List not found")
+    cur.execute("""
+        SELECT id, item_type, dish_name, restaurant_name, added_at
+        FROM custom_list_items
+        WHERE list_id = %s
+        ORDER BY added_at DESC
+    """, (list_id,))
+    items = cur.fetchall()
+    cur.close()
+    return {
+        "id":          lst["id"],
+        "name":        lst["name"],
+        "description": lst["description"],
+        "created_at":  lst["created_at"],
+        "updated_at":  lst["updated_at"],
+        "items":       list(items),
+    }
+
+
+@app.patch("/lists/{list_id}")
+def update_custom_list(list_id: int, body: CustomListUpdate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("SELECT id FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="List not found")
+    updates, values = [], []
+    if body.name is not None:
+        updates.append("name = %s")
+        values.append(body.name.strip())
+    if body.description is not None:
+        updates.append("description = %s")
+        values.append(body.description.strip() or None)
+    if updates:
+        updates.append("updated_at = NOW()")
+        values.append(list_id)
+        cur.execute(f"UPDATE custom_lists SET {', '.join(updates)} WHERE id = %s RETURNING *", values)
+        row = cur.fetchone()
+        db.commit()
+    else:
+        cur.execute("SELECT * FROM custom_lists WHERE id = %s", (list_id,))
+        row = cur.fetchone()
+    cur.close()
+    return row
+
+
+@app.delete("/lists/{list_id}", status_code=204)
+def delete_custom_list(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("SELECT id FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="List not found")
+    cur.execute("DELETE FROM custom_lists WHERE id = %s", (list_id,))
+    db.commit()
+    cur.close()
+
+
+@app.post("/lists/{list_id}/items", status_code=201)
+def add_list_item(list_id: int, body: CustomListItemAdd, email: str = Depends(get_current_user), db=Depends(get_db)):
+    if body.item_type not in ("dish", "restaurant"):
+        raise HTTPException(status_code=400, detail="item_type must be 'dish' or 'restaurant'")
+    if body.item_type == "dish" and (not body.dish_name or not body.restaurant_name):
+        raise HTTPException(status_code=400, detail="dish_name and restaurant_name required for dish")
+    if body.item_type == "restaurant" and not body.restaurant_name:
+        raise HTTPException(status_code=400, detail="restaurant_name required for restaurant")
+
+    cur = db.cursor()
+    cur.execute("SELECT id FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="List not found")
+
+    cur.execute("""
+        SELECT id FROM custom_list_items
+        WHERE list_id = %s AND item_type = %s
+          AND (dish_name IS NOT DISTINCT FROM %s)
+          AND (restaurant_name ILIKE %s)
+    """, (list_id, body.item_type, body.dish_name, body.restaurant_name))
+    if cur.fetchone():
+        cur.close()
+        raise HTTPException(status_code=409, detail="Item already in list")
+
+    cur.execute("""
+        INSERT INTO custom_list_items (list_id, item_type, dish_name, restaurant_name)
+        VALUES (%s, %s, %s, %s) RETURNING *
+    """, (list_id, body.item_type,
+          body.dish_name.strip() if body.dish_name else None,
+          body.restaurant_name.strip()))
+    row = cur.fetchone()
+    cur.execute("UPDATE custom_lists SET updated_at = NOW() WHERE id = %s", (list_id,))
+    db.commit()
+    cur.close()
+    return row
+
+
+@app.delete("/lists/{list_id}/items/{item_id}", status_code=204)
+def remove_list_item(list_id: int, item_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("SELECT id FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="List not found")
+    cur.execute("SELECT id FROM custom_list_items WHERE id = %s AND list_id = %s", (item_id, list_id))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="Item not found")
+    cur.execute("DELETE FROM custom_list_items WHERE id = %s", (item_id,))
+    cur.execute("UPDATE custom_lists SET updated_at = NOW() WHERE id = %s", (list_id,))
     db.commit()
     cur.close()
