@@ -88,6 +88,26 @@ def create_tables():
                 UNIQUE (user_email, item_type, dish_name, restaurant_name)
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_lists (
+                id         SERIAL PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                name       VARCHAR(255) NOT NULL,
+                is_public  BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS list_items (
+                id              SERIAL PRIMARY KEY,
+                list_id         INTEGER NOT NULL REFERENCES user_lists(id) ON DELETE CASCADE,
+                item_type       VARCHAR(20) NOT NULL CHECK (item_type IN ('dish', 'restaurant', 'recipe')),
+                name            VARCHAR(255) NOT NULL,
+                restaurant_name VARCHAR(255),
+                note            TEXT,
+                added_at        TIMESTAMP DEFAULT NOW()
+            )
+        """)
         conn.commit()
     conn.close()
 
@@ -139,6 +159,16 @@ class TrylistAdd(BaseModel):
     item_type: str
     dish_name: Optional[str] = None
     restaurant_name: Optional[str] = None
+
+class ListCreate(BaseModel):
+    name: str
+    is_public: bool = True
+
+class ListItemCreate(BaseModel):
+    item_type: str
+    name: str
+    restaurant_name: Optional[str] = None
+    note: Optional[str] = None
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -568,4 +598,89 @@ def remove_from_trylist(item_id: int, email: str = Depends(get_current_user), db
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Item not found")
         cur.execute("DELETE FROM trylists WHERE id = %s", (item_id,))
+        db.commit()
+
+
+# ── Custom Lists ──────────────────────────────────────────────────────────────
+
+@app.get("/lists")
+def get_lists(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT l.id, l.name, l.is_public, l.created_at,
+                   COUNT(i.id) AS item_count
+            FROM user_lists l
+            LEFT JOIN list_items i ON i.list_id = l.id
+            WHERE l.user_email = %s
+            GROUP BY l.id
+            ORDER BY l.created_at DESC
+        """, (email,))
+        return cur.fetchall()
+
+@app.post("/lists", status_code=201)
+def create_list(body: ListCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="name is required")
+    with with_cursor(db) as cur:
+        cur.execute(
+            "INSERT INTO user_lists (user_email, name, is_public) VALUES (%s, %s, %s) RETURNING id, name, is_public, created_at",
+            (email, body.name.strip(), body.is_public)
+        )
+        row = cur.fetchone()
+        db.commit()
+    return row
+
+@app.delete("/lists/{list_id}", status_code=204)
+def delete_list(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="List not found")
+        cur.execute("DELETE FROM user_lists WHERE id = %s", (list_id,))
+        db.commit()
+
+@app.get("/lists/{list_id}/items")
+def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="List not found")
+        cur.execute("""
+            SELECT id, item_type, name, restaurant_name, note, added_at
+            FROM list_items WHERE list_id = %s ORDER BY added_at ASC
+        """, (list_id,))
+        return cur.fetchall()
+
+@app.post("/lists/{list_id}/items", status_code=201)
+def add_list_item(list_id: int, body: ListItemCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    if body.item_type not in ("dish", "restaurant", "recipe"):
+        raise HTTPException(status_code=400, detail="item_type must be 'dish', 'restaurant', or 'recipe'")
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="name is required")
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM user_lists WHERE id = %s AND user_email = %s", (list_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="List not found")
+        cur.execute(
+            """INSERT INTO list_items (list_id, item_type, name, restaurant_name, note)
+               VALUES (%s, %s, %s, %s, %s) RETURNING id, item_type, name, restaurant_name, note, added_at""",
+            (list_id, body.item_type, body.name.strip(),
+             body.restaurant_name.strip() if body.restaurant_name else None,
+             body.note.strip() if body.note else None)
+        )
+        row = cur.fetchone()
+        db.commit()
+    return row
+
+@app.delete("/lists/{list_id}/items/{item_id}", status_code=204)
+def delete_list_item(list_id: int, item_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT i.id FROM list_items i
+            JOIN user_lists l ON l.id = i.list_id
+            WHERE i.id = %s AND i.list_id = %s AND l.user_email = %s
+        """, (item_id, list_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Item not found")
+        cur.execute("DELETE FROM list_items WHERE id = %s", (item_id,))
         db.commit()
