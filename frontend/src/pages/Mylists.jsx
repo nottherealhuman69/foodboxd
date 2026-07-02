@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import styles from './MyLists.module.css'
+import styles from './Mylists.module.css'
 
 /* ── Icons ── */
 function ListsIcon() {
