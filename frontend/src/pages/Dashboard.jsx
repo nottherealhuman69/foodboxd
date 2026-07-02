@@ -7,6 +7,7 @@ import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
 import Trylist from './Trylist'
+import MyLists from './Mylists'
 import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
@@ -22,6 +23,7 @@ const NAV = [
   { id: 'search',  label: 'Search',        icon: SearchIcon   },
   { id: 'trylist', label: 'Trylist',       icon: TrylistIcon  },
   { id: 'notifs',  label: 'Notifications', icon: BellIcon     },
+  { id: 'lists',   label: 'My Lists',      icon: ListsIcon    },
 ]
 
 export default function Dashboard() {
@@ -165,6 +167,7 @@ export default function Dashboard() {
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
         {active === 'notifs'   && <Notifications onBadgeChange={setNotifCount} />}
+        {active === 'lists'    && <MyLists />}
       </main>
     </div>
   )
@@ -188,6 +191,9 @@ function SearchIcon({ className }) {
 }
 function TrylistIcon({ className }) {
   return <svg className={className} viewBox="0 0 20 20" fill="none"><path d="M4 2.5h12a.5.5 0 01.5.5v14l-6.5-3.25L3.5 17V3a.5.5 0 01.5-.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+}
+function ListsIcon({ className }) {
+  return <svg className={className} viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="2" y="12.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M11 4.5h7M11 7h4.5M11 15h7M11 17.5h4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
 }
 function BellIcon({ className }) {
   return <svg className={className} viewBox="0 0 20 20" fill="none"><path d="M10 2a6 6 0 00-6 6v3l-1.5 2.5h15L16 11V8a6 6 0 00-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M8.5 16.5a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
