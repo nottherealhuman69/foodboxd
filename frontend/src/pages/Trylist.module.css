@@ -1,5 +1,38 @@
+/* ── Tabs ── */
+.tabBarOuter {
+  padding: 2rem 2rem 0;
+  max-width: 760px;
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: #6b6f8a;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-bottom-color 0.15s;
+}
+
+.tab:hover { color: #c4c6db; }
+
+.tabActive {
+  color: #818cf8;
+  border-bottom-color: #6366F1;
+}
+
 .page {
-  padding: 2.5rem 2rem;
+  padding: 1.5rem 2rem 2.5rem;
   max-width: 680px;
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFetch, apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
+import MyLists from './Mylists'
 import styles from './Trylist.module.css'
 
 function BookmarkIcon() {
@@ -41,9 +42,20 @@ function TrashIcon() {
   )
 }
 
+function ListsNavIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M14 6.5h7M14 10h4M14 17.5h7M14 21h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 const FILTERS = ['All', 'Dishes', 'Restaurants']
 
 export default function Trylist({ onViewDish, onViewRestaurant }) {
+  const [tab, setTab] = useState('trylist')
   const { data: items, loading, error, refetch } = useFetch('/api/trylist')
   const [filter,   setFilter]   = useState('All')
   const [removing, setRemoving] = useState({})
@@ -69,81 +81,101 @@ export default function Trylist({ onViewDish, onViewRestaurant }) {
   const restaurantCount = (items || []).filter(i => i.item_type === 'restaurant').length
 
   return (
-    <div className={styles.page}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerIcon}><BookmarkIcon /></div>
-        <div>
-          <h2 className={styles.title}>Trylist</h2>
-          <p className={styles.sub}>
-            {!items || items.length === 0
-              ? 'Your wishlist is empty'
-              : `${items.length} item${items.length !== 1 ? 's' : ''} saved`}
-          </p>
-        </div>
+    <>
+      <div className={styles.tabBarOuter}>
+        <button
+          className={`${styles.tab} ${tab === 'trylist' ? styles.tabActive : ''}`}
+          onClick={() => setTab('trylist')}
+        >
+          <BookmarkIcon /> Trylist
+        </button>
+        <button
+          className={`${styles.tab} ${tab === 'lists' ? styles.tabActive : ''}`}
+          onClick={() => setTab('lists')}
+        >
+          <ListsNavIcon /> My Lists
+        </button>
       </div>
 
-      <PageState
-        loading={loading}
-        error={error}
-        empty={!loading && !error && (!items || items.length === 0)}
-        emptyTitle="Nothing saved yet"
-        emptyHint='Browse dishes and restaurants, then hit "+ Trylist" to save them here.'
-      />
-
-      {!loading && !error && items?.length > 0 && (
-        <>
-          <div className={styles.filters}>
-            {FILTERS.map(f => (
-              <button
-                key={f}
-                className={`${styles.filterBtn} ${filter === f ? styles.filterActive : ''}`}
-                onClick={() => setFilter(f)}
-              >
-                {f}
-                <span className={styles.filterCount}>
-                  {f === 'All' ? items.length : f === 'Dishes' ? dishCount : restaurantCount}
-                </span>
-              </button>
-            ))}
+      {tab === 'lists' ? (
+        <MyLists />
+      ) : (
+        <div className={styles.page}>
+          <div className={styles.header}>
+            <div className={styles.headerIcon}><BookmarkIcon /></div>
+            <div>
+              <h2 className={styles.title}>Trylist</h2>
+              <p className={styles.sub}>
+                {!items || items.length === 0
+                  ? 'Your wishlist is empty'
+                  : `${items.length} item${items.length !== 1 ? 's' : ''} saved`}
+              </p>
+            </div>
           </div>
 
-          <div className={styles.list}>
-            {filtered.map(item => (
-              <div key={item.id} className={styles.card}>
-                <div
-                  className={styles.cardMain}
-                  onClick={() => {
-                    if (item.item_type === 'dish') onViewDish?.(item.dish_name, item.restaurant_name)
-                    else onViewRestaurant?.(item.restaurant_name)
-                  }}
-                >
-                  <div className={`${styles.typeIcon} ${item.item_type === 'dish' ? styles.dishType : styles.restaurantType}`}>
-                    {item.item_type === 'dish' ? <DishIcon /> : <RestaurantIcon />}
-                  </div>
-                  <div className={styles.cardBody}>
-                    <p className={styles.cardName}>{item.dish_name || item.restaurant_name}</p>
-                    {item.dish_name && item.restaurant_name && (
-                      <p className={styles.cardSub}>{item.restaurant_name}</p>
-                    )}
-                  </div>
-                  <span className={styles.typePill}>
-                    {item.item_type === 'dish' ? 'Dish' : 'Restaurant'}
-                  </span>
-                </div>
-                <button
-                  className={styles.removeBtn}
-                  disabled={removing[item.id]}
-                  onClick={() => remove(item.id)}
-                  title="Remove from Trylist"
-                >
-                  <TrashIcon />
-                </button>
+          <PageState
+            loading={loading}
+            error={error}
+            empty={!loading && !error && (!items || items.length === 0)}
+            emptyTitle="Nothing saved yet"
+            emptyHint='Browse dishes and restaurants, then hit "+ Trylist" to save them here.'
+          />
+
+          {!loading && !error && items?.length > 0 && (
+            <>
+              <div className={styles.filters}>
+                {FILTERS.map(f => (
+                  <button
+                    key={f}
+                    className={`${styles.filterBtn} ${filter === f ? styles.filterActive : ''}`}
+                    onClick={() => setFilter(f)}
+                  >
+                    {f}
+                    <span className={styles.filterCount}>
+                      {f === 'All' ? items.length : f === 'Dishes' ? dishCount : restaurantCount}
+                    </span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-        </>
+
+              <div className={styles.list}>
+                {filtered.map(item => (
+                  <div key={item.id} className={styles.card}>
+                    <div
+                      className={styles.cardMain}
+                      onClick={() => {
+                        if (item.item_type === 'dish') onViewDish?.(item.dish_name, item.restaurant_name)
+                        else onViewRestaurant?.(item.restaurant_name)
+                      }}
+                    >
+                      <div className={`${styles.typeIcon} ${item.item_type === 'dish' ? styles.dishType : styles.restaurantType}`}>
+                        {item.item_type === 'dish' ? <DishIcon /> : <RestaurantIcon />}
+                      </div>
+                      <div className={styles.cardBody}>
+                        <p className={styles.cardName}>{item.dish_name || item.restaurant_name}</p>
+                        {item.dish_name && item.restaurant_name && (
+                          <p className={styles.cardSub}>{item.restaurant_name}</p>
+                        )}
+                      </div>
+                      <span className={styles.typePill}>
+                        {item.item_type === 'dish' ? 'Dish' : 'Restaurant'}
+                      </span>
+                    </div>
+                    <button
+                      className={styles.removeBtn}
+                      disabled={removing[item.id]}
+                      onClick={() => remove(item.id)}
+                      title="Remove from Trylist"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </>
   )
 }

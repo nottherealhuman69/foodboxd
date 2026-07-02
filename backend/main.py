@@ -510,6 +510,38 @@ def get_all_dishes(email: str = Depends(get_current_user), db=Depends(get_db)):
              "review_count": r["review_count"], "avg_rating": float(r["avg_rating"]),
              "created_by": username_from(r["created_by"]), "created_by_email": r["created_by"]} for r in rows]
 
+@app.get("/search/dishes-restaurants")
+def search_dishes_restaurants(q: str = "", item_type: str = "dish",
+                              _email: str = Depends(get_current_user), db=Depends(get_db)):
+    if not q.strip():
+        return []
+    pattern = f"%{q.strip()}%"
+    with with_cursor(db) as cur:
+        if item_type == "restaurant":
+            cur.execute("""
+                SELECT DISTINCT restaurant_name
+                FROM dish_reviews
+                WHERE type = 'restaurant'
+                  AND restaurant_name IS NOT NULL
+                  AND restaurant_name ILIKE %s
+                ORDER BY restaurant_name
+                LIMIT 10
+            """, (pattern,))
+            rows = cur.fetchall()
+            return [{"name": r["restaurant_name"], "restaurant_name": None} for r in rows]
+        else:
+            cur.execute("""
+                SELECT DISTINCT dish_name, restaurant_name
+                FROM dish_reviews
+                WHERE type = 'restaurant'
+                  AND restaurant_name IS NOT NULL
+                  AND (dish_name ILIKE %s OR restaurant_name ILIKE %s)
+                ORDER BY dish_name
+                LIMIT 10
+            """, (pattern, pattern))
+            rows = cur.fetchall()
+            return [{"name": r["dish_name"], "restaurant_name": r["restaurant_name"]} for r in rows]
+
 @app.get("/dishes/{dish_name}/restaurant/{restaurant_name}")
 def get_dish_page(dish_name: str, restaurant_name: str, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:

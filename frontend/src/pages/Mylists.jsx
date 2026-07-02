@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './Mylists.module.css'
 
 /* ── Icons ── */
@@ -136,14 +136,57 @@ function CreateListModal({ onClose, onCreated }) {
 
 /* ── Add Item Modal ── */
 function AddItemModal({ listId, onClose, onAdded }) {
-  const [itemType, setItemType]   = useState('dish')
-  const [name, setName]           = useState('')
+  const [itemType, setItemType]     = useState('dish')
+  const [name, setName]             = useState('')
   const [restaurant, setRestaurant] = useState('')
-  const [note, setNote]           = useState('')
-  const [saving, setSaving]       = useState(false)
-  const [err, setErr]             = useState('')
+  const [note, setNote]             = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [err, setErr]               = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const debounceRef = useRef(null)
 
   const token = localStorage.getItem('token')
+
+  const fetchSuggestions = useCallback((q, type) => {
+    if (type === 'recipe' || !q.trim()) { setSuggestions([]); setShowDropdown(false); return }
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/search/dishes-restaurants?q=${encodeURIComponent(q)}&item_type=${type}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setSuggestions(data)
+          setShowDropdown(data.length > 0)
+        }
+      } catch {}
+    }, 250)
+  }, [token])
+
+  const handleTypeChange = (t) => {
+    setItemType(t)
+    setName('')
+    setRestaurant('')
+    setSuggestions([])
+    setShowDropdown(false)
+    setErr('')
+  }
+
+  const handleNameChange = (val) => {
+    setName(val)
+    setErr('')
+    fetchSuggestions(val, itemType)
+  }
+
+  const selectSuggestion = (s) => {
+    setName(s.name)
+    if (s.restaurant_name) setRestaurant(s.restaurant_name)
+    setSuggestions([])
+    setShowDropdown(false)
+  }
 
   const submit = async () => {
     if (!name.trim()) { setErr('Please enter a name.'); return }
@@ -179,7 +222,7 @@ function AddItemModal({ listId, onClose, onAdded }) {
               <button
                 key={t}
                 className={`${styles.typeBtn} ${itemType === t ? styles.typeBtnActive : ''}`}
-                onClick={() => { setItemType(t); setErr('') }}
+                onClick={() => handleTypeChange(t)}
               >
                 {TYPE_ICONS[t]} {TYPE_LABELS[t]}
               </button>
@@ -191,17 +234,37 @@ function AddItemModal({ listId, onClose, onAdded }) {
           <label className={styles.label}>
             {itemType === 'dish' ? 'Dish name' : itemType === 'restaurant' ? 'Restaurant name' : 'Recipe name'}
           </label>
-          <input
-            className={styles.input}
-            placeholder={
-              itemType === 'dish' ? 'e.g. Chicken Biryani'
-              : itemType === 'restaurant' ? 'e.g. Paradise Biryani'
-              : 'e.g. Grandma\'s Dal Makhani'
-            }
-            value={name}
-            onChange={e => { setName(e.target.value); setErr('') }}
-            autoFocus
-          />
+          <div className={styles.searchWrap}>
+            <input
+              className={styles.input}
+              placeholder={
+                itemType === 'dish' ? 'e.g. Chicken Biryani'
+                : itemType === 'restaurant' ? 'e.g. Paradise Biryani'
+                : "e.g. Grandma's Dal Makhani"
+              }
+              value={name}
+              onChange={e => handleNameChange(e.target.value)}
+              autoFocus
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+              onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+            />
+            {showDropdown && (
+              <div className={styles.dropdown}>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    className={styles.dropdownItem}
+                    onMouseDown={() => selectSuggestion(s)}
+                  >
+                    <span className={styles.dropdownName}>{s.name}</span>
+                    {s.restaurant_name && (
+                      <span className={styles.dropdownSub}>{s.restaurant_name}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {itemType === 'dish' && (
