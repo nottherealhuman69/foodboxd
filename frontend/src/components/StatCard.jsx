@@ -17,9 +17,13 @@ export function StatGrid({ cols = 4, children }) {
   )
 }
 
-export function StatCard({ count, label }) {
+export function StatCard({ count, label, onClick, active }) {
   return (
-    <div className={shared.statCard}>
+    <div
+      className={shared.statCard}
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer', ...(active ? { borderColor: 'rgba(99,102,241,0.5)' } : {}) } : undefined}
+    >
       <span className={shared.statCount}>{count ?? '—'}</span>
       <span className={shared.statLabel}>{label}</span>
     </div>

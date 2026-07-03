@@ -181,6 +181,123 @@
   margin-top: 4px;
 }
 
+/* ── Like / Comment actions ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: #4e5272;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.actionBtn:hover { background: rgba(99, 102, 241, 0.08); color: #8b8fa8; }
+
+.actionLiked { color: #f87171; }
+.actionLiked:hover { background: rgba(248, 113, 113, 0.08); color: #f87171; }
+
+.actionActive { color: #818cf8; }
+
+/* ── Comments section ── */
+.commentsSection {
+  margin-top: 10px;
+  border-top: 1px solid rgba(99, 102, 241, 0.08);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.commentsLoading { font-size: 13px; color: #4e5272; }
+
+.commentList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.commentUsername {
+  font-weight: 600;
+  color: #c4c6db;
+  flex-shrink: 0;
+}
+
+.commentContent {
+  color: #8b8fa8;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.deleteCommentBtn {
+  background: none;
+  border: none;
+  color: #3d4060;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.deleteCommentBtn:hover { color: #f87171; }
+
+.commentForm {
+  display: flex;
+  gap: 6px;
+}
+
+.commentInput {
+  flex: 1;
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e8e9f0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.commentInput::placeholder { color: #3d4060; }
+.commentInput:focus { border-color: rgba(99, 102, 241, 0.4); }
+
+.commentSubmit {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.commentSubmit:hover:not(:disabled) { background: rgba(99, 102, 241, 0.22); }
+.commentSubmit:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ── Empty ── */
 .empty {
   display: flex;

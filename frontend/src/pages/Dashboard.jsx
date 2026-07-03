@@ -30,11 +30,15 @@ export default function Dashboard() {
   const handle = email.split('@')[0]
 
   const [active,      setActive]      = useState('profile')
+  const [reviewFilter, setReviewFilter] = useState('All')
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [entries,     setEntries]     = useState([])
   const [loading,     setLoading]     = useState(true)
   const [fetchError,  setFetchError]  = useState('')
-  const [notifCount,  setNotifCount]  = useState(0)
+  const [notifCount,     setNotifCount]     = useState(0)
+  const [seenNotifCount, setSeenNotifCount] = useState(
+    () => parseInt(localStorage.getItem('notif_seen_count') || '0', 10)
+  )
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
@@ -62,6 +66,13 @@ export default function Dashboard() {
 
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
+  useEffect(() => {
+    apiFetch('/api/friends/requests/pending')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setNotifCount(data.length))
+      .catch(() => {})
+  }, [])
+
   const handleSave = async (formData) => {
     const res = await apiFetch('/api/reviews', {
       method: 'POST',
@@ -88,7 +99,17 @@ export default function Dashboard() {
     if (res.ok) setEntries(prev => prev.filter(e => e.id !== id))
   }
 
-  const goTo = (id) => { setActive(id); setMenuOpen(false) }
+  const markNotifsSeen = (count) => {
+    setSeenNotifCount(count)
+    localStorage.setItem('notif_seen_count', String(count))
+  }
+
+  const goTo = (id, filter) => {
+    if (id === 'notifs') markNotifsSeen(notifCount)
+    if (id === 'reviews') setReviewFilter(filter || 'All')
+    setActive(id)
+    setMenuOpen(false)
+  }
 
   return (
     <div className={styles.shell}>
@@ -122,8 +143,9 @@ export default function Dashboard() {
             >
               <Icon className={styles.navIcon} />
               <span>{label}</span>
-              {id === 'reviews' && entries.length > 0 && <span className={styles.badge}>{entries.length}</span>}
-              {id === 'notifs'  && notifCount > 0      && <span className={styles.badge}>{notifCount}</span>}
+              {id === 'notifs'  && active !== 'notifs' && notifCount > seenNotifCount && (
+                <span className={styles.badge}>{notifCount - seenNotifCount}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -153,7 +175,7 @@ export default function Dashboard() {
                                     onViewRestaurant={setViewingRestaurant}
                                     onViewUser={setViewingUser}
                                   />}
-        {active === 'reviews'  && <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} />}
+        {active === 'reviews'  && <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} initialFilter={reviewFilter} />}
         {active === 'create'   && <CreateReview onSave={handleSave} />}
         {active === 'search'   && <Search
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
@@ -164,7 +186,7 @@ export default function Dashboard() {
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
-        {active === 'notifs'   && <Notifications onBadgeChange={setNotifCount} />}
+        {active === 'notifs'   && <Notifications onBadgeChange={(n) => { setNotifCount(n); markNotifsSeen(n) }} />}
       </main>
     </div>
   )

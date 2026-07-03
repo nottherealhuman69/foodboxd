@@ -89,6 +89,24 @@ def create_tables():
             )
         """)
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS review_likes (
+                id SERIAL PRIMARY KEY,
+                review_id INTEGER NOT NULL REFERENCES dish_reviews(id) ON DELETE CASCADE,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (review_id, user_email)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS review_comments (
+                id SERIAL PRIMARY KEY,
+                review_id INTEGER NOT NULL REFERENCES dish_reviews(id) ON DELETE CASCADE,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS custom_lists (
                 id         SERIAL PRIMARY KEY,
                 user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
@@ -163,6 +181,9 @@ class TrylistAdd(BaseModel):
     item_type: str
     dish_name: Optional[str] = None
     restaurant_name: Optional[str] = None
+
+class CommentCreate(BaseModel):
+    content: str
 
 class ListCreate(BaseModel):
     name: str
@@ -261,6 +282,67 @@ def delete_review(review_id: int, email: str = Depends(get_current_user), db=Dep
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Review not found")
         cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
+        db.commit()
+
+
+# ── Likes & Comments ─────────────────────────────────────────────────────────
+
+@app.post("/reviews/{review_id}/like")
+def toggle_like(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Review not found")
+        cur.execute("SELECT id FROM review_likes WHERE review_id = %s AND user_email = %s", (review_id, email))
+        if cur.fetchone():
+            cur.execute("DELETE FROM review_likes WHERE review_id = %s AND user_email = %s", (review_id, email))
+            liked = False
+        else:
+            cur.execute("INSERT INTO review_likes (review_id, user_email) VALUES (%s, %s)", (review_id, email))
+            liked = True
+        cur.execute("SELECT COUNT(*) AS count FROM review_likes WHERE review_id = %s", (review_id,))
+        count = cur.fetchone()["count"]
+        db.commit()
+    return {"liked": liked, "like_count": int(count)}
+
+@app.get("/reviews/{review_id}/comments")
+def get_comments(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Review not found")
+        cur.execute("""
+            SELECT id, user_email, content, created_at
+            FROM review_comments WHERE review_id = %s ORDER BY created_at ASC
+        """, (review_id,))
+        return [{"id": r["id"], "username": username_from(r["user_email"]), "user_email": r["user_email"],
+                 "content": r["content"], "created_at": r["created_at"]} for r in cur.fetchall()]
+
+@app.post("/reviews/{review_id}/comments", status_code=201)
+def add_comment(review_id: int, body: CommentCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    if not body.content.strip():
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Review not found")
+        cur.execute(
+            "INSERT INTO review_comments (review_id, user_email, content) VALUES (%s, %s, %s) RETURNING id, created_at",
+            (review_id, email, body.content.strip())
+        )
+        row = cur.fetchone()
+        db.commit()
+    return {"id": row["id"], "username": username_from(email), "user_email": email,
+            "content": body.content.strip(), "created_at": row["created_at"]}
+
+@app.delete("/reviews/{review_id}/comments/{comment_id}", status_code=204)
+def delete_comment(review_id: int, comment_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM review_comments WHERE id = %s AND review_id = %s AND user_email = %s",
+                    (comment_id, review_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Comment not found")
+        cur.execute("DELETE FROM review_comments WHERE id = %s", (comment_id,))
         db.commit()
 
 
@@ -402,11 +484,24 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
             return []
         placeholders = ",".join(["%s"] * len(friend_emails))
         cur.execute(f"""
-            SELECT id, user_email, dish_name, type, restaurant_name, rating, review, logged_at
-            FROM dish_reviews WHERE user_email IN ({placeholders})
-            ORDER BY logged_at DESC LIMIT 50
-        """, friend_emails)
-        return [serialise_review(r) for r in cur.fetchall()]
+            SELECT
+                r.id, r.user_email, r.dish_name, r.type, r.restaurant_name, r.rating, r.review, r.logged_at,
+                COUNT(DISTINCT l.id) AS like_count,
+                COUNT(DISTINCT c.id) AS comment_count,
+                COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+            FROM dish_reviews r
+            LEFT JOIN review_likes l ON l.review_id = r.id
+            LEFT JOIN review_comments c ON c.review_id = r.id
+            WHERE r.user_email IN ({placeholders})
+            GROUP BY r.id
+            ORDER BY r.logged_at DESC LIMIT 50
+        """, [email] + friend_emails)
+        return [{
+            **serialise_review(r),
+            "like_count":    int(r["like_count"]),
+            "comment_count": int(r["comment_count"]),
+            "user_liked":    bool(r["user_liked"]),
+        } for r in cur.fetchall()]
 
 
 # ── All reviews (search) ──────────────────────────────────────────────────────

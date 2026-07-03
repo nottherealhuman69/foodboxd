@@ -6,8 +6,8 @@ import styles from './Reviews.module.css'
 
 const FILTERS = ['All', 'Restaurant', 'Homemade']
 
-export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete }) {
-  const [filter, setFilter] = useState('All')
+export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, initialFilter = 'All' }) {
+  const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
 
   if (loading || fetchError) return (
