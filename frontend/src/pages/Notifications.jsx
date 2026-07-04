@@ -6,6 +6,7 @@ import styles from './Notifications.module.css'
 
 export default function Notifications({ onBadgeChange }) {
   const [requests, setRequests] = useState([])
+  const [activity, setActivity] = useState([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState('')
   const [acting,   setActing]   = useState({})
@@ -14,11 +15,16 @@ export default function Notifications({ onBadgeChange }) {
     setLoading(true)
     setError('')
     try {
-      const res = await apiFetch('/api/friends/requests/pending')
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setRequests(data)
-      onBadgeChange(data.length)
+      const [reqRes, actRes] = await Promise.all([
+        apiFetch('/api/friends/requests/pending'),
+        apiFetch('/api/notifications/activity'),
+      ])
+      if (!reqRes.ok) throw new Error()
+      const reqData = await reqRes.json()
+      const actData = actRes.ok ? await actRes.json() : []
+      setRequests(reqData)
+      setActivity(actData)
+      onBadgeChange(reqData.length + actData.length)
     } catch {
       setError('Could not load notifications.')
     } finally {
@@ -38,13 +44,15 @@ export default function Notifications({ onBadgeChange }) {
       if (!res.ok) throw new Error()
       const next = requests.filter(r => r.id !== id)
       setRequests(next)
-      onBadgeChange(next.length)
+      onBadgeChange(next.length + activity.length)
     } catch {
       setError('Something went wrong. Try again.')
     } finally {
       setActing(prev => { const n = { ...prev }; delete n[id]; return n })
     }
   }
+
+  const isEmpty = requests.length === 0 && activity.length === 0
 
   return (
     <div className={shared.page}>
@@ -56,9 +64,9 @@ export default function Notifications({ onBadgeChange }) {
       <PageState
         loading={loading}
         error={error}
-        empty={!loading && !error && requests.length === 0}
+        empty={!loading && !error && isEmpty}
         emptyTitle="You're all caught up"
-        emptyHint="No pending friend requests"
+        emptyHint="No pending friend requests or activity"
       />
 
       {!loading && !error && requests.length > 0 && (
@@ -85,6 +93,21 @@ export default function Notifications({ onBadgeChange }) {
                 >
                   {acting[req.id] === 'decline' ? '…' : 'Decline'}
                 </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && activity.length > 0 && (
+        <div className={styles.list} style={{ marginTop: requests.length > 0 ? 16 : 0 }}>
+          {activity.map(a => (
+            <div key={`${a.type}-${a.review_id}-${a.created_at}`} className={styles.requestCard}>
+              <div className={styles.info}>
+                <p className={styles.name}>@{a.actor_username}</p>
+                <p className={styles.sub2}>
+                  {a.type === 'like' ? 'liked' : 'commented on'} your review of {a.dish_name}
+                </p>
               </div>
             </div>
           ))}

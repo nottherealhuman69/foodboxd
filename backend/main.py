@@ -867,3 +867,37 @@ def remove_list_item(list_id: int, item_id: int, email: str = Depends(get_curren
             raise HTTPException(status_code=404, detail="Item not found")
         cur.execute("DELETE FROM list_items WHERE id = %s", (item_id,))
         db.commit()
+
+
+# ── Notifications ──────────────────────────────────────────────────────────────
+
+@app.get("/notifications/activity")
+def get_activity_notifications(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT 'like' AS type, l.id, l.user_email AS actor_email, l.created_at,
+                   r.id AS review_id, r.dish_name, r.restaurant_name
+            FROM review_likes l
+            JOIN dish_reviews r ON r.id = l.review_id
+            WHERE r.user_email = %s AND l.user_email != %s
+
+            UNION ALL
+
+            SELECT 'comment' AS type, c.id, c.user_email AS actor_email, c.created_at,
+                   r.id AS review_id, r.dish_name, r.restaurant_name
+            FROM review_comments c
+            JOIN dish_reviews r ON r.id = c.review_id
+            WHERE r.user_email = %s AND c.user_email != %s
+
+            ORDER BY created_at DESC
+            LIMIT 50
+        """, (email, email, email, email))
+        rows = cur.fetchall()
+    return [{
+        "type": r["type"],
+        "actor_username": username_from(r["actor_email"]),
+        "review_id": r["review_id"],
+        "dish_name": r["dish_name"],
+        "restaurant_name": r["restaurant_name"],
+        "created_at": r["created_at"],
+    } for r in rows]
