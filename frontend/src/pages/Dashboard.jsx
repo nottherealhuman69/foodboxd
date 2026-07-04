@@ -10,6 +10,7 @@ import Trylist from './Trylist'
 import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
+import ReviewPage from './ReviewPage'
 import { apiFetch } from '../hooks/useApi'
 import { normaliseReview } from '../utils/reviews'
 import styles from './Dashboard.module.css'
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
+  const [viewingReview, setViewingReview] = useState(null)
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
@@ -128,6 +130,16 @@ export default function Dashboard() {
           <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} />
         </div>
       )}
+      {viewingReview && !viewingDish && !viewingRestaurant && !viewingUser && (
+        <div className={styles.overlayPage}>
+          <ReviewPage
+            reviewId={viewingReview.id}
+            initialTab={viewingReview.tab}
+            onBack={() => setViewingReview(null)}
+            onViewUser={(userEmail) => { setViewingReview(null); setViewingUser(userEmail) }}
+          />
+        </div>
+      )}
 
       <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.brand}>
@@ -169,13 +181,27 @@ export default function Dashboard() {
       {menuOpen && <div className={styles.overlay} onClick={() => setMenuOpen(false)} />}
 
       <main className={styles.main}>
-        {active === 'profile'  && <Profile entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} />}
+        {active === 'profile'  && <Profile
+                                    entries={entries}
+                                    loading={loading}
+                                    fetchError={fetchError}
+                                    onNavigate={goTo}
+                                    onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                                  />}
         {active === 'feed'     && <Feed
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
                                     onViewUser={setViewingUser}
                                   />}
-        {active === 'reviews'  && <Reviews entries={entries} loading={loading} fetchError={fetchError} onNavigate={goTo} onDelete={handleDelete} initialFilter={reviewFilter} />}
+        {active === 'reviews'  && <Reviews
+                                    entries={entries}
+                                    loading={loading}
+                                    fetchError={fetchError}
+                                    onNavigate={goTo}
+                                    onDelete={handleDelete}
+                                    initialFilter={reviewFilter}
+                                    onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                                  />}
         {active === 'create'   && <CreateReview onSave={handleSave} />}
         {active === 'search'   && <Search
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}

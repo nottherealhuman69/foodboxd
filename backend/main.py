@@ -163,6 +163,8 @@ class ReviewOut(BaseModel):
     rating: int
     review: Optional[str]
     logged_at: datetime
+    like_count: int = 0
+    comment_count: int = 0
 
 class FriendRequestBody(BaseModel):
     addressee_email: EmailStr
@@ -272,7 +274,17 @@ def create_review(body: ReviewCreate, email: str = Depends(get_current_user), db
 @app.get("/reviews", response_model=List[ReviewOut])
 def get_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (email,))
+        cur.execute("""
+            SELECT r.*,
+                   COUNT(DISTINCT l.id) AS like_count,
+                   COUNT(DISTINCT c.id) AS comment_count
+            FROM dish_reviews r
+            LEFT JOIN review_likes l ON l.review_id = r.id
+            LEFT JOIN review_comments c ON c.review_id = r.id
+            WHERE r.user_email = %s
+            GROUP BY r.id
+            ORDER BY r.logged_at DESC
+        """, (email,))
         return cur.fetchall()
 
 @app.delete("/reviews/{review_id}", status_code=204)
@@ -284,6 +296,47 @@ def delete_review(review_id: int, email: str = Depends(get_current_user), db=Dep
         cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
         db.commit()
 
+@app.get("/reviews/{review_id}/detail")
+def get_review_detail(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT r.*,
+                   COUNT(DISTINCT l.id) AS like_count,
+                   COUNT(DISTINCT c.id) AS comment_count,
+                   COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+            FROM dish_reviews r
+            LEFT JOIN review_likes l ON l.review_id = r.id
+            LEFT JOIN review_comments c ON c.review_id = r.id
+            WHERE r.id = %s
+            GROUP BY r.id
+        """, (email, review_id))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Review not found")
+    return {
+        **serialise_review(row),
+        "username":      username_from(row["user_email"]),
+        "user_email":    row["user_email"],
+        "like_count":    int(row["like_count"]),
+        "comment_count": int(row["comment_count"]),
+        "user_liked":    bool(row["user_liked"]),
+    }
+
+@app.get("/reviews/{review_id}/likes")
+def get_likes(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Review not found")
+        cur.execute("""
+            SELECT user_email, created_at FROM review_likes
+            WHERE review_id = %s ORDER BY created_at DESC
+        """, (review_id,))
+        return [{
+            "username":   username_from(r["user_email"]),
+            "user_email": r["user_email"],
+            "created_at": r["created_at"],
+        } for r in cur.fetchall()]
 
 # ── Likes & Comments ─────────────────────────────────────────────────────────
 

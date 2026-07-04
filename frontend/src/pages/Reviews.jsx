@@ -6,7 +6,7 @@ import styles from './Reviews.module.css'
 
 const FILTERS = ['All', 'Restaurant', 'Homemade']
 
-export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, initialFilter = 'All' }) {
+export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, initialFilter = 'All' }) {
   const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
 
@@ -73,7 +73,7 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
           </div>
           {filtered.length === 0
             ? <p className={styles.noMatch}>No {filter.toLowerCase()} dishes yet.</p>
-            : <div className={styles.list}>{filtered.map(e => <ReviewCard key={e.id} entry={e} onDelete={onDelete} />)}</div>
+            : <div className={styles.list}>{filtered.map(e => <ReviewCard key={e.id} entry={e} onDelete={onDelete} onViewReview={onViewReview} />)}</div>
           }
         </>
       )}
@@ -81,12 +81,16 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
   )
 }
 
-function ReviewCard({ entry, onDelete }) {
+function ReviewCard({ entry, onDelete, onViewReview }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
-    <div className={shared.card}>
+    <div
+      className={shared.card}
+      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
+      onClick={() => onViewReview?.(entry.id, 'comments')}
+    >
       <div className={shared.cardTop}>
         <div>
           <p className={shared.dishName}>{entry.dishName}</p>
@@ -103,13 +107,23 @@ function ReviewCard({ entry, onDelete }) {
       </div>
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}
       {entry.recipe && (
-        <details className={styles.recipeDetails}>
+        <details className={styles.recipeDetails} onClick={e => e.stopPropagation()}>
           <summary className={styles.recipeSummary}>View recipe</summary>
           <p className={styles.recipeText}>{entry.recipe}</p>
         </details>
       )}
+
+      <div className={styles.statsRow}>
+        <button className={styles.statBtn} onClick={e => { e.stopPropagation(); onViewReview?.(entry.id, 'likes') }}>
+          ❤️ {entry.likeCount || 0}
+        </button>
+        <button className={styles.statBtn} onClick={e => { e.stopPropagation(); onViewReview?.(entry.id, 'comments') }}>
+          💬 {entry.commentCount || 0}
+        </button>
+      </div>
+
       <div className={styles.cardActions}>
-        <button className={styles.deleteBtn} onClick={() => onDelete(entry.id)} title="Delete review">
+        <button className={styles.deleteBtn} onClick={e => { e.stopPropagation(); onDelete(entry.id) }} title="Delete review">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
             <path d="M4 5h12M8 5V3h4v2M6 5l1 11h6l1-11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

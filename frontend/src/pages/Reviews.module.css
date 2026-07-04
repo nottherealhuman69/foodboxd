@@ -336,3 +336,10 @@ details[open] .recipeSummary::before { content: '▾ '; }
   color: #f87171;
   background: rgba(248, 113, 113, 0.08);
 }
+
+.statsRow { display: flex; gap: 8px; margin-top: 8px; }
+.statBtn {
+  background: none; border: none; font-size: 13px; color: #8b8fa8;
+  cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.statBtn:hover { background: rgba(99,102,241,0.08); color: #c4c6db; }

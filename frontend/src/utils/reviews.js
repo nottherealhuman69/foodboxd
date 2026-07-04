@@ -10,6 +10,8 @@ export function normaliseReview(r) {
     rating:         r.rating,
     review:         r.review ?? '',
     loggedAt:       r.logged_at,
+    likeCount:      r.like_count ?? 0,
+    commentCount:   r.comment_count ?? 0,
   }
 }
 
