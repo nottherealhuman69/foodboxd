@@ -228,7 +228,7 @@ export default function Dashboard() {
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
-        {active === 'notifs'   && <Notifications />}
+        {active === 'notifs' && <Notifications onViewReview={(id, tab) => setViewingReview({ id, tab })} />}
       </main>
     </div>
   )

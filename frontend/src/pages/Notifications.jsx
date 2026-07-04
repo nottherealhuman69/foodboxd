@@ -4,7 +4,19 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './Notifications.module.css'
 
-export default function Notifications() {
+function timeAgo(iso) {
+  const diff  = Date.now() - new Date(iso).getTime()
+  const mins  = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(diff / 86400000)
+  if (mins  < 1)  return 'just now'
+  if (mins  < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days  < 7)  return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+export default function Notifications({ onViewReview }) {
   const [requests, setRequests] = useState([])
   const [activity, setActivity] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -97,14 +109,22 @@ export default function Notifications() {
       {!loading && !error && activity.length > 0 && (
         <div className={styles.list} style={{ marginTop: requests.length > 0 ? 16 : 0 }}>
           {activity.map(a => (
-            <div key={`${a.type}-${a.review_id}-${a.created_at}`} className={styles.requestCard}>
+            <button
+              key={`${a.type}-${a.review_id}-${a.created_at}`}
+              className={styles.activityCard}
+              onClick={() => onViewReview?.(a.review_id, a.type === 'like' ? 'likes' : 'comments')}
+            >
+              <div className={styles.activityIcon} data-type={a.type}>
+                {a.type === 'like' ? '❤️' : '💬'}
+              </div>
               <div className={styles.info}>
                 <p className={styles.name}>@{a.actor_username}</p>
                 <p className={styles.sub2}>
                   {a.type === 'like' ? 'liked' : 'commented on'} your review of {a.dish_name}
                 </p>
               </div>
-            </div>
+              <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
+            </button>
           ))}
         </div>
       )}

@@ -27,10 +27,11 @@
   gap: 10px;
 }
 
-.card {
+/* ── Friend request card ── */
+.requestCard {
   display: flex;
   gap: 14px;
-  align-items: flex-start;
+  align-items: center;
   background: #16192A;
   border: 1px solid rgba(99, 102, 241, 0.12);
   border-radius: 12px;
@@ -38,7 +39,7 @@
   transition: border-color 0.15s;
 }
 
-.card:hover {
+.requestCard:hover {
   border-color: rgba(99, 102, 241, 0.28);
 }
 
@@ -56,33 +57,21 @@
   flex-shrink: 0;
 }
 
-.cardBody {
+.info {
   flex: 1;
   min-width: 0;
 }
 
-.cardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 2px;
-}
-
-.username {
+.name {
   font-size: 15px;
   font-weight: 600;
   color: #e8e9f0;
+  margin-bottom: 2px;
 }
 
-.time {
-  font-size: 12px;
-  color: #4e5272;
-}
-
-.cardSub {
+.sub2 {
   font-size: 13px;
   color: #8b8fa8;
-  margin-bottom: 12px;
 }
 
 .actions {
@@ -129,6 +118,47 @@
 }
 
 .declineBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Activity card (likes/comments) ── */
+.activityCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  background: #16192A;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.activityCard:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: #1a1e33;
+}
+
+.activityIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.activityIcon[data-type="like"]    { background: rgba(248, 113, 113, 0.12); }
+.activityIcon[data-type="comment"] { background: rgba(99, 102, 241, 0.12); }
+
+.activityTime {
+  font-size: 12px;
+  color: #4e5272;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* ── Empty ── */
 .empty {
