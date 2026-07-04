@@ -11,6 +11,8 @@ import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from utils import with_cursor, serialise_review, username_from
+from typing import Optional
+
 
 load_dotenv(override=True)
 
@@ -901,3 +903,32 @@ def get_activity_notifications(email: str = Depends(get_current_user), db=Depend
         "restaurant_name": r["restaurant_name"],
         "created_at": r["created_at"],
     } for r in rows]
+
+@app.get("/notifications/unseen_count")
+def get_unseen_count(since: Optional[datetime] = None, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        # Friend requests: always "unseen" until accepted/declined, same as today
+        cur.execute("""
+            SELECT COUNT(*) AS count FROM friendships
+            WHERE addressee_email = %s AND status = 'pending'
+        """, (email,))
+        pending_count = cur.fetchone()["count"]
+
+        # Likes/comments: only count ones newer than the last time notifications were opened
+        since_val = since or datetime(1970, 1, 1)
+        cur.execute("""
+            SELECT COUNT(*) AS count FROM (
+                SELECT l.id FROM review_likes l
+                JOIN dish_reviews r ON r.id = l.review_id
+                WHERE r.user_email = %s AND l.user_email != %s AND l.created_at > %s
+
+                UNION ALL
+
+                SELECT c.id FROM review_comments c
+                JOIN dish_reviews r ON r.id = c.review_id
+                WHERE r.user_email = %s AND c.user_email != %s AND c.created_at > %s
+            ) combined
+        """, (email, email, since_val, email, email, since_val))
+        activity_count = cur.fetchone()["count"]
+
+    return {"count": pending_count + activity_count}

@@ -4,7 +4,7 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './Notifications.module.css'
 
-export default function Notifications({ onBadgeChange }) {
+export default function Notifications() {
   const [requests, setRequests] = useState([])
   const [activity, setActivity] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -20,11 +20,8 @@ export default function Notifications({ onBadgeChange }) {
         apiFetch('/api/notifications/activity'),
       ])
       if (!reqRes.ok) throw new Error()
-      const reqData = await reqRes.json()
-      const actData = actRes.ok ? await actRes.json() : []
-      setRequests(reqData)
-      setActivity(actData)
-      onBadgeChange(reqData.length + actData.length)
+      setRequests(await reqRes.json())
+      setActivity(actRes.ok ? await actRes.json() : [])
     } catch {
       setError('Could not load notifications.')
     } finally {
@@ -42,9 +39,7 @@ export default function Notifications({ onBadgeChange }) {
         body: JSON.stringify({ action }),
       })
       if (!res.ok) throw new Error()
-      const next = requests.filter(r => r.id !== id)
-      setRequests(next)
-      onBadgeChange(next.length + activity.length)
+      setRequests(prev => prev.filter(r => r.id !== id))
     } catch {
       setError('Something went wrong. Try again.')
     } finally {

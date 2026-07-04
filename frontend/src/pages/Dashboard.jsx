@@ -36,14 +36,11 @@ export default function Dashboard() {
   const [entries,     setEntries]     = useState([])
   const [loading,     setLoading]     = useState(true)
   const [fetchError,  setFetchError]  = useState('')
-  const [notifCount,     setNotifCount]     = useState(0)
-  const [seenNotifCount, setSeenNotifCount] = useState(
-    () => parseInt(localStorage.getItem('notif_seen_count') || '0', 10)
-  )
+  const [notifCount,  setNotifCount]  = useState(0)
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
-  const [viewingReview, setViewingReview] = useState(null)
+  const [viewingReview,     setViewingReview]     = useState(null) // { id, tab }
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
@@ -68,12 +65,31 @@ export default function Dashboard() {
 
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
-  useEffect(() => {
-    apiFetch('/api/friends/requests/pending')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setNotifCount(data.length))
-      .catch(() => {})
+  const fetchNotifCount = useCallback(async () => {
+    try {
+      const since = localStorage.getItem('notif_last_seen')
+      const url = since
+        ? `/api/notifications/unseen_count?since=${encodeURIComponent(since)}`
+        : '/api/notifications/unseen_count'
+      const res = await apiFetch(url)
+      if (!res.ok) return
+      const { count } = await res.json()
+      setNotifCount(count)
+    } catch {
+      // silently fail — badge just won't update this cycle
+    }
   }, [])
+
+  useEffect(() => {
+    fetchNotifCount()
+    const interval = setInterval(fetchNotifCount, 10000)
+    const onFocus = () => fetchNotifCount()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [fetchNotifCount])
 
   const handleSave = async (formData) => {
     const res = await apiFetch('/api/reviews', {
@@ -101,13 +117,13 @@ export default function Dashboard() {
     if (res.ok) setEntries(prev => prev.filter(e => e.id !== id))
   }
 
-  const markNotifsSeen = (count) => {
-    setSeenNotifCount(count)
-    localStorage.setItem('notif_seen_count', String(count))
+  const markNotifsSeen = () => {
+    localStorage.setItem('notif_last_seen', new Date().toISOString())
+    setNotifCount(0)
   }
 
   const goTo = (id, filter) => {
-    if (id === 'notifs') markNotifsSeen(notifCount)
+    if (id === 'notifs') markNotifsSeen()
     if (id === 'reviews') setReviewFilter(filter || 'All')
     setActive(id)
     setMenuOpen(false)
@@ -155,8 +171,8 @@ export default function Dashboard() {
             >
               <Icon className={styles.navIcon} />
               <span>{label}</span>
-              {id === 'notifs'  && active !== 'notifs' && notifCount > seenNotifCount && (
-                <span className={styles.badge}>{notifCount - seenNotifCount}</span>
+              {id === 'notifs' && active !== 'notifs' && notifCount > 0 && (
+                <span className={styles.badge}>{notifCount}</span>
               )}
             </button>
           ))}
@@ -212,7 +228,7 @@ export default function Dashboard() {
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
-        {active === 'notifs'   && <Notifications onBadgeChange={(n) => { setNotifCount(n); markNotifsSeen(n) }} />}
+        {active === 'notifs'   && <Notifications />}
       </main>
     </div>
   )
