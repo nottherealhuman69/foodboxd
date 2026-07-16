@@ -448,7 +448,26 @@ def get_user_reviews(user_email: str, email: str = Depends(get_current_user), db
             raise HTTPException(status_code=404, detail="User not found")
         cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (user_email,))
         return cur.fetchall()
+    
+@app.get("/users/{user_email}/friends")
+def get_user_friends(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
 
+        cur.execute("""
+            SELECT
+                CASE WHEN requester_email = %s THEN addressee_email ELSE requester_email END AS friend_email,
+                COUNT(r.id) AS review_count
+            FROM friendships f
+            LEFT JOIN dish_reviews r
+                ON r.user_email = CASE WHEN f.requester_email = %s THEN f.addressee_email ELSE f.requester_email END
+            WHERE (requester_email = %s OR addressee_email = %s) AND status = 'accepted'
+            GROUP BY friend_email
+        """, (user_email, user_email, user_email, user_email))
+        rows = cur.fetchall()
+    return [{"email": r["friend_email"], "username": username_from(r["friend_email"]), "review_count": r["review_count"]} for r in rows]
 
 # ── Friend endpoints ──────────────────────────────────────────────────────────
 

@@ -9,10 +9,15 @@ import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
 
 export default function UserProfile({ userEmail, onBack }) {
-  const [reviews,     setReviews]     = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState('')
+  const [reviews,      setReviews]      = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState('')
   const [friendStatus, setFriendStatus] = useState(null)
+
+  const [section,        setSection]        = useState('dishes')
+  const [friends,        setFriends]        = useState(null)
+  const [friendsLoading, setFriendsLoading] = useState(true)
+  const [friendsError,   setFriendsError]   = useState('')
 
   const username = userEmail.split('@')[0]
 
@@ -41,7 +46,20 @@ export default function UserProfile({ userEmail, onBack }) {
     load()
   }, [userEmail])
 
+  // New: load this user's friends list whenever the viewed profile changes
+  useEffect(() => {
+    setFriends(null)
+    setFriendsLoading(true)
+    setFriendsError('')
+    apiFetch(`/api/users/${encodeURIComponent(userEmail)}/friends`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setFriends(data))
+      .catch(() => setFriendsError('Could not load friends.'))
+      .finally(() => setFriendsLoading(false))
+  }, [userEmail])
+
   const avg = avgRating(reviews)
+  const friendCount = friends ? friends.length : null
 
   return (
     <div className={shared.page}>
@@ -65,21 +83,40 @@ export default function UserProfile({ userEmail, onBack }) {
         />
       </div>
 
-      <StatGrid cols={4}>
-        <StatCard count={reviews.length}                                      label="Dishes logged" />
+      <StatGrid cols={5}>
+        <StatCard count={reviews.length}                                      label="Dishes logged" onClick={() => setSection('dishes')}  active={section === 'dishes'} />
         <StatCard count={avg}                                                  label="Avg rating" />
         <StatCard count={reviews.filter(r => r.type === 'restaurant').length} label="Restaurant" />
         <StatCard count={reviews.filter(r => r.type === 'homemade').length}   label="Homemade" />
+        <StatCard count={friendCount}                                        label="Friends"      onClick={() => setSection('friends')} active={section === 'friends'} />
       </StatGrid>
 
-      <PageState loading={loading} error={error} empty={!loading && !error && reviews.length === 0} emptyTitle="No dishes logged yet" />
+      {section === 'dishes' && (
+        <>
+          <PageState loading={loading} error={error} empty={!loading && !error && reviews.length === 0} emptyTitle="No dishes logged yet" />
+          {!loading && !error && reviews.length > 0 && (
+            <div>
+              <h3 className={shared.sectionTitle}>Diary</h3>
+              <div className={styles.reviewList}>
+                {reviews.map(r => <ReviewCard key={r.id} entry={r} />)}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
-      {!loading && !error && reviews.length > 0 && (
-        <div>
-          <h3 className={shared.sectionTitle}>Diary</h3>
-          <div className={styles.reviewList}>
-            {reviews.map(r => <ReviewCard key={r.id} entry={r} />)}
-          </div>
+      {section === 'friends' && (
+        <div className={styles.section}>
+          <h3 className={shared.sectionTitle}>Friends</h3>
+          <PageState loading={friendsLoading} error={friendsError} />
+          {!friendsLoading && !friendsError && friends !== null && friends.length === 0 && (
+            <PageState empty emptyTitle="No friends yet" />
+          )}
+          {!friendsLoading && !friendsError && friends && friends.length > 0 && (
+            <div className={styles.friendsList}>
+              {friends.map(f => <FriendCard key={f.email} friend={f} />)}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -107,6 +144,18 @@ function ReviewCard({ entry }) {
         <span className={shared.date}>{date}</span>
       </div>
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}
+    </div>
+  )
+}
+
+function FriendCard({ friend }) {
+  return (
+    <div className={styles.friendCard}>
+      <div className={styles.friendAvatar}>{friend.username[0]?.toUpperCase()}</div>
+      <div className={styles.friendInfo}>
+        <p className={styles.friendName}>@{friend.username}</p>
+        <p className={styles.friendMeta}>{friend.review_count} dish{friend.review_count !== 1 ? 'es' : ''} logged</p>
+      </div>
     </div>
   )
 }
