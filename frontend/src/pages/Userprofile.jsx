@@ -8,7 +8,7 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
 
-export default function UserProfile({ userEmail, onBack }) {
+export default function UserProfile({ userEmail, onBack, onViewUser }) {
   const [reviews,      setReviews]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -114,7 +114,7 @@ export default function UserProfile({ userEmail, onBack }) {
           )}
           {!friendsLoading && !friendsError && friends && friends.length > 0 && (
             <div className={styles.friendsList}>
-              {friends.map(f => <FriendCard key={f.email} friend={f} />)}
+              {friends.map(f => <FriendCard key={f.email} friend={f} onClick={() => onViewUser?.(f.email)} />)}
             </div>
           )}
         </div>
@@ -148,9 +148,9 @@ function ReviewCard({ entry }) {
   )
 }
 
-function FriendCard({ friend }) {
+function FriendCard({ friend, onClick }) {
   return (
-    <div className={styles.friendCard}>
+    <div className={styles.friendCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className={styles.friendAvatar}>{friend.username[0]?.toUpperCase()}</div>
       <div className={styles.friendInfo}>
         <p className={styles.friendName}>@{friend.username}</p>

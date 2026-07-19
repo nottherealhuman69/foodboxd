@@ -7,11 +7,13 @@ import { avgRating } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './Profile.module.css'
 
-export default function Profile({ entries = [], loading, fetchError, onNavigate, onViewReview }) {
+
+export default function Profile({ entries = [], loading, fetchError, onNavigate, onViewReview, onViewUser }) {
   const [section, setSection] = useState('dishes')
   const [friends, setFriends] = useState(null)
   const [friendsLoading, setFriendsLoading] = useState(true)
   const [friendsError, setFriendsError] = useState('')
+  
 
   useEffect(() => {
     apiFetch('/api/friends')
@@ -125,7 +127,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
           )}
           {!friendsLoading && !friendsError && friends && friends.length > 0 && (
             <div className={styles.friendsList}>
-              {friends.map(f => <FriendCard key={f.email} friend={f} />)}
+              {friends.map(f => <FriendCard key={f.email} friend={f} onClick={() => onViewUser?.(f.email)} />)}
             </div>
           )}
         </div>
@@ -163,9 +165,9 @@ function DiaryCard({ entry, onViewReview }) {
   )
 }
 
-function FriendCard({ friend }) {
+function FriendCard({ friend, onClick }) {
   return (
-    <div className={styles.friendCard}>
+    <div className={styles.friendCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className={styles.friendAvatar}>{friend.username[0]?.toUpperCase()}</div>
       <div className={styles.friendInfo}>
         <p className={styles.friendName}>@{friend.username}</p>

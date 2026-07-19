@@ -129,6 +129,20 @@ export default function Dashboard() {
     setMenuOpen(false)
   }
 
+  // Central place to handle "view this user's profile" — redirects to your own
+  // Profile tab if the clicked user is you, instead of opening the read-only overlay.
+  const viewUser = (targetEmail) => {
+    if (targetEmail === email) {
+      setViewingUser(null)
+      setViewingDish(null)
+      setViewingRestaurant(null)
+      setViewingReview(null)
+      goTo('profile')
+    } else {
+      setViewingUser(targetEmail)
+    }
+  }
+
   return (
     <div className={styles.shell}>
       {viewingDish && (
@@ -143,7 +157,7 @@ export default function Dashboard() {
       )}
       {viewingUser && !viewingDish && !viewingRestaurant && (
         <div className={styles.overlayPage}>
-          <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} />
+          <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} onViewUser={viewUser} />
         </div>
       )}
       {viewingReview && !viewingDish && !viewingRestaurant && !viewingUser && (
@@ -152,7 +166,7 @@ export default function Dashboard() {
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
             onBack={() => setViewingReview(null)}
-            onViewUser={(userEmail) => { setViewingReview(null); setViewingUser(userEmail) }}
+            onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
           />
         </div>
       )}
@@ -198,16 +212,17 @@ export default function Dashboard() {
 
       <main className={styles.main}>
         {active === 'profile'  && <Profile
-                                    entries={entries}
-                                    loading={loading}
-                                    fetchError={fetchError}
-                                    onNavigate={goTo}
-                                    onViewReview={(id, tab) => setViewingReview({ id, tab })}
-                                  />}
+                            entries={entries}
+                            loading={loading}
+                            fetchError={fetchError}
+                            onNavigate={goTo}
+                            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                            onViewUser={viewUser}
+                          />}
         {active === 'feed'     && <Feed
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
-                                    onViewUser={setViewingUser}
+                                    onViewUser={viewUser}
                                   />}
         {active === 'reviews'  && <Reviews
                                     entries={entries}
@@ -222,7 +237,7 @@ export default function Dashboard() {
         {active === 'search'   && <Search
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}
-                                    onViewUser={setViewingUser}
+                                    onViewUser={viewUser}
                                   />}
         {active === 'trylist'  && <Trylist
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
