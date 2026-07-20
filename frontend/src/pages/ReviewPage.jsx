@@ -5,12 +5,13 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 
+
 const TABS = [
   { id: 'likes',    label: 'Likes' },
   { id: 'comments', label: 'Comments' },
 ]
 
-export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser }) {
+export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant }) {
   const [review,  setReview]  = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -143,8 +144,22 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         </span>
       </div>
 
-      <h2 className={styles.dishName}>{review.dish_name}</h2>
-      {review.restaurant_name && <p className={styles.restaurant}>{review.restaurant_name}</p>}
+      <h2
+          className={styles.dishName}
+          style={{ cursor: onViewDish ? 'pointer' : 'default' }}
+          onClick={() => onViewDish?.(review.dish_name, review.restaurant_name)}
+        >
+          {review.dish_name}
+        </h2>
+        {review.restaurant_name && (
+          <p
+            className={styles.restaurant}
+            style={{ cursor: onViewRestaurant ? 'pointer' : 'default' }}
+            onClick={() => onViewRestaurant?.(review.restaurant_name)}
+          >
+            {review.restaurant_name}
+          </p>
+        )}
 
       <div className={styles.ratingRow}>
         <StarRating rating={review.rating} showLabel />
