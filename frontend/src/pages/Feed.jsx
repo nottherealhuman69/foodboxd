@@ -18,7 +18,7 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
+export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewReview }) {
   const { data: items, loading, error } = useFetch('/api/feed')
 
   return (
@@ -45,6 +45,7 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
               onViewDish={onViewDish}
               onViewRestaurant={onViewRestaurant}
               onViewUser={onViewUser}
+              onViewReview={onViewReview}
             />
           ))}
         </div>
@@ -53,7 +54,7 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser }) {
   )
 }
 
-function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
+function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview }) {
   const username = usernameFrom(item.username || item.user_email)
   const myEmail  = localStorage.getItem('email')
 
@@ -141,9 +142,16 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
   }
 
   return (
-    <div className={styles.card}>
+    <div
+      className={styles.card}
+      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
+      onClick={() => onViewReview?.(item.id, 'comments')}
+    >
       <div className={styles.avatarCol}>
-        <button className={styles.avatarBtn} onClick={() => onViewUser?.(item.user_email)}>
+        <button
+          className={styles.avatarBtn}
+          onClick={(e) => { e.stopPropagation(); onViewUser?.(item.user_email) }}
+        >
           {username.charAt(0).toUpperCase()}
         </button>
         <div className={styles.timelineLine} />
@@ -151,7 +159,10 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
       <div className={styles.content}>
         <div className={styles.cardHeader}>
           <div className={styles.meta}>
-            <button className={styles.usernameBtn} onClick={() => onViewUser?.(item.user_email)}>
+            <button
+              className={styles.usernameBtn}
+              onClick={(e) => { e.stopPropagation(); onViewUser?.(item.user_email) }}
+            >
               @{username}
             </button>
             <span className={styles.dot}>·</span>
@@ -164,13 +175,19 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
         <div className={styles.dishRow}>
           <button
             className={styles.dishName}
-            onClick={() => item.restaurant_name && onViewDish?.(item.dish_name, item.restaurant_name)}
+            onClick={(e) => {
+              e.stopPropagation()
+              item.restaurant_name && onViewDish?.(item.dish_name, item.restaurant_name)
+            }}
             disabled={!item.restaurant_name}
           >
             {item.dish_name}
           </button>
           {item.restaurant_name && (
-            <button className={styles.restaurantLink} onClick={() => onViewRestaurant?.(item.restaurant_name)}>
+            <button
+              className={styles.restaurantLink}
+              onClick={(e) => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+            >
               at {item.restaurant_name}
             </button>
           )}
@@ -180,7 +197,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
         </div>
         {item.review && <p className={styles.reviewText}>{item.review}</p>}
 
-        <div className={styles.actions}>
+        <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
           <button className={`${styles.actionBtn} ${liked ? styles.actionLiked : ''}`} onClick={toggleLike}>
             <HeartIcon filled={liked} />
             {likeCount > 0 && <span>{likeCount}</span>}
@@ -192,7 +209,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser }) {
         </div>
 
         {showComments && (
-          <div className={styles.commentsSection}>
+          <div className={styles.commentsSection} onClick={(e) => e.stopPropagation()}>
             {commentsLoading && <p className={styles.commentsLoading}>Loading…</p>}
             {!commentsLoading && comments && comments.length > 0 && (
               <div className={styles.commentList}>

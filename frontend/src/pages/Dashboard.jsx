@@ -221,11 +221,12 @@ export default function Dashboard() {
                             onViewReview={(id, tab) => setViewingReview({ id, tab })}
                             onViewUser={viewUser}
                           />}
-        {active === 'feed'     && <Feed
-                                    onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
-                                    onViewRestaurant={setViewingRestaurant}
-                                    onViewUser={viewUser}
-                                  />}
+        {active === 'feed' && <Feed
+                        onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+                        onViewRestaurant={setViewingRestaurant}
+                        onViewUser={viewUser}
+                        onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                      />}
         {active === 'reviews'  && <Reviews
                                     entries={entries}
                                     loading={loading}
