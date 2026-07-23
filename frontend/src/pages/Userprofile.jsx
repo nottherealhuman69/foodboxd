@@ -19,6 +19,10 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
   const [friendsLoading, setFriendsLoading] = useState(true)
   const [friendsError,   setFriendsError]   = useState('')
 
+  const [lists,        setLists]        = useState(null)
+  const [listsLoading, setListsLoading] = useState(true)
+  const [listsError,   setListsError]   = useState('')
+
   const username = userEmail.split('@')[0]
 
   useEffect(() => {
@@ -58,6 +62,17 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
       .finally(() => setFriendsLoading(false))
   }, [userEmail])
 
+  useEffect(() => {
+    setLists(null)
+    setListsLoading(true)
+    setListsError('')
+    apiFetch(`/api/users/${encodeURIComponent(userEmail)}/lists`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setLists(data))
+      .catch(() => setListsError('Could not load lists.'))
+      .finally(() => setListsLoading(false))
+  }, [userEmail])
+
   const avg = avgRating(reviews)
   const friendCount = friends ? friends.length : null
 
@@ -83,12 +98,13 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
         />
       </div>
 
-      <StatGrid cols={5}>
+      <StatGrid cols={6}>
         <StatCard count={reviews.length}                                      label="Dishes logged" onClick={() => setSection('dishes')}  active={section === 'dishes'} />
         <StatCard count={avg}                                                  label="Avg rating" />
         <StatCard count={reviews.filter(r => r.type === 'restaurant').length} label="Restaurant" />
         <StatCard count={reviews.filter(r => r.type === 'homemade').length}   label="Homemade" />
         <StatCard count={friendCount}                                        label="Friends"      onClick={() => setSection('friends')} active={section === 'friends'} />
+        <StatCard count={lists ? lists.length : null}                        label="Lists"        onClick={() => setSection('lists')}   active={section === 'lists'} />
       </StatGrid>
 
       {section === 'dishes' && (
@@ -115,6 +131,26 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
           {!friendsLoading && !friendsError && friends && friends.length > 0 && (
             <div className={styles.friendsList}>
               {friends.map(f => <FriendCard key={f.email} friend={f} onClick={() => onViewUser?.(f.email)} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {section === 'lists' && (
+        <div className={styles.section}>
+          <h3 className={shared.sectionTitle}>Public Lists</h3>
+          <PageState loading={listsLoading} error={listsError} />
+          {!listsLoading && !listsError && lists !== null && lists.length === 0 && (
+            <PageState empty emptyTitle="No public lists yet" />
+          )}
+          {!listsLoading && !listsError && lists && lists.length > 0 && (
+            <div className={styles.listsGrid}>
+              {lists.map(l => (
+                <div key={l.id} className={styles.listCard}>
+                  <p className={styles.listCardName}>{l.name}</p>
+                  <p className={styles.itemCount}>{l.item_count ?? 0} item{(l.item_count ?? 0) !== 1 ? 's' : ''}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>

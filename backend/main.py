@@ -469,6 +469,23 @@ def get_user_friends(user_email: str, email: str = Depends(get_current_user), db
         rows = cur.fetchall()
     return [{"email": r["friend_email"], "username": username_from(r["friend_email"]), "review_count": r["review_count"]} for r in rows]
 
+@app.get("/users/{user_email}/lists")
+def get_user_public_lists(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        cur.execute("""
+            SELECT cl.id, cl.name, cl.is_public, cl.created_at,
+                   COUNT(li.id) AS item_count
+            FROM custom_lists cl
+            LEFT JOIN list_items li ON li.list_id = cl.id
+            WHERE cl.user_email = %s AND cl.is_public = TRUE
+            GROUP BY cl.id
+            ORDER BY cl.created_at DESC
+        """, (user_email,))
+        return cur.fetchall()
+
 # ── Friend endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/friends/request", status_code=201)

@@ -13,6 +13,9 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
   const [friends, setFriends] = useState(null)
   const [friendsLoading, setFriendsLoading] = useState(true)
   const [friendsError, setFriendsError] = useState('')
+  const [lists, setLists] = useState(null)
+  const [listsLoading, setListsLoading] = useState(true)
+  const [listsError, setListsError] = useState('')
   
 
   useEffect(() => {
@@ -22,6 +25,14 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
       .catch(() => setFriendsError('Could not load friends.'))
       .finally(() => setFriendsLoading(false))
   }, [])
+
+  useEffect(() => {
+  apiFetch('/api/lists')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => setLists(data))
+    .catch(() => setListsError('Could not load your lists.'))
+    .finally(() => setListsLoading(false))
+}, [])
 
   const friendCount = friends ? friends.length : null
 
@@ -42,12 +53,13 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
         <p className={styles.sub}>Your food diary at a glance.</p>
       </div>
 
-      <StatGrid cols={5}>
+      <StatGrid cols={6}>
         <StatCard count={entries.length}        label="Dishes logged" onClick={() => setSection('dishes')}     active={section === 'dishes'} />
         <StatCard count={avg}                   label="Avg rating" />
         <StatCard count={restaurantEntries.length} label="Restaurant"  onClick={() => setSection('restaurant')} active={section === 'restaurant'} />
         <StatCard count={homemadeEntries.length}   label="Homemade"    onClick={() => setSection('homemade')}   active={section === 'homemade'} />
         <StatCard count={friendCount}           label="Friends"      onClick={() => setSection('friends')}    active={section === 'friends'} />
+        <StatCard count={lists ? lists.length : null} label="Lists"   onClick={() => setSection('lists')}      active={section === 'lists'} />
       </StatGrid>
 
       {section === 'dishes' && (
@@ -113,6 +125,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
         )
       )}
 
+
       {section === 'friends' && (
         <div className={styles.section}>
           <h3 className={shared.sectionTitle}>Friends</h3>
@@ -132,6 +145,32 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
           )}
         </div>
       )}
+
+          {section === 'lists' && (
+      <div className={styles.section}>
+        <h3 className={shared.sectionTitle}>My Lists</h3>
+        <PageState loading={listsLoading} error={listsError} />
+        {!listsLoading && !listsError && lists !== null && lists.length === 0 && (
+          <PageState empty emptyTitle="No lists yet" emptyHint='Create one from the Trylist tab — like "Best Biryanis in Hyderabad".' />
+        )}
+        {!listsLoading && !listsError && lists && lists.length > 0 && (
+          <div className={styles.listsGrid}>
+            {lists.map(l => (
+              <div key={l.id} className={styles.listCard} onClick={() => onNavigate?.('trylist')}>
+                <div className={styles.listCardTop}>
+                  <p className={styles.listCardName}>{l.name}</p>
+                  <span className={`${styles.visibilityPill} ${l.is_public ? styles.publicPill : styles.privatePill}`}>
+                    {l.is_public ? 'Public' : 'Private'}
+                  </span>
+                </div>
+                <p className={styles.itemCount}>{l.item_count ?? 0} item{(l.item_count ?? 0) !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
     </div>
   )
 }
