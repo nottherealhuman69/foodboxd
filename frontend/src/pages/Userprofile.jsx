@@ -8,7 +8,7 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
 
-export default function UserProfile({ userEmail, onBack, onViewUser }) {
+export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview }) {
   const [reviews,      setReviews]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -114,7 +114,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
             <div>
               <h3 className={shared.sectionTitle}>Diary</h3>
               <div className={styles.reviewList}>
-                {reviews.map(r => <ReviewCard key={r.id} entry={r} />)}
+                {reviews.map(r => <ReviewCard key={r.id} entry={r} onViewReview={onViewReview} />)}
               </div>
             </div>
           )}
@@ -159,12 +159,16 @@ export default function UserProfile({ userEmail, onBack, onViewUser }) {
   )
 }
 
-function ReviewCard({ entry }) {
+function ReviewCard({ entry, onViewReview }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
-    <div className={shared.card}>
+    <div
+      className={shared.card}
+      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
+      onClick={() => onViewReview?.(entry.id, 'comments')}
+    >
       <div className={shared.cardTop}>
         <div>
           <p className={shared.dishName}>{entry.dishName}</p>

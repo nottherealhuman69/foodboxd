@@ -155,12 +155,7 @@ export default function Dashboard() {
           <RestaurantPage restaurantName={viewingRestaurant} onBack={() => setViewingRestaurant(null)} />
         </div>
       )}
-      {viewingUser && !viewingDish && !viewingRestaurant && (
-        <div className={styles.overlayPage}>
-          <UserProfile userEmail={viewingUser} onBack={() => setViewingUser(null)} onViewUser={viewUser} />
-        </div>
-      )}
-      {viewingReview && !viewingDish && !viewingRestaurant && !viewingUser && (
+      {viewingReview && !viewingDish && !viewingRestaurant && (
         <div className={styles.overlayPage}>
           <ReviewPage
             reviewId={viewingReview.id}
@@ -169,6 +164,16 @@ export default function Dashboard() {
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
             onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
             onViewRestaurant={setViewingRestaurant}
+          />
+        </div>
+      )}
+      {viewingUser && !viewingDish && !viewingRestaurant && !viewingReview && (
+        <div className={styles.overlayPage}>
+          <UserProfile
+            userEmail={viewingUser}
+            onBack={() => setViewingUser(null)}
+            onViewUser={viewUser}
+            onViewReview={(id, tab) => setViewingReview({ id, tab })}
           />
         </div>
       )}
