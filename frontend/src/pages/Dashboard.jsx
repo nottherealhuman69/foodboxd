@@ -14,6 +14,7 @@ import ReviewPage from './ReviewPage'
 import { apiFetch } from '../hooks/useApi'
 import { normaliseReview } from '../utils/reviews'
 import styles from './Dashboard.module.css'
+import ListPage from './ListPage'
 
 const NAV = [
   { id: 'profile', label: 'Profile',      icon: ProfileIcon  },
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
   const [viewingReview,     setViewingReview]     = useState(null) // { id, tab }
+  const [viewingList, setViewingList] = useState(null) // { id, name }
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
@@ -137,6 +139,7 @@ export default function Dashboard() {
       setViewingDish(null)
       setViewingRestaurant(null)
       setViewingReview(null)
+      setViewingList(null)
       goTo('profile')
     } else {
       setViewingUser(targetEmail)
@@ -167,13 +170,19 @@ export default function Dashboard() {
           />
         </div>
       )}
-      {viewingUser && !viewingDish && !viewingRestaurant && !viewingReview && (
+      {viewingList && !viewingDish && !viewingRestaurant && !viewingReview && (
+        <div className={styles.overlayPage}>
+          <ListPage listId={viewingList.id} listName={viewingList.name} onBack={() => setViewingList(null)} />
+        </div>
+      )}
+      {viewingUser && !viewingDish && !viewingRestaurant && !viewingReview && !viewingList && (
         <div className={styles.overlayPage}>
           <UserProfile
             userEmail={viewingUser}
             onBack={() => setViewingUser(null)}
             onViewUser={viewUser}
             onViewReview={(id, tab) => setViewingReview({ id, tab })}
+            onViewList={(list) => setViewingList(list)}
           />
         </div>
       )}

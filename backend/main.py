@@ -906,7 +906,22 @@ def remove_list_item(list_id: int, item_id: int, email: str = Depends(get_curren
         cur.execute("DELETE FROM list_items WHERE id = %s", (item_id,))
         db.commit()
 
-
+@app.get("/lists/{list_id}/items")
+def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute(
+            "SELECT id FROM custom_lists WHERE id = %s AND (user_email = %s OR is_public = TRUE)",
+            (list_id, email)
+        )
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="List not found")
+        cur.execute(
+            "SELECT * FROM list_items WHERE list_id = %s ORDER BY added_at ASC",
+            (list_id,)
+        )
+        return cur.fetchall()
+    
+    
 # ── Notifications ──────────────────────────────────────────────────────────────
 
 @app.get("/notifications/activity")

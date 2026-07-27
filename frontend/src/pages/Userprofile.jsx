@@ -8,7 +8,8 @@ import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
 
-export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview }) {
+
+export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview, onViewList }) {
   const [reviews,      setReviews]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -146,7 +147,12 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
           {!listsLoading && !listsError && lists && lists.length > 0 && (
             <div className={styles.listsGrid}>
               {lists.map(l => (
-                <div key={l.id} className={styles.listCard}>
+                <div
+                  key={l.id}
+                  className={styles.listCard}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => onViewList?.(l)}
+                >
                   <p className={styles.listCardName}>{l.name}</p>
                   <p className={styles.itemCount}>{l.item_count ?? 0} item{(l.item_count ?? 0) !== 1 ? 's' : ''}</p>
                 </div>
