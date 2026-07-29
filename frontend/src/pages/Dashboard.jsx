@@ -172,7 +172,13 @@ export default function Dashboard() {
       )}
       {viewingList && !viewingDish && !viewingRestaurant && !viewingReview && (
         <div className={styles.overlayPage}>
-          <ListPage listId={viewingList.id} listName={viewingList.name} onBack={() => setViewingList(null)} />
+          <ListPage
+            listId={viewingList.id}
+            listName={viewingList.name}
+            onBack={() => setViewingList(null)}
+            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewRestaurant={setViewingRestaurant}
+          />
         </div>
       )}
       {viewingUser && !viewingDish && !viewingRestaurant && !viewingReview && !viewingList && (

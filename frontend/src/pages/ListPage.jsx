@@ -7,7 +7,7 @@ import styles from './Mylists.module.css'
 const TYPE_ICONS  = { dish: '🍽️', restaurant: '🏠', recipe: '📖' }
 const TYPE_LABELS = { dish: 'Dish', restaurant: 'Restaurant', recipe: 'Recipe' }
 
-export default function ListPage({ listId, listName, onBack }) {
+export default function ListPage({ listId, listName, onBack, onViewDish, onViewRestaurant }) {
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -45,18 +45,33 @@ export default function ListPage({ listId, listName, onBack }) {
 
       {!loading && !error && items.length > 0 && (
         <div className={styles.itemsList}>
-          {items.map((item, idx) => (
-            <div key={item.id} className={styles.itemCard}>
-              <span className={styles.itemIndex}>{idx + 1}</span>
-              <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
-              <div className={styles.itemBody}>
-                <p className={styles.itemName}>{item.name}</p>
-                {item.restaurant_name && <p className={styles.itemSub}>at {item.restaurant_name}</p>}
-                {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
+          {items.map((item, idx) => {
+            const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
+            const handleClick = () => {
+              if (item.item_type === 'dish' && item.restaurant_name) {
+                onViewDish?.(item.name, item.restaurant_name)
+              } else if (item.item_type === 'restaurant') {
+                onViewRestaurant?.(item.name)
+              }
+            }
+            return (
+              <div
+                key={item.id}
+                className={styles.itemCard}
+                style={{ cursor: clickable ? 'pointer' : 'default' }}
+                onClick={clickable ? handleClick : undefined}
+              >
+                <span className={styles.itemIndex}>{idx + 1}</span>
+                <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
+                <div className={styles.itemBody}>
+                  <p className={styles.itemName}>{item.name}</p>
+                  {item.restaurant_name && <p className={styles.itemSub}>at {item.restaurant_name}</p>}
+                  {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
+                </div>
+                <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
               </div>
-              <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
