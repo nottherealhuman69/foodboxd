@@ -303,7 +303,7 @@ function AddItemModal({ listId, onClose, onAdded }) {
 }
 
 /* ── List Detail View ── */
-function ListDetail({ list, onBack, onListUpdated }) {
+function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant }) {
   const [items, setItems]       = useState([])
   const [loading, setLoading]   = useState(true)
   const [showAdd, setShowAdd]   = useState(false)
@@ -371,28 +371,41 @@ function ListDetail({ list, onBack, onListUpdated }) {
 
       {!loading && items.length > 0 && (
         <div className={styles.itemsList}>
-          {items.map((item, idx) => (
-            <div key={item.id} className={styles.itemCard}>
-              <span className={styles.itemIndex}>{idx + 1}</span>
-              <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
-              <div className={styles.itemBody}>
-                <p className={styles.itemName}>{item.name}</p>
-                {item.restaurant_name && (
-                  <p className={styles.itemSub}>at {item.restaurant_name}</p>
-                )}
-                {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
-              </div>
-              <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
-              <button
-                className={styles.removeBtn}
-                onClick={() => removeItem(item.id)}
-                disabled={!!removing[item.id]}
-                title="Remove"
+          {items.map((item, idx) => {
+            const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
+            const handleClick = () => {
+              if (item.item_type === 'dish' && item.restaurant_name) {
+                onViewDish?.(item.name, item.restaurant_name)
+              } else if (item.item_type === 'restaurant') {
+                onViewRestaurant?.(item.name)
+              }
+            }
+            return (
+              <div
+                key={item.id}
+                className={styles.itemCard}
+                style={{ cursor: clickable ? 'pointer' : 'default' }}
+                onClick={clickable ? handleClick : undefined}
               >
-                {removing[item.id] ? <span className={styles.removingDot} /> : <TrashIcon />}
-              </button>
-            </div>
-          ))}
+                <span className={styles.itemIndex}>{idx + 1}</span>
+                <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
+                <div className={styles.itemBody}>
+                  <p className={styles.itemName}>{item.name}</p>
+                  {item.restaurant_name && <p className={styles.itemSub}>at {item.restaurant_name}</p>}
+                  {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
+                </div>
+                <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
+                <button
+                  className={styles.removeBtn}
+                  onClick={e => { e.stopPropagation(); removeItem(item.id) }}
+                  disabled={!!removing[item.id]}
+                  title="Remove"
+                >
+                  {removing[item.id] ? <span className={styles.removingDot} /> : <TrashIcon />}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -400,7 +413,7 @@ function ListDetail({ list, onBack, onListUpdated }) {
 }
 
 /* ── Main MyLists page ── */
-export default function MyLists() {
+export default function MyLists({ onViewDish, onViewRestaurant }) {
   const [lists, setLists]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
@@ -439,6 +452,8 @@ export default function MyLists() {
         list={openList}
         onBack={() => setOpenList(null)}
         onListUpdated={updated => setLists(p => p.map(l => l.id === updated.id ? updated : l))}
+        onViewDish={onViewDish}
+        onViewRestaurant={onViewRestaurant}
       />
     )
   }

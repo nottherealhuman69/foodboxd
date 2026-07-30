@@ -98,7 +98,7 @@ export default function Trylist({ onViewDish, onViewRestaurant }) {
       </div>
 
       {tab === 'lists' ? (
-        <MyLists />
+        <MyLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
       ) : (
         <div className={styles.page}>
           <div className={styles.header}>
