@@ -3,6 +3,7 @@ import { apiFetch } from '../hooks/useApi'
 import { StarRating } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import PageState from '../components/PageState'
+import RestaurantPage from './RestaurantPage'
 import TrylistButton from './TrylistButton'
 import shared from '../components/shared.module.css'
 import styles from './DishPage.module.css'
@@ -11,6 +12,7 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
+  const [viewingRestaurant, setViewingRestaurant] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -30,6 +32,9 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
     }
     load()
   }, [dishName, restaurantName])
+  if (viewingRestaurant) {
+    return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} />
+  }
 
   return (
     <div className={styles.page}>
@@ -48,7 +53,11 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
             <div className={styles.dishIcon}>🍽️</div>
             <div className={styles.heroBody}>
               <h1 className={styles.dishName}>{dish.dish_name}</h1>
-              <div className={styles.restaurantRow}>
+              <div
+                className={styles.restaurantRow}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setViewingRestaurant(true)}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M3 17V8.5M17 17V8.5M10 3v14" stroke="#8b8fa8" strokeWidth="1.5" strokeLinecap="round"/>
                   <path d="M3 8.5C3 6 5 4 7 4h6c2 0 4 2 4 4.5" stroke="#8b8fa8" strokeWidth="1.5" strokeLinecap="round"/>
