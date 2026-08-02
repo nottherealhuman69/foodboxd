@@ -9,7 +9,7 @@ import styles from './RestaurantPage.module.css'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
-export default function RestaurantPage({ restaurantName, onBack }) {
+export default function RestaurantPage({ restaurantName, onBack, onViewReview }) {
   const [data,        setData]        = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -119,24 +119,28 @@ export default function RestaurantPage({ restaurantName, onBack }) {
           )}
 
           {activeTab === 'reviews' && (
-            <div className={styles.reviewList}>
-              {data.reviews.map(r => (
-                <ReviewCard key={r.id} review={r} onViewDish={() => setViewingDish(r.dish_name)} />
-              ))}
-            </div>
-          )}
+              <div className={styles.reviewList}>
+                {data.reviews.map(r => (
+                  <ReviewCard key={r.id} review={r} onViewDish={() => setViewingDish(r.dish_name)} onViewReview={onViewReview} />
+                ))}
+              </div>
+            )}
         </>
       )}
     </div>
   )
 }
 
-function ReviewCard({ review, onViewDish }) {
+function ReviewCard({ review, onViewDish, onViewReview }) {
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
-    <div className={styles.reviewCard}>
+    <div
+      className={styles.reviewCard}
+      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
+      onClick={() => onViewReview?.(review.id, 'comments')}
+    >
       <div className={styles.reviewHeader}>
         <div className={styles.reviewAvatar}>{review.username.charAt(0).toUpperCase()}</div>
         <div className={styles.reviewHeaderBody}>
@@ -147,7 +151,9 @@ function ReviewCard({ review, onViewDish }) {
           <StarRating rating={review.rating} showLabel />
         </div>
       </div>
-      <button className={styles.dishTag} onClick={onViewDish}>🍽️ {review.dish_name}</button>
+      <button className={styles.dishTag} onClick={e => { e.stopPropagation(); onViewDish() }}>
+        🍽️ {review.dish_name}
+      </button>
       {review.review && <p className={styles.reviewText}>{review.review}</p>}
     </div>
   )

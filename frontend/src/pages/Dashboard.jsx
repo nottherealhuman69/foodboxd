@@ -11,10 +11,10 @@ import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
 import ReviewPage from './ReviewPage'
+import ListPage from './ListPage'
 import { apiFetch } from '../hooks/useApi'
 import { normaliseReview } from '../utils/reviews'
 import styles from './Dashboard.module.css'
-import ListPage from './ListPage'
 
 const NAV = [
   { id: 'profile', label: 'Profile',      icon: ProfileIcon  },
@@ -42,7 +42,7 @@ export default function Dashboard() {
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
   const [viewingReview,     setViewingReview]     = useState(null) // { id, tab }
-  const [viewingList, setViewingList] = useState(null) // { id, name }
+  const [viewingList,       setViewingList]       = useState(null) // { id, name }
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
@@ -148,17 +148,7 @@ export default function Dashboard() {
 
   return (
     <div className={styles.shell}>
-      {viewingDish && (
-        <div className={styles.overlayPage}>
-          <DishPage {...viewingDish} onBack={() => setViewingDish(null)} />
-        </div>
-      )}
-      {viewingRestaurant && !viewingDish && (
-        <div className={styles.overlayPage}>
-          <RestaurantPage restaurantName={viewingRestaurant} onBack={() => setViewingRestaurant(null)} />
-        </div>
-      )}
-      {viewingReview && !viewingDish && !viewingRestaurant && (
+      {viewingReview && (
         <div className={styles.overlayPage}>
           <ReviewPage
             reviewId={viewingReview.id}
@@ -170,7 +160,25 @@ export default function Dashboard() {
           />
         </div>
       )}
-      {viewingList && !viewingDish && !viewingRestaurant && !viewingReview && (
+      {!viewingReview && viewingDish && (
+        <div className={styles.overlayPage}>
+          <DishPage
+            {...viewingDish}
+            onBack={() => setViewingDish(null)}
+            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+          />
+        </div>
+      )}
+      {!viewingReview && !viewingDish && viewingRestaurant && (
+        <div className={styles.overlayPage}>
+          <RestaurantPage
+            restaurantName={viewingRestaurant}
+            onBack={() => setViewingRestaurant(null)}
+            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+          />
+        </div>
+      )}
+      {!viewingReview && !viewingDish && !viewingRestaurant && viewingList && (
         <div className={styles.overlayPage}>
           <ListPage
             listId={viewingList.id}
@@ -181,7 +189,7 @@ export default function Dashboard() {
           />
         </div>
       )}
-      {viewingUser && !viewingDish && !viewingRestaurant && !viewingReview && !viewingList && (
+      {!viewingReview && !viewingDish && !viewingRestaurant && !viewingList && viewingUser && (
         <div className={styles.overlayPage}>
           <UserProfile
             userEmail={viewingUser}

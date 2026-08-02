@@ -8,7 +8,7 @@ import TrylistButton from './TrylistButton'
 import shared from '../components/shared.module.css'
 import styles from './DishPage.module.css'
 
-export default function DishPage({ dishName, restaurantName, onBack }) {
+export default function DishPage({ dishName, restaurantName, onBack, onViewReview }) {
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -33,7 +33,7 @@ export default function DishPage({ dishName, restaurantName, onBack }) {
     load()
   }, [dishName, restaurantName])
   if (viewingRestaurant) {
-    return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} />
+    return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} onViewReview={onViewReview} />
   }
 
   return (
