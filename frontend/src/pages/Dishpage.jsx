@@ -92,7 +92,7 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
           <div className={styles.section}>
             <h3 className={shared.sectionTitle}>All reviews</h3>
             <div className={styles.reviewList}>
-              {dish.reviews.map(r => <ReviewCard key={r.id} review={r} />)}
+              {dish.reviews.map(r => <ReviewCard key={r.id} review={r} onViewReview={onViewReview} />)}
             </div>
           </div>
         </>
@@ -101,12 +101,16 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
   )
 }
 
-function ReviewCard({ review }) {
+function ReviewCard({ review, onViewReview }) {
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
-    <div className={styles.card}>
+    <div
+      className={styles.card}
+      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
+      onClick={() => onViewReview?.(review.id, 'comments')}
+    >
       <div className={styles.cardHeader}>
         <div className={styles.userAvatar}>{review.username.charAt(0).toUpperCase()}</div>
         <div className={styles.cardHeaderBody}>
@@ -121,4 +125,3 @@ function ReviewCard({ review }) {
     </div>
   )
 }
-

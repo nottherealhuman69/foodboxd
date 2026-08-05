@@ -155,8 +155,8 @@ export default function Dashboard() {
             initialTab={viewingReview.tab}
             onBack={() => setViewingReview(null)}
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
-            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
-            onViewRestaurant={setViewingRestaurant}
+            onViewDish={(d, r) => { setViewingReview(null); setViewingDish({ dishName: d, restaurantName: r }) }}
+            onViewRestaurant={(r) => { setViewingReview(null); setViewingRestaurant(r) }}
           />
         </div>
       )}
