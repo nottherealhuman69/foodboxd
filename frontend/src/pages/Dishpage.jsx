@@ -7,6 +7,7 @@ import RestaurantPage from './RestaurantPage'
 import TrylistButton from './TrylistButton'
 import shared from '../components/shared.module.css'
 import styles from './DishPage.module.css'
+import AddToListButton from './AddToListButton'
 
 export default function DishPage({ dishName, restaurantName, onBack, onViewReview }) {
   const [dish,    setDish]    = useState(null)
@@ -67,6 +68,7 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
               </div>
               <div style={{ marginTop: 12 }}>
                 <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
+                <AddToListButton itemType="dish" name={dish.dish_name} restaurantName={dish.restaurant_name} />
               </div>
             </div>
           </div>
