@@ -44,7 +44,7 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
           restaurant_name: itemType === 'dish' ? restaurantName : null,
         }),
       })
-      if (res.ok) {
+      if (res.ok || res.status === 409) {
         setAddedTo(prev => new Set(prev).add(listId))
       }
     } catch {}

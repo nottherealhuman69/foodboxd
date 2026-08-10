@@ -132,6 +132,19 @@ def create_tables():
                 added_at        TIMESTAMP DEFAULT NOW()
             )
         """)
+        cur.execute("""
+            DELETE FROM list_items a
+            USING list_items b
+            WHERE a.id > b.id
+            AND a.list_id = b.list_id
+            AND a.item_type = b.item_type
+            AND LOWER(a.name) = LOWER(b.name)
+            AND COALESCE(LOWER(a.restaurant_name), '') = COALESCE(LOWER(b.restaurant_name), '')
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS list_items_unique_idx
+            ON list_items (list_id, item_type, name, COALESCE(restaurant_name, ''))
+        """)
         conn.commit()
     conn.close()
 
@@ -872,11 +885,21 @@ def add_list_item(list_id: int, body: ListItemCreate, email: str = Depends(get_c
         cur.execute("SELECT id FROM custom_lists WHERE id = %s AND user_email = %s", (list_id, email))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="List not found")
+
+        restaurant_name = body.restaurant_name.strip() if body.restaurant_name else None
+        cur.execute("""
+            SELECT id FROM list_items
+            WHERE list_id = %s AND item_type = %s
+              AND name ILIKE %s
+              AND COALESCE(restaurant_name, '') ILIKE COALESCE(%s, '')
+        """, (list_id, body.item_type, body.name.strip(), restaurant_name))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="This item is already in the list")
+
         cur.execute(
             """INSERT INTO list_items (list_id, item_type, name, restaurant_name, note)
                VALUES (%s, %s, %s, %s, %s) RETURNING *""",
-            (list_id, body.item_type, body.name.strip(),
-             body.restaurant_name.strip() if body.restaurant_name else None,
+            (list_id, body.item_type, body.name.strip(), restaurant_name,
              body.note.strip() if body.note else None)
         )
         row = cur.fetchone()
