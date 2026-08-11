@@ -97,3 +97,10 @@
   color: #6b6f8a;
   flex-shrink: 0;
 }
+
+.alreadyLabel {
+  font-size: 11px;
+  color: #8b8fa8;
+  font-style: italic;
+  flex-shrink: 0;
+}

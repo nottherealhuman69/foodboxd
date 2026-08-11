@@ -7,9 +7,10 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
   const [lists,   setLists]   = useState(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
-  const [addedTo, setAddedTo] = useState(new Set())
+  //const [addedTo, setAddedTo] = useState(new Set())
   const [savingId, setSavingId] = useState(null)
   const wrapRef = useRef(null)
+  const [addedTo, setAddedTo] = useState({}) // { [listId]: 'added' | 'already' }
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -32,7 +33,7 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
     }
   }
 
-  const addToList = async (listId) => {
+const addToList = async (listId) => {
     if (savingId) return
     setSavingId(listId)
     try {
@@ -44,8 +45,10 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
           restaurant_name: itemType === 'dish' ? restaurantName : null,
         }),
       })
-      if (res.ok || res.status === 409) {
-        setAddedTo(prev => new Set(prev).add(listId))
+      if (res.ok) {
+        setAddedTo(prev => ({ ...prev, [listId]: 'added' }))
+      } else if (res.status === 409) {
+        setAddedTo(prev => ({ ...prev, [listId]: 'already' }))
       }
     } catch {}
     finally { setSavingId(null) }
@@ -70,29 +73,31 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
             <p className={styles.dropdownMsg}>You don't have any lists yet. Create one from the Trylist tab.</p>
           )}
           {!loading && !error && lists && lists.length > 0 && (
-            <div className={styles.dropdownList}>
-              {lists.map(l => {
-                const added = addedTo.has(l.id)
-                return (
-                  <button
-                    key={l.id}
-                    className={styles.dropdownItem}
-                    onClick={() => addToList(l.id)}
-                    disabled={added || savingId === l.id}
-                  >
-                    <span className={styles.listName}>{l.name}</span>
-                    {added ? (
-                      <span className={styles.checkmark}>✓ Added</span>
-                    ) : savingId === l.id ? (
-                      <span className={styles.saving}>Adding…</span>
-                    ) : (
-                      <span className={styles.itemCount}>{l.item_count} item{l.item_count !== 1 ? 's' : ''}</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+                <div className={styles.dropdownList}>
+                    {lists.map(l => {
+                    const status = addedTo[l.id]
+                    return (
+                        <button
+                        key={l.id}
+                        className={styles.dropdownItem}
+                        onClick={() => addToList(l.id)}
+                        disabled={!!status || savingId === l.id}
+                        >
+                        <span className={styles.listName}>{l.name}</span>
+                        {status === 'added' ? (
+                            <span className={styles.checkmark}>✓ Added</span>
+                        ) : status === 'already' ? (
+                            <span className={styles.alreadyLabel}>Already in list</span>
+                        ) : savingId === l.id ? (
+                            <span className={styles.saving}>Adding…</span>
+                        ) : (
+                            <span className={styles.itemCount}>{l.item_count} item{l.item_count !== 1 ? 's' : ''}</span>
+                        )}
+                        </button>
+                    )
+                    })}
+                </div>
+                )}
         </div>
       )}
     </div>
