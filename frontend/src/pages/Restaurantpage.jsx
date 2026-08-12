@@ -34,6 +34,12 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
     load()
   }, [restaurantName])
 
+
+  const email = localStorage.getItem('email') || ''
+  const myReviews = data ? data.reviews.filter(r => r.user_email === email) : []
+  const myAvgRating = myReviews.length > 0
+    ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
+    : null
   if (viewingDish) {
     return <DishPage dishName={viewingDish} restaurantName={restaurantName} onBack={() => setViewingDish(null)} />
   }
@@ -58,8 +64,17 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
               <p className={styles.createdBy}>
                 Page created by <span className={styles.creator}>@{data.created_by}</span>
               </p>
-              <div style={{ marginTop: 10 }}>
-                <TrylistButton itemType="restaurant" restaurantName={data.restaurant_name} />
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {myAvgRating !== null ? (
+                  <div className={styles.myRatingBadge}>
+                    <StarRating rating={myAvgRating} size={16} />
+                    <span className={styles.myRatingText}>
+                      You've rated it {myAvgRating.toFixed(1)} star{myAvgRating !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                ) : (
+                  <TrylistButton itemType="restaurant" restaurantName={data.restaurant_name} />
+                )}
                 <AddToListButton itemType="restaurant" name={data.restaurant_name} />
               </div>
             </div>
