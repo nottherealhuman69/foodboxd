@@ -33,6 +33,11 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
     }
     load()
   }, [dishName, restaurantName])
+const email = localStorage.getItem('email') || ''
+const myReviews = dish ? dish.reviews.filter(r => r.user_email === email) : []
+const myAvgRating = myReviews.length > 0
+  ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
+  : null
   if (viewingRestaurant) {
     return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} onViewReview={onViewReview} />
   }
@@ -66,8 +71,17 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
                 </svg>
                 <span className={styles.restaurantName}>{dish.restaurant_name}</span>
               </div>
-              <div style={{ marginTop: 12 }}>
-                <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {myAvgRating !== null ? (
+                  <div className={styles.myRatingBadge}>
+                    <StarRating rating={myAvgRating} size={16} />
+                    <span className={styles.myRatingText}>
+                      You've rated it {myAvgRating.toFixed(1)} star{myAvgRating !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                ) : (
+                  <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
+                )}
                 <AddToListButton itemType="dish" name={dish.dish_name} restaurantName={dish.restaurant_name} />
               </div>
             </div>
