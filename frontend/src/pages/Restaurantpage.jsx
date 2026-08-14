@@ -7,6 +7,7 @@ import DishPage from './DishPage'
 import shared from '../components/shared.module.css'
 import styles from './RestaurantPage.module.css'
 import AddToListButton from './AddToListButton'
+import RatingDistribution from '../components/RatingDistribution'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
@@ -82,9 +83,7 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
 
           <div className={styles.statsStrip}>
             <div className={styles.statItem}>
-              <StarRating rating={data.avg_rating} size={18} />
-              <span className={styles.avgRating}>{data.avg_rating.toFixed(1)}</span>
-              <span className={styles.statLabel}>avg rating</span>
+              <RatingDistribution reviews={data.reviews} avgRating={data.avg_rating} size={18} />
             </div>
             <div className={styles.divider} />
             <div className={styles.statItem}>

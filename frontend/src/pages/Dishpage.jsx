@@ -8,6 +8,7 @@ import TrylistButton from './TrylistButton'
 import shared from '../components/shared.module.css'
 import styles from './DishPage.module.css'
 import AddToListButton from './AddToListButton'
+import RatingDistribution from '../components/RatingDistribution'
 
 export default function DishPage({ dishName, restaurantName, onBack, onViewReview }) {
   const [dish,    setDish]    = useState(null)
@@ -89,9 +90,7 @@ const myAvgRating = myReviews.length > 0
 
           <div className={styles.statsStrip}>
             <div className={styles.statItem}>
-              <StarRating rating={dish.avg_rating} size={20} />
-              <span className={styles.avgRating}>{dish.avg_rating.toFixed(1)}</span>
-              <span className={styles.statLabel}>avg rating</span>
+              <RatingDistribution reviews={dish.reviews} avgRating={dish.avg_rating} size={20} />
             </div>
             <div className={styles.divider} />
             <div className={styles.statItem}>

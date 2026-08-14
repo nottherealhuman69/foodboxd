@@ -1,0 +1,96 @@
+.wrap {
+  position: relative;
+}
+
+.trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  color: inherit;
+}
+
+.avgNum {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8e9f0;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.label {
+  font-size: 10px;
+  color: #6b6f8a;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: #14162a;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 14px;
+  z-index: 20;
+}
+
+.popoverTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b8fa8;
+  margin: 0 0 10px;
+  text-align: center;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.barRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barLabel {
+  font-size: 11px;
+  color: #8b8fa8;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.barTrack {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: #818cf8;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+
+.barCount {
+  font-size: 11px;
+  color: #6b6f8a;
+  width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
