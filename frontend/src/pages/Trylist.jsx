@@ -3,12 +3,23 @@ import { useFetch, apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
 import MyLists from './Mylists'
 import styles from './Trylist.module.css'
+import GroupLists from './GroupLists'
 
 function BookmarkIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <path d="M5 3h14a1 1 0 011 1v17l-8-4-8 4V4a1 1 0 011-1z"
         stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function GroupNavIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3.5 19c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M16 5.4a3.2 3.2 0 010 5.2M17.5 14.6c2 .7 3.3 2.3 3.3 4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -95,10 +106,18 @@ export default function Trylist({ onViewDish, onViewRestaurant }) {
         >
           <ListsNavIcon /> My Lists
         </button>
+        <button
+          className={`${styles.tab} ${tab === 'groups' ? styles.tabActive : ''}`}
+          onClick={() => setTab('groups')}
+        >
+          <GroupNavIcon /> Group Lists
+        </button>
       </div>
 
       {tab === 'lists' ? (
         <MyLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
+      ) : tab === 'groups' ? (
+        <GroupLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
       ) : (
         <div className={styles.page}>
           <div className={styles.header}>

@@ -22,19 +22,39 @@ export default function Notifications({ onViewReview }) {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState('')
   const [acting,   setActing]   = useState({})
+  const [invites, setInvites] = useState([])
+
+  const respondToInvite = async (groupListId, action) => {
+    setActing(prev => ({ ...prev, [`g${groupListId}`]: action }))
+    try {
+      const res = await apiFetch(`/api/group-lists/${groupListId}/invite`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      })
+      if (!res.ok) throw new Error()
+      setInvites(prev => prev.filter(i => i.group_list_id !== groupListId))
+    } catch {
+      setError('Something went wrong. Try again.')
+    } finally {
+      setActing(prev => { const n = { ...prev }; delete n[`g${groupListId}`]; return n })
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [reqRes, actRes] = await Promise.all([
+      const [reqRes, actRes, invRes] = await Promise.all([
         apiFetch('/api/friends/requests/pending'),
         apiFetch('/api/notifications/activity'),
+        apiFetch('/api/group-lists/invites'),
       ])
       if (!reqRes.ok) throw new Error()
       setRequests(await reqRes.json())
       setActivity(actRes.ok ? await actRes.json() : [])
-    } catch {
+      setInvites(invRes.ok ? await invRes.json() : [])
+    } catch (e) {
+      console.error('notifications load failed:', e)
       setError('Could not load notifications.')
     } finally {
       setLoading(false)
@@ -59,7 +79,7 @@ export default function Notifications({ onViewReview }) {
     }
   }
 
-  const isEmpty = requests.length === 0 && activity.length === 0
+  const isEmpty = requests.length === 0 && activity.length === 0 && invites.length === 0
 
   return (
     <div className={shared.page}>
@@ -75,6 +95,37 @@ export default function Notifications({ onViewReview }) {
         emptyTitle="You're all caught up"
         emptyHint="No pending friend requests or activity"
       />
+      {!loading && !error && invites.length > 0 && (
+        <div className={styles.list} style={{ marginBottom: 16 }}>
+          {invites.map(inv => (
+            <div key={inv.group_list_id} className={styles.requestCard}>
+              <div className={styles.avatar}>{inv.invited_by[0].toUpperCase()}</div>
+              <div className={styles.info}>
+                <p className={styles.name}>{inv.name}</p>
+                <p className={styles.sub2}>
+                  @{inv.invited_by_username} invited you to this group list
+                </p>
+              </div>
+              <div className={styles.actions}>
+                <button
+                  className={styles.acceptBtn}
+                  disabled={!!acting[`g${inv.group_list_id}`]}
+                  onClick={() => respondToInvite(inv.group_list_id, 'accept')}
+                >
+                  {acting[`g${inv.group_list_id}`] === 'accept' ? '…' : 'Join'}
+                </button>
+                <button
+                  className={styles.declineBtn}
+                  disabled={!!acting[`g${inv.group_list_id}`]}
+                  onClick={() => respondToInvite(inv.group_list_id, 'decline')}
+                >
+                  {acting[`g${inv.group_list_id}`] === 'decline' ? '…' : 'Decline'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!loading && !error && requests.length > 0 && (
         <div className={styles.list}>

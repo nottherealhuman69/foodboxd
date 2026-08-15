@@ -314,3 +314,8 @@
 .emptyHint strong {
   color: #818cf8;
 }
+
+@media (max-width: 480px) {
+  .tabBarOuter { padding: 1.25rem 1rem 0; }
+  .tab { padding: 10px 11px; font-size: 13px; }
+}
