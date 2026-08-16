@@ -103,4 +103,42 @@
   color: #8b8fa8;
   font-style: italic;
   flex-shrink: 0;
+  max-width: 130px;      /* add */
+  text-align: right;     /* add */
+  line-height: 1.3;      /* add */
+}
+
+/* Section header inside the dropdown ("My lists" / "Group lists").
+   Only rendered when both kinds exist, so a single-section dropdown
+   stays as clean as it is today. */
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #5a5e78;
+  margin: 8px 0 4px;
+  padding: 0 10px;
+}
+.sectionLabel:first-child { margin-top: 2px; }
+
+/* Wraps the name + badge so the badge sits tight against the text
+   instead of being pushed to the far edge by the row's space-between. */
+.listNameWrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.groupBadge {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.16);
+  border-radius: 4px;
+  padding: 2px 5px;
+  flex-shrink: 0;
 }

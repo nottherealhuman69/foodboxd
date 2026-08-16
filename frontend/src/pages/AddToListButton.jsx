@@ -2,15 +2,18 @@ import { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '../hooks/useApi'
 import styles from './AddToListButton.module.css'
 
+/* Personal list ids and group list ids are separate sequences, so #3 can exist
+   in both. Everything below keys off `${kind}-${id}` to keep them distinct. */
+const keyOf = (l) => `${l.kind}-${l.id}`
+
 export default function AddToListButton({ itemType, name, restaurantName }) {
-  const [open,    setOpen]    = useState(false)
-  const [lists,   setLists]   = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
-  //const [addedTo, setAddedTo] = useState(new Set())
+  const [open,     setOpen]     = useState(false)
+  const [lists,    setLists]    = useState(null)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
   const [savingId, setSavingId] = useState(null)
+  const [addedTo,  setAddedTo]  = useState({}) // { [key]: 'added' | 'already' }
   const wrapRef = useRef(null)
-  const [addedTo, setAddedTo] = useState({}) // { [listId]: 'added' | 'already' }
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -22,22 +25,34 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
 
   const toggleDropdown = () => {
     setOpen(o => !o)
-    if (!lists) {
-      setLoading(true)
-      setError('')
-      apiFetch('/api/lists')
-        .then(r => r.ok ? r.json() : Promise.reject())
-        .then(data => setLists(data))
-        .catch(() => setError('Could not load your lists.'))
-        .finally(() => setLoading(false))
-    }
+    if (lists) return
+
+    setLoading(true)
+    setError('')
+    Promise.all([
+      apiFetch('/api/lists').then(r => (r.ok ? r.json() : Promise.reject())),
+      // A failed group fetch shouldn't sink the personal lists.
+      apiFetch('/api/group-lists').then(r => (r.ok ? r.json() : [])).catch(() => []),
+    ])
+      .then(([personal, groups]) => {
+        setLists([
+          ...personal.map(l => ({ ...l, kind: 'personal' })),
+          ...groups.map(l => ({ ...l, kind: 'group' })),
+        ])
+      })
+      .catch(() => setError('Could not load your lists.'))
+      .finally(() => setLoading(false))
   }
 
-const addToList = async (listId) => {
+  const addToList = async (list) => {
+    const k = keyOf(list)
     if (savingId) return
-    setSavingId(listId)
+    setSavingId(k)
     try {
-      const res = await apiFetch(`/api/lists/${listId}/items`, {
+      const endpoint = list.kind === 'group'
+        ? `/api/group-lists/${list.id}/items`
+        : `/api/lists/${list.id}/items`
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         body: JSON.stringify({
           item_type: itemType,
@@ -46,12 +61,56 @@ const addToList = async (listId) => {
         }),
       })
       if (res.ok) {
-        setAddedTo(prev => ({ ...prev, [listId]: 'added' }))
+        setAddedTo(prev => ({ ...prev, [k]: 'added' }))
       } else if (res.status === 409) {
-        setAddedTo(prev => ({ ...prev, [listId]: 'already' }))
+        // Group lists name who got there first; personal lists just say "already".
+        const detail = await res.json().catch(() => ({}))
+        setAddedTo(prev => ({ ...prev, [k]: 'already' }))
+        if (list.kind === 'group' && detail.detail) {
+          setLists(prev => prev.map(l =>
+            keyOf(l) === k ? { ...l, conflictNote: detail.detail } : l
+          ))
+        }
       }
     } catch {}
     finally { setSavingId(null) }
+  }
+
+  const personal = (lists || []).filter(l => l.kind === 'personal')
+  const groups   = (lists || []).filter(l => l.kind === 'group')
+
+  const renderRow = (l) => {
+    const k = keyOf(l)
+    const status = addedTo[k]
+    return (
+      <button
+        key={k}
+        className={styles.dropdownItem}
+        onClick={() => addToList(l)}
+        disabled={!!status || savingId === k}
+        title={l.kind === 'group' ? `Shared with ${l.member_count} people` : undefined}
+      >
+        <span className={styles.listNameWrap}>
+          <span className={styles.listName}>{l.name}</span>
+          {l.kind === 'group' && <span className={styles.groupBadge}>Group</span>}
+        </span>
+        {status === 'added' ? (
+          <span className={styles.checkmark}>✓ Added</span>
+        ) : status === 'already' ? (
+          <span className={styles.alreadyLabel}>
+            {l.conflictNote || 'Already in list'}
+          </span>
+        ) : savingId === k ? (
+          <span className={styles.saving}>Adding…</span>
+        ) : (
+          <span className={styles.itemCount}>
+            {l.kind === 'group'
+              ? `${l.member_count} member${l.member_count !== 1 ? 's' : ''}`
+              : `${l.item_count} item${l.item_count !== 1 ? 's' : ''}`}
+          </span>
+        )}
+      </button>
+    )
   }
 
   return (
@@ -69,35 +128,26 @@ const addToList = async (listId) => {
         <div className={styles.dropdown}>
           {loading && <p className={styles.dropdownMsg}>Loading your lists…</p>}
           {error && <p className={styles.dropdownMsgErr}>{error}</p>}
+
           {!loading && !error && lists && lists.length === 0 && (
-            <p className={styles.dropdownMsg}>You don't have any lists yet. Create one from the Trylist tab.</p>
+            <p className={styles.dropdownMsg}>
+              You don't have any lists yet. Create one from the Trylist tab.
+            </p>
           )}
-          {!loading && !error && lists && lists.length > 0 && (
-                <div className={styles.dropdownList}>
-                    {lists.map(l => {
-                    const status = addedTo[l.id]
-                    return (
-                        <button
-                        key={l.id}
-                        className={styles.dropdownItem}
-                        onClick={() => addToList(l.id)}
-                        disabled={!!status || savingId === l.id}
-                        >
-                        <span className={styles.listName}>{l.name}</span>
-                        {status === 'added' ? (
-                            <span className={styles.checkmark}>✓ Added</span>
-                        ) : status === 'already' ? (
-                            <span className={styles.alreadyLabel}>Already in list</span>
-                        ) : savingId === l.id ? (
-                            <span className={styles.saving}>Adding…</span>
-                        ) : (
-                            <span className={styles.itemCount}>{l.item_count} item{l.item_count !== 1 ? 's' : ''}</span>
-                        )}
-                        </button>
-                    )
-                    })}
-                </div>
-                )}
+
+          {!loading && !error && personal.length > 0 && (
+            <>
+              {groups.length > 0 && <p className={styles.sectionLabel}>My lists</p>}
+              <div className={styles.dropdownList}>{personal.map(renderRow)}</div>
+            </>
+          )}
+
+          {!loading && !error && groups.length > 0 && (
+            <>
+              <p className={styles.sectionLabel}>Group lists</p>
+              <div className={styles.dropdownList}>{groups.map(renderRow)}</div>
+            </>
+          )}
         </div>
       )}
     </div>
