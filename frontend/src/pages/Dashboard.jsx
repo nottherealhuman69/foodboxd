@@ -152,7 +152,16 @@ export default function Dashboard() {
         <div className={styles.overlayPage}>
           <ReviewPage
             reviewId={viewingReview.id}
-            initialTab={viewingReview.tab}
+            initialTab={viewingReview.tab}{active === 'reviews'  && <Reviews
+                            entries={entries}
+                            loading={loading}
+                            fetchError={fetchError}
+                            onNavigate={goTo}
+                            onDelete={handleDelete}
+                            initialFilter={reviewFilter}
+                            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                            onViewRestaurant={setViewingRestaurant}
+                          />}
             onBack={() => setViewingReview(null)}
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
             onViewDish={(d, r) => { setViewingReview(null); setViewingDish({ dishName: d, restaurantName: r }) }}
