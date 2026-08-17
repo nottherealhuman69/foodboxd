@@ -343,3 +343,29 @@ details[open] .recipeSummary::before { content: '▾ '; }
   cursor: pointer; padding: 4px 8px; border-radius: 6px;
 }
 .statBtn:hover { background: rgba(99,102,241,0.08); color: #c4c6db; }
+
+.restaurantLink {
+  display: inline-block;
+  margin: 2px 0 0 -6px;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #6b6f8a;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.restaurantLink:hover {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.restaurantLink:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.5);
+  outline-offset: 1px;
+}

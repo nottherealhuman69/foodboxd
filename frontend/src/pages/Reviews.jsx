@@ -6,7 +6,7 @@ import styles from './Reviews.module.css'
 
 const FILTERS = ['All', 'Restaurant', 'Homemade']
 
-export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, initialFilter = 'All' }) {
+export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, onViewRestaurant, initialFilter = 'All' }) {
   const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
 
@@ -73,7 +73,12 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
           </div>
           {filtered.length === 0
             ? <p className={styles.noMatch}>No {filter.toLowerCase()} dishes yet.</p>
-            : <div className={styles.list}>{filtered.map(e => <ReviewCard key={e.id} entry={e} onDelete={onDelete} onViewReview={onViewReview} />)}</div>
+            : <div className={styles.list}>
+                {filtered.map(e => (
+                  <ReviewCard key={e.id} entry={e} onDelete={onDelete}
+                              onViewReview={onViewReview} onViewRestaurant={onViewRestaurant} />
+                ))}
+              </div>
           }
         </>
       )}
@@ -81,7 +86,7 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
   )
 }
 
-function ReviewCard({ entry, onDelete, onViewReview }) {
+function ReviewCard({ entry, onDelete, onViewReview, onViewRestaurant }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -94,7 +99,15 @@ function ReviewCard({ entry, onDelete, onViewReview }) {
       <div className={shared.cardTop}>
         <div>
           <p className={shared.dishName}>{entry.dishName}</p>
-          {entry.restaurantName && <p className={shared.restaurant}>{entry.restaurantName}</p>}
+          {entry.restaurantName && (
+            <button
+              type="button"
+              className={styles.restaurantLink}
+              onClick={e => { e.stopPropagation(); onViewRestaurant?.(entry.restaurantName) }}
+            >
+              {entry.restaurantName}
+            </button>
+          )}
         </div>
         <span className={shared.typePill} data-type={entry.type}>
           {entry.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}

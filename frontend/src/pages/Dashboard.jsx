@@ -152,16 +152,7 @@ export default function Dashboard() {
         <div className={styles.overlayPage}>
           <ReviewPage
             reviewId={viewingReview.id}
-            initialTab={viewingReview.tab}{active === 'reviews'  && <Reviews
-                            entries={entries}
-                            loading={loading}
-                            fetchError={fetchError}
-                            onNavigate={goTo}
-                            onDelete={handleDelete}
-                            initialFilter={reviewFilter}
-                            onViewReview={(id, tab) => setViewingReview({ id, tab })}
-                            onViewRestaurant={setViewingRestaurant}
-                          />}
+            initialTab={viewingReview.tab}
             onBack={() => setViewingReview(null)}
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
             onViewDish={(d, r) => { setViewingReview(null); setViewingDish({ dishName: d, restaurantName: r }) }}
@@ -264,7 +255,7 @@ export default function Dashboard() {
                         onViewUser={viewUser}
                         onViewReview={(id, tab) => setViewingReview({ id, tab })}
                       />}
-        {active === 'reviews'  && <Reviews
+                {active === 'reviews'  && <Reviews
                                     entries={entries}
                                     loading={loading}
                                     fetchError={fetchError}
@@ -272,6 +263,7 @@ export default function Dashboard() {
                                     onDelete={handleDelete}
                                     initialFilter={reviewFilter}
                                     onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                                    onViewRestaurant={setViewingRestaurant}
                                   />}
         {active === 'create'   && <CreateReview onSave={handleSave} />}
         {active === 'search'   && <Search
