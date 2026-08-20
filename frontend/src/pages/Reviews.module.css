@@ -369,3 +369,29 @@ details[open] .recipeSummary::before { content: '▾ '; }
   outline: 2px solid rgba(99, 102, 241, 0.5);
   outline-offset: 1px;
 }
+
+.dishNameLink {
+  display: block;
+  margin: 0 0 2px -6px;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8e9f0;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.dishNameLink:hover {
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.dishNameLink:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.5);
+  outline-offset: 1px;
+}

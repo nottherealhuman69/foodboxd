@@ -264,6 +264,7 @@ export default function Dashboard() {
                                     initialFilter={reviewFilter}
                                     onViewReview={(id, tab) => setViewingReview({ id, tab })}
                                     onViewRestaurant={setViewingRestaurant}
+                                    onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                   />}
         {active === 'create'   && <CreateReview onSave={handleSave} />}
         {active === 'search'   && <Search

@@ -6,7 +6,7 @@ import styles from './Reviews.module.css'
 
 const FILTERS = ['All', 'Restaurant', 'Homemade']
 
-export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, onViewRestaurant, initialFilter = 'All' }) {
+export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, onViewRestaurant, onViewDish, initialFilter = 'All' }) {
   const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
 
@@ -76,7 +76,8 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
             : <div className={styles.list}>
                 {filtered.map(e => (
                   <ReviewCard key={e.id} entry={e} onDelete={onDelete}
-                              onViewReview={onViewReview} onViewRestaurant={onViewRestaurant} />
+                              onViewReview={onViewReview} onViewRestaurant={onViewRestaurant}
+                              onViewDish={onViewDish} />
                 ))}
               </div>
           }
@@ -86,7 +87,7 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
   )
 }
 
-function ReviewCard({ entry, onDelete, onViewReview, onViewRestaurant }) {
+function ReviewCard({ entry, onDelete, onViewReview, onViewRestaurant, onViewDish }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -98,7 +99,17 @@ function ReviewCard({ entry, onDelete, onViewReview, onViewRestaurant }) {
     >
       <div className={shared.cardTop}>
         <div>
-          <p className={shared.dishName}>{entry.dishName}</p>
+          {entry.restaurantName ? (
+            <button
+              type="button"
+              className={styles.dishNameLink}
+              onClick={e => { e.stopPropagation(); onViewDish?.(entry.dishName, entry.restaurantName) }}
+            >
+              {entry.dishName}
+            </button>
+          ) : (
+            <p className={shared.dishName}>{entry.dishName}</p>
+          )}
           {entry.restaurantName && (
             <button
               type="button"
