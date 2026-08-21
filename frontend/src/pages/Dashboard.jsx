@@ -248,6 +248,8 @@ export default function Dashboard() {
                             onNavigate={goTo}
                             onViewReview={(id, tab) => setViewingReview({ id, tab })}
                             onViewUser={viewUser}
+                            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+                            onViewRestaurant={setViewingRestaurant}
                           />}
         {active === 'feed' && <Feed
                         onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}

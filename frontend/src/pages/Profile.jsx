@@ -8,7 +8,7 @@ import shared from '../components/shared.module.css'
 import styles from './Profile.module.css'
 
 
-export default function Profile({ entries = [], loading, fetchError, onNavigate, onViewReview, onViewUser }) {
+export default function Profile({ entries = [], loading, fetchError, onNavigate, onViewReview, onViewUser, onViewDish, onViewRestaurant }) {
   const [section, setSection] = useState('dishes')
   const [friends, setFriends] = useState(null)
   const [friendsLoading, setFriendsLoading] = useState(true)
@@ -16,6 +16,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
   const [lists, setLists] = useState(null)
   const [listsLoading, setListsLoading] = useState(true)
   const [listsError, setListsError] = useState('')
+  const cardProps = { onViewReview, onViewDish, onViewRestaurant }
   
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
               <button className={styles.seeAll} onClick={() => onNavigate('reviews')}>See all →</button>
             </div>
             <div className={styles.diaryList}>
-              {entries.slice(0, 5).map(entry => <DiaryCard key={entry.id} entry={entry} onViewReview={onViewReview} />)}
+              {entries.slice(0, 5).map(entry => <DiaryCard key={entry.id} entry={entry} {...cardProps}/>)}
             </div>
           </div>
         )
@@ -98,7 +99,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
               <button className={styles.seeAll} onClick={() => onNavigate('reviews', 'Restaurant')}>See all →</button>
             </div>
             <div className={styles.diaryList}>
-              {restaurantEntries.map(entry => <DiaryCard key={entry.id} entry={entry} onViewReview={onViewReview} />)}
+              {restaurantEntries.map(entry => <DiaryCard key={entry.id} entry={entry} {...cardProps} />)}
             </div>
           </div>
         )
@@ -119,7 +120,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
               <button className={styles.seeAll} onClick={() => onNavigate('reviews', 'Homemade')}>See all →</button>
             </div>
             <div className={styles.diaryList}>
-              {homemadeEntries.map(entry => <DiaryCard key={entry.id} entry={entry} onViewReview={onViewReview} />)}
+              {homemadeEntries.map(entry => <DiaryCard key={entry.id} entry={entry} {...cardProps} />)}
             </div>
           </div>
         )
@@ -175,7 +176,7 @@ export default function Profile({ entries = [], loading, fetchError, onNavigate,
   )
 }
 
-function DiaryCard({ entry, onViewReview }) {
+function DiaryCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -187,8 +188,26 @@ function DiaryCard({ entry, onViewReview }) {
     >
       <div className={shared.cardTop}>
         <div>
-          <p className={shared.dishName}>{entry.dishName}</p>
-          {entry.restaurantName && <p className={shared.restaurant}>{entry.restaurantName}</p>}
+          {entry.restaurantName ? (
+            <button
+              type="button"
+              className={styles.dishNameLink}
+              onClick={e => { e.stopPropagation(); onViewDish?.(entry.dishName, entry.restaurantName) }}
+            >
+              {entry.dishName}
+            </button>
+          ) : (
+            <p className={shared.dishName}>{entry.dishName}</p>
+          )}
+          {entry.restaurantName && (
+            <button
+              type="button"
+              className={styles.restaurantLink}
+              onClick={e => { e.stopPropagation(); onViewRestaurant?.(entry.restaurantName) }}
+            >
+              {entry.restaurantName}
+            </button>
+          )}
         </div>
         <span className={shared.typePill} data-type={entry.type}>
           {entry.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
@@ -200,18 +219,6 @@ function DiaryCard({ entry, onViewReview }) {
         <span className={shared.date}>{date}</span>
       </div>
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}
-    </div>
-  )
-}
-
-function FriendCard({ friend, onClick }) {
-  return (
-    <div className={styles.friendCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      <div className={styles.friendAvatar}>{friend.username[0]?.toUpperCase()}</div>
-      <div className={styles.friendInfo}>
-        <p className={styles.friendName}>@{friend.username}</p>
-        <p className={styles.friendMeta}>{friend.review_count} dish{friend.review_count !== 1 ? 'es' : ''} logged</p>
-      </div>
     </div>
   )
 }
