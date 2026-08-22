@@ -222,3 +222,21 @@ function DiaryCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
     </div>
   )
 }
+
+function FriendCard({ friend, onClick }) {
+  return (
+    <div
+      className={styles.friendCard}
+      onClick={onClick}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+    >
+      <div className={styles.friendAvatar}>{friend.username?.[0]?.toUpperCase()}</div>
+      <div className={styles.friendInfo}>
+        <p className={styles.friendName}>@{friend.username}</p>
+        <p className={styles.friendMeta}>
+          {friend.review_count} dish{friend.review_count !== 1 ? 'es' : ''} logged
+        </p>
+      </div>
+    </div>
+  )
+}
