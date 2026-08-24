@@ -391,7 +391,18 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
                 <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
                 <div className={styles.itemBody}>
                   <p className={styles.itemName}>{item.name}</p>
-                  {item.restaurant_name && <p className={styles.itemSub}>at {item.restaurant_name}</p>}
+                                    {item.restaurant_name && (
+                    <p className={styles.itemSub}>
+                      at{' '}
+                      <button
+                        type="button"
+                        className={styles.restaurantLink}
+                        onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+                      >
+                        {item.restaurant_name}
+                      </button>
+                    </p>
+                  )}
                   {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
                 </div>
                 <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>

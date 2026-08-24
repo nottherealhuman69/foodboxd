@@ -319,3 +319,23 @@
   .tabBarOuter { padding: 1.25rem 1rem 0; }
   .tab { padding: 10px 11px; font-size: 13px; }
 }
+.restaurantLink {
+  display: inline;
+  padding: 1px 5px;
+  margin-left: -5px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.restaurantLink:hover {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.restaurantLink:focus-visible { outline: 2px solid rgba(99, 102, 241, 0.5); outline-offset: 1px; }

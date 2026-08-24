@@ -173,7 +173,15 @@ export default function Trylist({ onViewDish, onViewRestaurant }) {
                       <div className={styles.cardBody}>
                         <p className={styles.cardName}>{item.dish_name || item.restaurant_name}</p>
                         {item.dish_name && item.restaurant_name && (
-                          <p className={styles.cardSub}>{item.restaurant_name}</p>
+                          <p className={styles.cardSub}>
+                            <button
+                              type="button"
+                              className={styles.restaurantLink}
+                              onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+                            >
+                              {item.restaurant_name}
+                            </button>
+                          </p>
                         )}
                       </div>
                       <span className={styles.typePill}>
