@@ -528,9 +528,20 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
               >
                 <span className={styles.itemIndex}>{idx + 1}</span>
                 <span className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</span>
-                <div className={styles.itemBody}>
+                                <div className={styles.itemBody}>
                   <p className={styles.itemName}>{item.name}</p>
-                  {item.restaurant_name && <p className={styles.itemSub}>at {item.restaurant_name}</p>}
+                  {item.restaurant_name && (
+                    <p className={styles.itemSub}>
+                      at{' '}
+                      <button
+                        type="button"
+                        className={styles.restaurantLink}
+                        onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+                      >
+                        {item.restaurant_name}
+                      </button>
+                    </p>
+                  )}
                   {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
                   <p className={styles.addedBy}>added by @{item.added_by_username}</p>
                 </div>
