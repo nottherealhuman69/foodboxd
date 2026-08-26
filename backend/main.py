@@ -1297,6 +1297,7 @@ def get_activity_notifications(email: str = Depends(get_current_user), db=Depend
         rows = cur.fetchall()
     return [{
         "type": r["type"],
+        "actor_email": r["actor_email"],
         "actor_username": username_from(r["actor_email"]),
         "review_id": r["review_id"],
         "dish_name": r["dish_name"],

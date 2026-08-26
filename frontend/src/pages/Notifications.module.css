@@ -223,3 +223,25 @@
   color: #fca5a5;
   font-size: 14px;
 }
+
+.nameLink {
+  display: inline;
+  padding: 1px 4px;
+  margin-left: -2px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.nameLink:hover {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.nameLink:focus-visible { outline: 2px solid rgba(99, 102, 241, 0.5); outline-offset: 1px; }
