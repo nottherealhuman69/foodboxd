@@ -197,6 +197,8 @@ export default function Dashboard() {
             onViewUser={viewUser}
             onViewReview={(id, tab) => setViewingReview({ id, tab })}
             onViewList={(list) => setViewingList(list)}
+            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewRestaurant={setViewingRestaurant}
           />
         </div>
       )}

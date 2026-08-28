@@ -9,7 +9,7 @@ import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
 
 
-export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview, onViewList }) {
+export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview, onViewList, onViewDish, onViewRestaurant}) {
   const [reviews,      setReviews]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -115,7 +115,10 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
             <div>
               <h3 className={shared.sectionTitle}>Diary</h3>
               <div className={styles.reviewList}>
-                {reviews.map(r => <ReviewCard key={r.id} entry={r} onViewReview={onViewReview} />)}
+                {reviews.map(r => (
+                  <ReviewCard key={r.id} entry={r} onViewReview={onViewReview}
+                              onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
+                ))}
               </div>
             </div>
           )}
@@ -165,7 +168,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
   )
 }
 
-function ReviewCard({ entry, onViewReview }) {
+function ReviewCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -177,8 +180,26 @@ function ReviewCard({ entry, onViewReview }) {
     >
       <div className={shared.cardTop}>
         <div>
-          <p className={shared.dishName}>{entry.dishName}</p>
-          {entry.restaurantName && <p className={shared.restaurant}>{entry.restaurantName}</p>}
+          {entry.restaurantName ? (
+            <button
+              type="button"
+              className={styles.dishNameLink}
+              onClick={e => { e.stopPropagation(); onViewDish?.(entry.dishName, entry.restaurantName) }}
+            >
+              {entry.dishName}
+            </button>
+          ) : (
+            <p className={shared.dishName}>{entry.dishName}</p>
+          )}
+          {entry.restaurantName && (
+            <button
+              type="button"
+              className={styles.restaurantLink}
+              onClick={e => { e.stopPropagation(); onViewRestaurant?.(entry.restaurantName) }}
+            >
+              {entry.restaurantName}
+            </button>
+          )}
         </div>
         <span className={shared.typePill} data-type={entry.type}>
           {entry.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
@@ -194,13 +215,14 @@ function ReviewCard({ entry, onViewReview }) {
   )
 }
 
+
 function FriendCard({ friend, onClick }) {
   return (
     <div className={styles.friendCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      <div className={styles.friendAvatar}>{friend.username[0]?.toUpperCase()}</div>
+      <div className={styles.friendAvatar}>{(friend.username || friend.email || '?')[0].toUpperCase()}</div>
       <div className={styles.friendInfo}>
-        <p className={styles.friendName}>@{friend.username}</p>
-        <p className={styles.friendMeta}>{friend.review_count} dish{friend.review_count !== 1 ? 'es' : ''} logged</p>
+        <p className={styles.friendName}>@{friend.username || friend.email?.split('@')[0] || 'unknown'}</p>
+        <p className={styles.friendMeta}>{friend.review_count ?? 0} dish{friend.review_count !== 1 ? 'es' : ''} logged</p>
       </div>
     </div>
   )
