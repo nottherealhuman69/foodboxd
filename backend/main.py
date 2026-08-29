@@ -57,6 +57,10 @@ def create_tables():
             )
         """)
         cur.execute("""
+            ALTER TABLE group_lists
+            ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS group_list_members (
                 id            SERIAL PRIMARY KEY,
                 group_list_id INTEGER NOT NULL REFERENCES group_lists(id) ON DELETE CASCADE,
@@ -259,9 +263,12 @@ class ListItemCreate(BaseModel):
     restaurant_name: Optional[str] = None
     note: Optional[str] = None
 
+
 class GroupListCreate(BaseModel):
     name: str
     invite_emails: List[EmailStr] = []
+    is_public: bool = False
+
  
 class GroupInviteBody(BaseModel):
     emails: List[EmailStr]
@@ -275,6 +282,8 @@ class GroupListItemCreate(BaseModel):
     restaurant_name: Optional[str] = None
     note: Optional[str] = None
 
+class GroupListVisibility(BaseModel):
+    is_public: bool
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
 def hash_password(p: str) -> str:
@@ -310,6 +319,20 @@ def _require_active_member(cur, group_list_id: int, email: str):
     if not m or m["status"] != "accepted":
         raise HTTPException(status_code=404, detail="Group list not found")
     return m
+
+def _require_read_access(cur, group_list_id: int, email: str):
+    """
+    Accepted members always get in. Everyone else gets in only if the list
+    is public. Returns the member row, or None for a public-list outsider.
+    """
+    m = _group_membership(cur, group_list_id, email)
+    if m and m["status"] == "accepted":
+        return m
+    cur.execute("SELECT is_public FROM group_lists WHERE id = %s", (group_list_id,))
+    gl = cur.fetchone()
+    if not gl or not gl["is_public"]:
+        raise HTTPException(status_code=404, detail="Group list not found")
+    return None
  
 def _are_friends(cur, a: str, b: str) -> bool:
     cur.execute("""
@@ -614,6 +637,24 @@ def get_user_public_lists(user_email: str, email: str = Depends(get_current_user
         """, (user_email,))
         return cur.fetchall()
 
+@app.get("/users/{user_email}/group-lists")
+def get_public_group_lists(user_email: str, email: str = Depends(get_current_user),
+                           db=Depends(get_db)):
+    """Public group lists this user is an accepted member of."""
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT gl.id, gl.name, gl.owner_email, gl.is_public, gl.created_at,
+                   (SELECT COUNT(*) FROM group_list_members m
+                     WHERE m.group_list_id = gl.id AND m.status = 'accepted') AS member_count,
+                   (SELECT COUNT(*) FROM group_list_items i
+                     WHERE i.group_list_id = gl.id) AS item_count
+            FROM group_lists gl
+            JOIN group_list_members me ON me.group_list_id = gl.id
+            WHERE me.user_email = %s AND me.status = 'accepted' AND gl.is_public = TRUE
+            ORDER BY gl.created_at DESC
+        """, (user_email,))
+        rows = cur.fetchall()
+    return [{**dict(r), "owner_username": username_from(r["owner_email"])} for r in rows]
 # ── Friend endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/friends/request", status_code=201)
@@ -1054,7 +1095,7 @@ def get_group_lists(email: str = Depends(get_current_user), db=Depends(get_db)):
     """Group lists the caller has actually joined."""
     with with_cursor(db) as cur:
         cur.execute("""
-            SELECT gl.id, gl.name, gl.owner_email, gl.created_at, me.role AS my_role,
+            SELECT gl.id, gl.name, gl.owner_email, gl.is_public, gl.created_at, me.role AS my_role,
                    (SELECT COUNT(*) FROM group_list_members m
                      WHERE m.group_list_id = gl.id AND m.status = 'accepted') AS member_count,
                    (SELECT COUNT(*) FROM group_list_members m
@@ -1103,8 +1144,8 @@ def create_group_list(body: GroupListCreate, email: str = Depends(get_current_us
         raise HTTPException(status_code=400, detail="List name cannot be empty")
     with with_cursor(db) as cur:
         cur.execute(
-            "INSERT INTO group_lists (name, owner_email) VALUES (%s, %s) RETURNING *",
-            (body.name.strip(), email)
+            "INSERT INTO group_lists (name, owner_email, is_public) VALUES (%s, %s, %s) RETURNING *",
+            (body.name.strip(), email, body.is_public)
         )
         gl = cur.fetchone()
         # The creator joins immediately — they never get an invite for their own list.
@@ -1157,11 +1198,21 @@ def respond_to_group_invite(list_id: int, body: GroupInviteAction,
         db.commit()
     return {"group_list_id": list_id, "status": new_status}
  
+@app.patch("/group-lists/{list_id}/visibility")
+def set_group_list_visibility(list_id: int, body: GroupListVisibility,
+                              email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        _require_active_member(cur, list_id, email)
+        cur.execute("UPDATE group_lists SET is_public = %s WHERE id = %s RETURNING id, name, is_public",
+                    (body.is_public, list_id))
+        row = cur.fetchone()
+        db.commit()
+    return dict(row)
  
 @app.get("/group-lists/{list_id}")
 def get_group_list(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        me = _require_active_member(cur, list_id, email)
+        me = _require_read_access(cur, list_id, email)
         cur.execute("SELECT * FROM group_lists WHERE id = %s", (list_id,))
         gl = cur.fetchone()
         cur.execute("""
@@ -1174,7 +1225,7 @@ def get_group_list(list_id: int, email: str = Depends(get_current_user), db=Depe
     return {
         **dict(gl),
         "owner_username": username_from(gl["owner_email"]),
-        "my_role":        me["role"],
+        "my_role": me["role"] if me else None,
         "members": [{
             "email":    m["user_email"],
             "username": username_from(m["user_email"]),
@@ -1188,7 +1239,7 @@ def get_group_list(list_id: int, email: str = Depends(get_current_user), db=Depe
 def get_group_list_items(list_id: int, email: str = Depends(get_current_user),
                          db=Depends(get_db)):
     with with_cursor(db) as cur:
-        _require_active_member(cur, list_id, email)
+        _require_read_access(cur, list_id, email)
         cur.execute("""
             SELECT * FROM group_list_items
             WHERE group_list_id = %s ORDER BY added_at ASC

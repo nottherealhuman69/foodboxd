@@ -122,6 +122,7 @@ function FriendPicker({ selected, onToggle, excludeEmails = [] }) {
 function CreateGroupListModal({ onClose, onCreated }) {
   const [name, setName]         = useState('')
   const [selected, setSelected] = useState([])
+  const [isPublic, setIsPublic] = useState(false)
   const [saving, setSaving]     = useState(false)
   const [err, setErr]           = useState('')
 
@@ -134,7 +135,7 @@ function CreateGroupListModal({ onClose, onCreated }) {
     try {
       const res = await apiFetch('/api/group-lists', {
         method: 'POST',
-        body: JSON.stringify({ name: name.trim(), invite_emails: selected }),
+        body: JSON.stringify({ name: name.trim(), invite_emails: selected, is_public: isPublic }),
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
@@ -164,6 +165,28 @@ function CreateGroupListModal({ onClose, onCreated }) {
             onChange={e => { setName(e.target.value); setErr('') }}
             onKeyDown={e => e.key === 'Enter' && submit()}
           />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>Visibility</label>
+          <div className={styles.visToggle}>
+            <button
+              type="button"
+              className={`${styles.visOption} ${!isPublic ? styles.visOn : ''}`}
+              onClick={() => setIsPublic(false)}
+            >
+              Private
+              <span className={styles.visHint}>Only members can see it</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.visOption} ${isPublic ? styles.visOn : ''}`}
+              onClick={() => setIsPublic(true)}
+            >
+              Public
+              <span className={styles.visHint}>Shows on members' profiles</span>
+            </button>
+          </div>
         </div>
 
         <div className={styles.field}>
@@ -420,6 +443,15 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
     finally { setRemoving(p => { const n = { ...p }; delete n[itemId]; return n }) }
   }
 
+  const toggleVisibility = async () => {
+    const next = !list.is_public
+    const res = await apiFetch(`/api/group-lists/${listId}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_public: next }),
+    })
+    if (res.ok) { setList(p => ({ ...p, is_public: next })); onChanged?.() }
+  }
+
   const leave = async () => {
     if (!confirm('Leave this group list? You\u2019ll stop seeing it, but the list stays for everyone else.')) return
     const res = await apiFetch(`/api/group-lists/${listId}/leave`, { method: 'POST' })
@@ -473,6 +505,15 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
           </p>
         </div>
         <div className={styles.detailActions}>
+          <button
+            className={styles.ghostBtn}
+            onClick={toggleVisibility}
+            title={list.is_public
+              ? 'Anyone can see this list on members\u2019 profiles. Click to make it private.'
+              : 'Only members can see this list. Click to make it public.'}
+          >
+            {list.is_public ? '🌐 Public' : '🔒 Private'}
+          </button>
           <button className={styles.ghostBtn} onClick={() => setShowInvite(true)}>Invite friends</button>
           <button className={styles.addBtn} onClick={() => setShowAdd(true)}><PlusIcon /> Add item</button>
         </div>
@@ -528,7 +569,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
               >
                 <span className={styles.itemIndex}>{idx + 1}</span>
                 <span className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</span>
-                                <div className={styles.itemBody}>
+                <div className={styles.itemBody}>
                   <p className={styles.itemName}>{item.name}</p>
                   {item.restaurant_name && (
                     <p className={styles.itemSub}>
@@ -707,7 +748,12 @@ export default function GroupLists({ onViewDish, onViewRestaurant, currentEmail 
             <div key={l.id} className={styles.listCard} onClick={() => setOpenId(l.id)}>
               <div className={styles.cardTop}>
                 <h3 className={styles.listName}>{l.name}</h3>
-                {l.my_role === 'owner' && <span className={styles.ownerTag}>owner</span>}
+                <div className={styles.cardTags}>
+                  <span className={`${styles.visPill} ${l.is_public ? styles.publicPill : styles.privatePill}`}>
+                    {l.is_public ? 'Public' : 'Private'}
+                  </span>
+                  {l.my_role === 'owner' && <span className={styles.ownerTag}>owner</span>}
+                </div>
               </div>
               <div className={styles.cardMeta}>
                 <span className={styles.metaPill}>
