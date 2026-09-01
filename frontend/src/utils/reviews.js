@@ -15,6 +15,24 @@ export function normaliseReview(r) {
   }
 }
 
+export function normaliseMeal(m) {
+  return {
+    id:             m.id,
+    kind:           'meal',
+    type:           'meal',
+    title:          m.title ?? '',
+    restaurantName: m.restaurant_name ?? '',
+    rating:         m.rating,
+    review:         m.review ?? '',
+    loggedAt:       m.logged_at,
+    dishCount:      m.dish_count ?? 0,
+    dishAvg:        m.dish_avg ?? null,
+    dishes:         (m.dishes ?? []).map(d => ({
+      id: d.id, dishName: d.dish_name, rating: d.rating, review: d.review ?? '',
+    })),
+  }
+}
+
 export function avgRating(entries) {
   if (!entries?.length) return null
   return (entries.reduce((s, e) => s + e.rating, 0) / entries.length).toFixed(1)

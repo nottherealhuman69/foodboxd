@@ -13,17 +13,18 @@ import UserProfile from './UserProfile'
 import ReviewPage from './ReviewPage'
 import ListPage from './ListPage'
 import { apiFetch } from '../hooks/useApi'
-import { normaliseReview } from '../utils/reviews'
 import styles from './Dashboard.module.css'
+import { normaliseReview, normaliseMeal } from '../utils/reviews'
+
 
 const NAV = [
   { id: 'profile', label: 'Profile',      icon: ProfileIcon  },
   { id: 'feed',    label: 'Feed',          icon: FeedIcon     },
   { id: 'reviews', label: 'Reviews',       icon: ReviewsIcon  },
-  { id: 'create',  label: 'Log a Dish',    icon: CreateIcon   },
   { id: 'search',  label: 'Search',        icon: SearchIcon   },
   { id: 'trylist', label: 'Trylist',       icon: TrylistIcon  },
   { id: 'notifs',  label: 'Notifications', icon: BellIcon     },
+  { id: 'create',  label: 'Log',           icon: CreateIcon   },
 ]
 
 export default function Dashboard() {
@@ -54,16 +55,34 @@ export default function Dashboard() {
     setLoading(true)
     setFetchError('')
     try {
-      const res = await apiFetch('/api/reviews')
-      if (res.status === 401) { logout(); return }
-      if (!res.ok) throw new Error()
-      setEntries((await res.json()).map(normaliseReview))
+      const [reviewRes, mealRes] = await Promise.all([
+        apiFetch('/api/reviews'),
+        apiFetch('/api/meals'),
+      ])
+      if (reviewRes.status === 401 || mealRes.status === 401) { logout(); return }
+      if (!reviewRes.ok || !mealRes.ok) throw new Error()
+      const reviews = (await reviewRes.json()).map(normaliseReview)
+      const meals   = (await mealRes.json()).map(normaliseMeal)
+      setEntries([...reviews, ...meals].sort(
+        (a, b) => new Date(b.loggedAt) - new Date(a.loggedAt)
+      ))
     } catch {
-      setFetchError('Could not load your reviews. Please refresh.')
+      setFetchError('Could not load your diary. Please refresh.')
     } finally {
       setLoading(false)
     }
   }, [logout])
+
+
+    const handleSaveMeal = (saved) => {
+    setEntries(prev => [normaliseMeal(saved), ...prev])
+    goTo('profile')
+  }
+
+  const handleDeleteMeal = async (id) => {
+    const res = await apiFetch(`/api/meals/${id}`, { method: 'DELETE' })
+    if (res.ok) setEntries(prev => prev.filter(e => !(e.kind === 'meal' && e.id === id)))
+  }
 
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
@@ -270,7 +289,7 @@ export default function Dashboard() {
                                     onViewRestaurant={setViewingRestaurant}
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                   />}
-        {active === 'create'   && <CreateReview onSave={handleSave} />}
+        {active === 'create' && <CreateReview onSave={handleSave} onMealSaved={handleSaveMeal} />}
         {active === 'search'   && <Search
                                     onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
                                     onViewRestaurant={setViewingRestaurant}

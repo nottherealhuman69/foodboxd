@@ -211,3 +211,6 @@
 @media (max-width: 768px) {
   .page { padding: 1.5rem 1.25rem; }
 }
+
+
+.typePill[data-type='meal'] { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }

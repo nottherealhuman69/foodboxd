@@ -301,3 +301,53 @@
   .actions { flex-direction: column; }
   .primaryBtn, .ghostBtn { width: 100%; text-align: center; }
 }
+
+
+/* ── Meal dish rows ── */
+.dishRows { display: flex; flex-direction: column; gap: 10px; }
+
+.dishRow {
+  background: #0F1117;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dishRowTop { display: flex; align-items: center; gap: 10px; }
+.dishInput  { flex: 1; min-width: 0; }
+.dishNote   { font-size: 13px; }
+
+.removeDishBtn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: transparent;
+  color: #4e5272;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.removeDishBtn:hover:not(:disabled) { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
+.removeDishBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.addDishBtn {
+  margin-top: 10px;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #818cf8;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.addDishBtn:hover:not(:disabled) { background: rgba(99, 102, 241, 0.08); }
+.addDishBtn:disabled { opacity: 0.4; cursor: not-allowed; }

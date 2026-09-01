@@ -10,7 +10,7 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from utils import with_cursor, serialise_review, username_from
+from utils import with_cursor, serialise_review, serialise_meal, username_from
 from typing import Optional
 
 
@@ -105,6 +105,24 @@ def create_tables():
                 hashed_password VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
             )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS meals (
+                id              SERIAL PRIMARY KEY,
+                user_email      VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                restaurant_name VARCHAR(255) NOT NULL,
+                title           VARCHAR(255),
+                rating          INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                review          TEXT,
+                logged_at       TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            ALTER TABLE dish_reviews
+            ADD COLUMN IF NOT EXISTS meal_id INTEGER REFERENCES meals(id) ON DELETE CASCADE
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS dish_reviews_meal_idx ON dish_reviews (meal_id)
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS dish_reviews (
@@ -219,6 +237,18 @@ class ReviewCreate(BaseModel):
     recipe: Optional[str] = None
     rating: int
     review: Optional[str] = None
+
+class MealDishIn(BaseModel):
+    dish_name: str
+    rating: int
+    review: Optional[str] = None
+
+class MealCreate(BaseModel):
+    restaurant_name: str
+    title: Optional[str] = None
+    rating: int
+    review: Optional[str] = None
+    dishes: List[MealDishIn]
 
 class ReviewOut(BaseModel):
     id: int
@@ -434,7 +464,7 @@ def get_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
             FROM dish_reviews r
             LEFT JOIN review_likes l ON l.review_id = r.id
             LEFT JOIN review_comments c ON c.review_id = r.id
-            WHERE r.user_email = %s
+            WHERE r.user_email = %s AND r.meal_id IS NULL
             GROUP BY r.id
             ORDER BY r.logged_at DESC
         """, (email,))
@@ -597,7 +627,7 @@ def get_user_reviews(user_email: str, email: str = Depends(get_current_user), db
         cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="User not found")
-        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s ORDER BY logged_at DESC", (user_email,))
+        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s AND meal_id IS NULL ORDER BY logged_at DESC", (user_email,))
         return cur.fetchall()
     
 @app.get("/users/{user_email}/friends")
@@ -743,6 +773,7 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
         if not friend_emails:
             return []
         placeholders = ",".join(["%s"] * len(friend_emails))
+
         cur.execute(f"""
             SELECT
                 r.id, r.user_email, r.dish_name, r.type, r.restaurant_name, r.rating, r.review, r.logged_at,
@@ -752,16 +783,42 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
             FROM dish_reviews r
             LEFT JOIN review_likes l ON l.review_id = r.id
             LEFT JOIN review_comments c ON c.review_id = r.id
-            WHERE r.user_email IN ({placeholders})
+            WHERE r.user_email IN ({placeholders}) AND r.meal_id IS NULL
             GROUP BY r.id
             ORDER BY r.logged_at DESC LIMIT 50
         """, [email] + friend_emails)
-        return [{
+
+        reviews = [{
             **serialise_review(r),
+            "kind":          "review",
             "like_count":    int(r["like_count"]),
             "comment_count": int(r["comment_count"]),
             "user_liked":    bool(r["user_liked"]),
         } for r in cur.fetchall()]
+
+        cur.execute(f"""
+            SELECT * FROM meals
+            WHERE user_email IN ({placeholders})
+            ORDER BY logged_at DESC LIMIT 50
+        """, friend_emails)
+        meal_rows = cur.fetchall()
+
+        meals = []
+        for m in meal_rows:
+            cur.execute("""
+                SELECT id, dish_name, rating, review FROM dish_reviews
+                WHERE meal_id = %s ORDER BY id ASC
+            """, (m["id"],))
+            meals.append({
+                **serialise_meal(m, cur.fetchall()),
+                "like_count":    0,
+                "comment_count": 0,
+                "user_liked":    False,
+            })
+
+    combined = reviews + meals
+    combined.sort(key=lambda x: x["logged_at"], reverse=True)
+    return combined[:50]
 
 
 # ── All reviews (search) ──────────────────────────────────────────────────────
@@ -1390,3 +1447,120 @@ def get_unseen_count(since: Optional[datetime] = None,
         activity_count = cur.fetchone()["count"]
  
     return {"count": pending_count + group_invite_count + activity_count}
+
+
+# ── Meal endpoints ────────────────────────────────────────────────────────────
+
+def _load_meal(cur, meal_id: int):
+    cur.execute("SELECT * FROM meals WHERE id = %s", (meal_id,))
+    meal = cur.fetchone()
+    if not meal:
+        return None, None
+    cur.execute("""
+        SELECT id, dish_name, rating, review
+        FROM dish_reviews
+        WHERE meal_id = %s
+        ORDER BY id ASC
+    """, (meal_id,))
+    return meal, cur.fetchall()
+
+
+@app.post("/meals", status_code=201)
+def create_meal(body: MealCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    restaurant = body.restaurant_name.strip()
+    if not restaurant:
+        raise HTTPException(status_code=400, detail="Restaurant is required")
+    if not 1 <= body.rating <= 5:
+        raise HTTPException(status_code=400, detail="Overall rating must be between 1 and 5")
+
+    dishes, seen = [], set()
+    for d in body.dishes:
+        name = d.dish_name.strip()
+        if not name:
+            continue
+        if name.lower() in seen:
+            raise HTTPException(status_code=400, detail=f"'{name}' is listed twice")
+        if not 1 <= d.rating <= 5:
+            raise HTTPException(status_code=400, detail=f"Rating for '{name}' must be between 1 and 5")
+        seen.add(name.lower())
+        dishes.append((name, d.rating, (d.review or "").strip() or None))
+
+    if not dishes:
+        raise HTTPException(status_code=400, detail="A meal needs at least one rated dish")
+
+    try:
+        with with_cursor(db) as cur:
+            cur.execute("""
+                INSERT INTO meals (user_email, restaurant_name, title, rating, review)
+                VALUES (%s, %s, %s, %s, %s) RETURNING *
+            """, (email, restaurant, (body.title or "").strip() or None,
+                  body.rating, (body.review or "").strip() or None))
+            meal = cur.fetchone()
+
+            dish_rows = []
+            for name, dish_rating, note in dishes:
+                cur.execute("""
+                    INSERT INTO dish_reviews
+                        (user_email, dish_name, type, restaurant_name, rating, review, meal_id)
+                    VALUES (%s, %s, 'restaurant', %s, %s, %s, %s)
+                    RETURNING id, dish_name, rating, review
+                """, (email, name, restaurant, dish_rating, note, meal["id"]))
+                dish_rows.append(cur.fetchone())
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save meal")
+
+    return serialise_meal(meal, dish_rows)
+
+
+@app.get("/meals")
+def get_my_meals(email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT * FROM meals WHERE user_email = %s ORDER BY logged_at DESC", (email,))
+        meals = cur.fetchall()
+        out = []
+        for m in meals:
+            cur.execute("""
+                SELECT id, dish_name, rating, review FROM dish_reviews
+                WHERE meal_id = %s ORDER BY id ASC
+            """, (m["id"],))
+            out.append(serialise_meal(m, cur.fetchall()))
+    return out
+
+
+@app.get("/meals/{meal_id}")
+def get_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        meal, dish_rows = _load_meal(cur, meal_id)
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+    return serialise_meal(meal, dish_rows)
+
+
+@app.delete("/meals/{meal_id}", status_code=204)
+def delete_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM meals WHERE id = %s AND user_email = %s", (meal_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Meal not found")
+        cur.execute("DELETE FROM meals WHERE id = %s", (meal_id,))
+        db.commit()
+
+
+@app.get("/users/{user_email}/meals")
+def get_user_meals(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT * FROM meals WHERE user_email = %s ORDER BY logged_at DESC", (user_email,))
+        meals = cur.fetchall()
+        out = []
+        for m in meals:
+            cur.execute("""
+                SELECT id, dish_name, rating, review FROM dish_reviews
+                WHERE meal_id = %s ORDER BY id ASC
+            """, (m["id"],))
+            out.append(serialise_meal(m, cur.fetchall()))
+    return out
