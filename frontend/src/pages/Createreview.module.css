@@ -307,29 +307,50 @@
 .dishRows { display: flex; flex-direction: column; gap: 10px; }
 
 .dishRow {
+  position: relative;
   background: #0F1117;
   border: 1px solid rgba(99, 102, 241, 0.12);
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dishRowTop { display: flex; align-items: center; gap: 10px; }
-.dishInput  { flex: 1; min-width: 0; }
-.dishNote   { font-size: 13px; }
+
+.dishIndex {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.dishField { flex: 1; min-width: 0; }
+
+.dishRowBottom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-left: 32px;
+}
+
+.dishRatingLabel { font-size: 12px; color: #6b6f8a; }
+
+.dishNote { margin-left: 32px; width: calc(100% - 32px); font-size: 13px; }
 
 .removeDishBtn {
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+  width: 26px; height: 26px;
   border-radius: 6px;
   border: 1px solid rgba(99, 102, 241, 0.15);
   background: transparent;
   color: #4e5272;
-  font-size: 16px;
-  line-height: 1;
+  font-size: 16px; line-height: 1;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }

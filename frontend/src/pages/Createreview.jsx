@@ -7,7 +7,7 @@ import styles from './CreateReview.module.css'
 
 const MAX_REVIEW_CHARS = 1000
 
-function SearchDropdown({ id, placeholder, options, value, onChange, disabled }) {
+export function SearchDropdown({ id, placeholder, options, value, onChange, disabled }) {
   const [query,   setQuery]   = useState(value || '')
   const [open,    setOpen]    = useState(false)
   const [focused, setFocused] = useState(false)
