@@ -1,12 +1,23 @@
 import { useState } from 'react'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
+import MealCard from '../components/MealCard'
 import shared from '../components/shared.module.css'
 import styles from './Reviews.module.css'
 
-const FILTERS = ['All', 'Restaurant', 'Homemade']
+const FILTERS = ['All', 'Restaurant', 'Homemade', 'Meals']
 
-export default function Reviews({ entries = [], loading, fetchError, onNavigate, onDelete, onViewReview, onViewRestaurant, onViewDish, initialFilter = 'All' }) {
+const matchesFilter = (e, f) => {
+  if (f === 'All')        return true
+  if (f === 'Meals')      return e.kind === 'meal'
+  if (f === 'Restaurant') return e.kind !== 'meal' && e.type === 'restaurant'
+  return e.kind !== 'meal' && e.type === 'homemade'
+}
+
+export default function Reviews({
+  entries = [], loading, fetchError, onNavigate, onDelete, onDeleteMeal,
+  onViewReview, onViewRestaurant, onViewDish, initialFilter = 'All',
+}) {
   const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
 
@@ -17,7 +28,7 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
   )
 
   const filtered = entries
-    .filter(e => filter === 'All' || e.type === filter.toLowerCase())
+    .filter(e => matchesFilter(e, filter))
     .sort((a, b) => {
       if (sort === 'newest')  return new Date(b.loggedAt) - new Date(a.loggedAt)
       if (sort === 'oldest')  return new Date(a.loggedAt) - new Date(b.loggedAt)
@@ -25,6 +36,9 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
       if (sort === 'lowest')  return a.rating - b.rating
       return 0
     })
+
+  const dishCount = entries.filter(e => e.kind !== 'meal').length
+  const mealCount = entries.filter(e => e.kind === 'meal').length
 
   return (
     <div className={shared.page}>
@@ -34,7 +48,7 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
           <p className={styles.sub}>
             {entries.length === 0
               ? 'Your dish reviews will appear here.'
-              : `${entries.length} dish${entries.length !== 1 ? 'es' : ''} logged`}
+              : `${dishCount} dish${dishCount !== 1 ? 'es' : ''}${mealCount ? ` · ${mealCount} meal${mealCount !== 1 ? 's' : ''}` : ''} logged`}
           </p>
         </div>
         {entries.length > 0 && (
@@ -64,18 +78,17 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
               >
                 {f}
                 <span className={styles.filterCount}>
-                  {f === 'All'        ? entries.length
-                  : f === 'Restaurant' ? entries.filter(e => e.type === 'restaurant').length
-                  :                     entries.filter(e => e.type === 'homemade').length}
+                  {entries.filter(e => matchesFilter(e, f)).length}
                 </span>
               </button>
             ))}
           </div>
           {filtered.length === 0
-            ? <p className={styles.noMatch}>No {filter.toLowerCase()} dishes yet.</p>
+            ? <p className={styles.noMatch}>No {filter.toLowerCase()} entries yet.</p>
             : <div className={styles.list}>
                 {filtered.map(e => (
-                  <ReviewCard key={e.id} entry={e} onDelete={onDelete}
+                  <ReviewCard key={`${e.kind}-${e.id}`} entry={e}
+                              onDelete={onDelete} onDeleteMeal={onDeleteMeal}
                               onViewReview={onViewReview} onViewRestaurant={onViewRestaurant}
                               onViewDish={onViewDish} />
                 ))}
@@ -87,7 +100,18 @@ export default function Reviews({ entries = [], loading, fetchError, onNavigate,
   )
 }
 
-function ReviewCard({ entry, onDelete, onViewReview, onViewRestaurant, onViewDish }) {
+function ReviewCard({ entry, onDelete, onDeleteMeal, onViewReview, onViewRestaurant, onViewDish }) {
+  if (entry.kind === 'meal') {
+    return (
+      <MealCard
+        meal={entry}
+        onViewDish={onViewDish}
+        onViewRestaurant={onViewRestaurant}
+        onDelete={onDeleteMeal}
+      />
+    )
+  }
+
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
