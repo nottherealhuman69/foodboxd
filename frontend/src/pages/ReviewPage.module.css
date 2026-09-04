@@ -58,3 +58,25 @@
   background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); border-radius: 8px;
   color: #818cf8; font-size: 13px; font-weight: 500; padding: 8px 16px; cursor: pointer;
 }
+
+.mealDishes {
+  margin: 1rem 0;
+  border-left: 2px solid rgba(99, 102, 241, 0.25);
+  padding-left: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mealDishRow  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mealDishName {
+  background: none; border: none; padding: 0;
+  font-family: inherit; font-size: 14px; font-weight: 500; color: #e8e9f0; cursor: pointer;
+}
+.mealDishName:hover { color: #a5b4fc; }
+.mealDishNote { width: 100%; font-size: 12px; color: #6b6f8a; }
+
+.likeBtn {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px; padding: 6px 14px;
+  font-family: inherit; font-size: 13px; color: #8b8fa8; cursor: pointer;
+}
+.likeBtn:hover { border-color: rgba(99, 102, 241, 0.4); }

@@ -117,6 +117,26 @@ def create_tables():
                 logged_at       TIMESTAMP DEFAULT NOW()
             )
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS meal_likes (
+                id         SERIAL PRIMARY KEY,
+                meal_id    INTEGER NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (meal_id, user_email)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS meal_comments (
+                id         SERIAL PRIMARY KEY,
+                meal_id    INTEGER NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
+                user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                content    TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
         cur.execute("""
             ALTER TABLE dish_reviews
             ADD COLUMN IF NOT EXISTS meal_id INTEGER REFERENCES meals(id) ON DELETE CASCADE
@@ -473,11 +493,12 @@ def get_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
 @app.delete("/reviews/{review_id}", status_code=204)
 def delete_review(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND user_email = %s", (review_id, email))
-        if not cur.fetchone():
+        cur.execute("SELECT meal_id FROM dish_reviews WHERE id = %s AND user_email = %s", (review_id, email))
+        row = cur.fetchone()
+        if not row:
             raise HTTPException(status_code=404, detail="Review not found")
-        cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
-        db.commit()
+        if row["meal_id"] is not None:
+            raise HTTPException(status_code=400, detail="This dish is part of a meal — delete the meal instead")
 
 @app.get("/reviews/{review_id}/detail")
 def get_review_detail(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -503,6 +524,7 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         "like_count":    int(row["like_count"]),
         "comment_count": int(row["comment_count"]),
         "user_liked":    bool(row["user_liked"]),
+        "meal_id":         row.get("meal_id"),
     }
 
 @app.get("/reviews/{review_id}/likes")
@@ -882,7 +904,7 @@ def get_restaurant_page(restaurant_name: str, email: str = Depends(get_current_u
         dishes = cur.fetchall()
 
         cur.execute("""
-            SELECT id, user_email, dish_name, rating, review, logged_at
+            SELECT id, user_email, dish_name, rating, review, logged_at, meal_id
             FROM dish_reviews WHERE restaurant_name ILIKE %s AND type = 'restaurant'
             ORDER BY logged_at DESC
         """, (restaurant_name,))
@@ -972,7 +994,7 @@ def get_dish_page(dish_name: str, restaurant_name: str, email: str = Depends(get
             raise HTTPException(status_code=404, detail="Dish not found")
 
         cur.execute("""
-            SELECT id, user_email, rating, review, logged_at FROM dish_reviews
+            SELECT id, user_email, rating, review, logged_at, meal_id FROM dish_reviews
             WHERE dish_name ILIKE %s AND restaurant_name ILIKE %s AND type = 'restaurant'
             ORDER BY logged_at DESC
         """, (dish_name, restaurant_name))
@@ -1564,3 +1586,114 @@ def get_user_meals(user_email: str, email: str = Depends(get_current_user), db=D
             """, (m["id"],))
             out.append(serialise_meal(m, cur.fetchall()))
     return out
+
+
+@app.get("/meals/{meal_id}/detail")
+def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT m.*,
+                   COUNT(DISTINCT l.id) AS like_count,
+                   COUNT(DISTINCT c.id) AS comment_count,
+                   COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+            FROM meals m
+            LEFT JOIN meal_likes l ON l.meal_id = m.id
+            LEFT JOIN meal_comments c ON c.meal_id = m.id
+            WHERE m.id = %s
+            GROUP BY m.id
+        """, (email, meal_id))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Meal not found")
+        cur.execute("""
+            SELECT id, dish_name, rating, review FROM dish_reviews
+            WHERE meal_id = %s ORDER BY id ASC
+        """, (meal_id,))
+        dish_rows = cur.fetchall()
+    return {
+        **serialise_meal(row, dish_rows),
+        "like_count":    int(row["like_count"]),
+        "comment_count": int(row["comment_count"]),
+        "user_liked":    bool(row["user_liked"]),
+    }
+
+
+@app.post("/meals/{meal_id}/like")
+def toggle_meal_like(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM meals WHERE id = %s", (meal_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Meal not found")
+        cur.execute("SELECT id FROM meal_likes WHERE meal_id = %s AND user_email = %s", (meal_id, email))
+        if cur.fetchone():
+            cur.execute("DELETE FROM meal_likes WHERE meal_id = %s AND user_email = %s", (meal_id, email))
+            liked = False
+        else:
+            cur.execute("INSERT INTO meal_likes (meal_id, user_email) VALUES (%s, %s)", (meal_id, email))
+            liked = True
+        cur.execute("SELECT COUNT(*) AS count FROM meal_likes WHERE meal_id = %s", (meal_id,))
+        count = cur.fetchone()["count"]
+        db.commit()
+    return {"liked": liked, "like_count": int(count)}
+
+
+@app.get("/meals/{meal_id}/likes")
+def get_meal_likes(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT user_email, created_at FROM meal_likes
+            WHERE meal_id = %s ORDER BY created_at DESC
+        """, (meal_id,))
+        return [{
+            "username":   username_from(r["user_email"]),
+            "user_email": r["user_email"],
+            "created_at": r["created_at"],
+        } for r in cur.fetchall()]
+
+
+@app.get("/meals/{meal_id}/comments")
+def get_meal_comments(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("""
+            SELECT id, user_email, content, created_at FROM meal_comments
+            WHERE meal_id = %s ORDER BY created_at ASC
+        """, (meal_id,))
+        return [{
+            "id":         r["id"],
+            "username":   username_from(r["user_email"]),
+            "user_email": r["user_email"],
+            "content":    r["content"],
+            "created_at": r["created_at"],
+        } for r in cur.fetchall()]
+
+
+@app.post("/meals/{meal_id}/comments", status_code=201)
+def add_meal_comment(meal_id: int, body: CommentCreate,
+                     email: str = Depends(get_current_user), db=Depends(get_db)):
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM meals WHERE id = %s", (meal_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Meal not found")
+        cur.execute("""
+            INSERT INTO meal_comments (meal_id, user_email, content)
+            VALUES (%s, %s, %s) RETURNING id, created_at
+        """, (meal_id, email, content))
+        row = cur.fetchone()
+        db.commit()
+    return {"id": row["id"], "username": username_from(email), "user_email": email,
+            "content": content, "created_at": row["created_at"]}
+
+
+@app.delete("/meals/{meal_id}/comments/{comment_id}", status_code=204)
+def delete_meal_comment(meal_id: int, comment_id: int,
+                        email: str = Depends(get_current_user), db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM meal_comments WHERE id = %s AND meal_id = %s AND user_email = %s",
+                    (comment_id, meal_id, email))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Comment not found")
+        cur.execute("DELETE FROM meal_comments WHERE id = %s", (comment_id,))
+        db.commit()

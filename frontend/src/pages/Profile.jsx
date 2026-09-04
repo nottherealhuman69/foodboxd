@@ -11,7 +11,7 @@ import styles from './Profile.module.css'
 
 export default function Profile({
   entries = [], loading, fetchError, onNavigate,
-  onViewReview, onViewUser, onViewDish, onViewRestaurant, onDeleteMeal,
+  onViewReview, onViewMeal, onViewUser, onViewDish, onViewRestaurant, onDeleteMeal,
 }) {
   const [section, setSection] = useState('dishes')
   const [friends, setFriends] = useState(null)
@@ -20,7 +20,8 @@ export default function Profile({
   const [lists, setLists] = useState(null)
   const [listsLoading, setListsLoading] = useState(true)
   const [listsError, setListsError] = useState('')
-  const cardProps = { onViewReview, onViewDish, onViewRestaurant, onDeleteMeal }
+
+  const cardProps = { onViewReview, onViewMeal, onViewDish, onViewRestaurant, onDeleteMeal }
 
   useEffect(() => {
     apiFetch('/api/friends')
@@ -46,8 +47,6 @@ export default function Profile({
     </div>
   )
 
-  // Meals are their own kind of entry — keep them out of the dish stats so
-  // "Avg rating" stays a comparable number.
   const dishEntries       = entries.filter(e => e.kind !== 'meal')
   const mealEntries       = entries.filter(e => e.kind === 'meal')
   const restaurantEntries = entries.filter(e => e.type === 'restaurant')
@@ -86,6 +85,7 @@ export default function Profile({
               <button className={styles.seeAll} onClick={() => onNavigate('reviews')}>See all →</button>
             </div>
             <div className={styles.diaryList}>
+              {console.log('entries', entries)}
               {entries.slice(0, 5).map(entry => (
                 <DiaryCard key={`${entry.kind}-${entry.id}`} entry={entry} {...cardProps} />
               ))}
@@ -211,11 +211,12 @@ export default function Profile({
   )
 }
 
-function DiaryCard({ entry, onViewReview, onViewDish, onViewRestaurant, onDeleteMeal }) {
+function DiaryCard({ entry, onViewReview, onViewMeal, onViewDish, onViewRestaurant, onDeleteMeal }) {
   if (entry.kind === 'meal') {
     return (
       <MealCard
         meal={entry}
+        onViewMeal={onViewMeal}
         onViewDish={onViewDish}
         onViewRestaurant={onViewRestaurant}
         onDelete={onDeleteMeal}

@@ -16,7 +16,7 @@ const matchesFilter = (e, f) => {
 
 export default function Reviews({
   entries = [], loading, fetchError, onNavigate, onDelete, onDeleteMeal,
-  onViewReview, onViewRestaurant, onViewDish, initialFilter = 'All',
+  onViewReview, onViewMeal, onViewRestaurant, onViewDish, initialFilter = 'All',
 }) {
   const [filter, setFilter] = useState(initialFilter)
   const [sort,   setSort]   = useState('newest')
@@ -87,11 +87,11 @@ export default function Reviews({
             ? <p className={styles.noMatch}>No {filter.toLowerCase()} entries yet.</p>
             : <div className={styles.list}>
                 {filtered.map(e => (
-                  <ReviewCard key={`${e.kind}-${e.id}`} entry={e}
-                              onDelete={onDelete} onDeleteMeal={onDeleteMeal}
-                              onViewReview={onViewReview} onViewRestaurant={onViewRestaurant}
-                              onViewDish={onViewDish} />
-                ))}
+                    <ReviewCard key={`${e.kind}-${e.id}`} entry={e}
+                                onDelete={onDelete} onDeleteMeal={onDeleteMeal}
+                                onViewReview={onViewReview} onViewMeal={onViewMeal}
+                                onViewRestaurant={onViewRestaurant} onViewDish={onViewDish} />
+                  ))}
               </div>
           }
         </>
@@ -100,17 +100,19 @@ export default function Reviews({
   )
 }
 
-function ReviewCard({ entry, onDelete, onDeleteMeal, onViewReview, onViewRestaurant, onViewDish }) {
+function ReviewCard({ entry, onDelete, onDeleteMeal, onViewReview, onViewMeal, onViewRestaurant, onViewDish }) {
   if (entry.kind === 'meal') {
     return (
       <MealCard
         meal={entry}
+        onViewMeal={onViewMeal}
         onViewDish={onViewDish}
         onViewRestaurant={onViewRestaurant}
         onDelete={onDeleteMeal}
       />
     )
   }
+  // ...rest unchanged
 
   const date = new Date(entry.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',

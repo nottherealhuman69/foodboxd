@@ -11,20 +11,20 @@ import DishPage from './DishPage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
 import ReviewPage from './ReviewPage'
+import MealPage from './MealPage'
 import ListPage from './ListPage'
 import { apiFetch } from '../hooks/useApi'
-import styles from './Dashboard.module.css'
 import { normaliseReview, normaliseMeal } from '../utils/reviews'
-
+import styles from './Dashboard.module.css'
 
 const NAV = [
-  { id: 'profile', label: 'Profile',      icon: ProfileIcon  },
+  { id: 'profile', label: 'Profile',       icon: ProfileIcon  },
   { id: 'feed',    label: 'Feed',          icon: FeedIcon     },
   { id: 'reviews', label: 'Reviews',       icon: ReviewsIcon  },
+  { id: 'create',  label: 'Log',           icon: CreateIcon   },
   { id: 'search',  label: 'Search',        icon: SearchIcon   },
   { id: 'trylist', label: 'Trylist',       icon: TrylistIcon  },
   { id: 'notifs',  label: 'Notifications', icon: BellIcon     },
-  { id: 'create',  label: 'Log',           icon: CreateIcon   },
 ]
 
 export default function Dashboard() {
@@ -32,17 +32,18 @@ export default function Dashboard() {
   const email  = localStorage.getItem('email') || ''
   const handle = email.split('@')[0]
 
-  const [active,      setActive]      = useState('profile')
+  const [active,       setActive]       = useState('profile')
   const [reviewFilter, setReviewFilter] = useState('All')
-  const [menuOpen,    setMenuOpen]    = useState(false)
-  const [entries,     setEntries]     = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [fetchError,  setFetchError]  = useState('')
-  const [notifCount,  setNotifCount]  = useState(0)
+  const [menuOpen,     setMenuOpen]     = useState(false)
+  const [entries,      setEntries]      = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [fetchError,   setFetchError]   = useState('')
+  const [notifCount,   setNotifCount]   = useState(0)
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
   const [viewingReview,     setViewingReview]     = useState(null) // { id, tab }
+  const [viewingMeal,       setViewingMeal]       = useState(null) // { id, tab }
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
 
   const logout = useCallback(() => {
@@ -72,17 +73,6 @@ export default function Dashboard() {
       setLoading(false)
     }
   }, [logout])
-
-
-    const handleSaveMeal = (saved) => {
-    setEntries(prev => [normaliseMeal(saved), ...prev])
-    goTo('profile')
-  }
-
-  const handleDeleteMeal = async (id) => {
-    const res = await apiFetch(`/api/meals/${id}`, { method: 'DELETE' })
-    if (res.ok) setEntries(prev => prev.filter(e => !(e.kind === 'meal' && e.id === id)))
-  }
 
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
@@ -135,7 +125,18 @@ export default function Dashboard() {
 
   const handleDelete = async (id) => {
     const res = await apiFetch(`/api/reviews/${id}`, { method: 'DELETE' })
-    if (res.ok) setEntries(prev => prev.filter(e => e.id !== id))
+    if (res.ok) setEntries(prev => prev.filter(e => !(e.kind !== 'meal' && e.id === id)))
+  }
+
+  // MealForm posts to /api/meals itself and hands back the saved meal.
+  const handleSaveMeal = (saved) => {
+    setEntries(prev => [normaliseMeal(saved), ...prev])
+    goTo('profile')
+  }
+
+  const handleDeleteMeal = async (id) => {
+    const res = await apiFetch(`/api/meals/${id}`, { method: 'DELETE' })
+    if (res.ok) setEntries(prev => prev.filter(e => !(e.kind === 'meal' && e.id === id)))
   }
 
   const markNotifsSeen = () => {
@@ -158,6 +159,7 @@ export default function Dashboard() {
       setViewingDish(null)
       setViewingRestaurant(null)
       setViewingReview(null)
+      setViewingMeal(null)
       setViewingList(null)
       goTo('profile')
     } else {
@@ -165,58 +167,77 @@ export default function Dashboard() {
     }
   }
 
+  const openDish  = (d, r) => setViewingDish({ dishName: d, restaurantName: r })
+  const openReview = (id, tab) => setViewingReview({ id, tab })
+  const openMeal   = (id, tab) => setViewingMeal({ id, tab })
+
   return (
     <div className={styles.shell}>
-      {viewingReview && (
+      {viewingMeal && (
+        <div className={styles.overlayPage}>
+          <MealPage
+            mealId={viewingMeal.id}
+            initialTab={viewingMeal.tab}
+            onBack={() => setViewingMeal(null)}
+            onViewUser={(userEmail) => { setViewingMeal(null); viewUser(userEmail) }}
+            onViewDish={(d, r) => { setViewingMeal(null); openDish(d, r) }}
+            onViewRestaurant={(r) => { setViewingMeal(null); setViewingRestaurant(r) }}
+          />
+        </div>
+      )}
+      {!viewingMeal && viewingReview && (
         <div className={styles.overlayPage}>
           <ReviewPage
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
             onBack={() => setViewingReview(null)}
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
-            onViewDish={(d, r) => { setViewingReview(null); setViewingDish({ dishName: d, restaurantName: r }) }}
+            onViewDish={(d, r) => { setViewingReview(null); openDish(d, r) }}
             onViewRestaurant={(r) => { setViewingReview(null); setViewingRestaurant(r) }}
           />
         </div>
       )}
-      {!viewingReview && viewingDish && (
+      {!viewingMeal && !viewingReview && viewingDish && (
         <div className={styles.overlayPage}>
           <DishPage
             {...viewingDish}
             onBack={() => setViewingDish(null)}
-            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+            onViewReview={openReview}
+            onViewMeal={openMeal}
           />
         </div>
       )}
-      {!viewingReview && !viewingDish && viewingRestaurant && (
+      {!viewingMeal && !viewingReview && !viewingDish && viewingRestaurant && (
         <div className={styles.overlayPage}>
           <RestaurantPage
             restaurantName={viewingRestaurant}
             onBack={() => setViewingRestaurant(null)}
-            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+            onViewReview={openReview}
+            onViewMeal={openMeal}
           />
         </div>
       )}
-      {!viewingReview && !viewingDish && !viewingRestaurant && viewingList && (
+      {!viewingMeal && !viewingReview && !viewingDish && !viewingRestaurant && viewingList && (
         <div className={styles.overlayPage}>
           <ListPage
             listId={viewingList.id}
             listName={viewingList.name}
             onBack={() => setViewingList(null)}
-            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewDish={openDish}
             onViewRestaurant={setViewingRestaurant}
           />
         </div>
       )}
-      {!viewingReview && !viewingDish && !viewingRestaurant && !viewingList && viewingUser && (
+      {!viewingMeal && !viewingReview && !viewingDish && !viewingRestaurant && !viewingList && viewingUser && (
         <div className={styles.overlayPage}>
           <UserProfile
             userEmail={viewingUser}
             onBack={() => setViewingUser(null)}
             onViewUser={viewUser}
-            onViewReview={(id, tab) => setViewingReview({ id, tab })}
+            onViewReview={openReview}
+            onViewMeal={openMeal}
             onViewList={(list) => setViewingList(list)}
-            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+            onViewDish={openDish}
             onViewRestaurant={setViewingRestaurant}
           />
         </div>
@@ -262,47 +283,52 @@ export default function Dashboard() {
       {menuOpen && <div className={styles.overlay} onClick={() => setMenuOpen(false)} />}
 
       <main className={styles.main}>
-        {active === 'profile'  && <Profile
-                            entries={entries}
-                            loading={loading}
-                            fetchError={fetchError}
-                            onNavigate={goTo}
-                            onViewReview={(id, tab) => setViewingReview({ id, tab })}
-                            onViewUser={viewUser}
-                            onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
-                            onViewRestaurant={setViewingRestaurant}
-                          />}
+        {active === 'profile' && <Profile
+                                    entries={entries}
+                                    loading={loading}
+                                    fetchError={fetchError}
+                                    onNavigate={goTo}
+                                    onViewReview={openReview}
+                                    onViewMeal={openMeal}
+                                    onDeleteMeal={handleDeleteMeal}
+                                    onViewUser={viewUser}
+                                    onViewDish={openDish}
+                                    onViewRestaurant={setViewingRestaurant}
+                                  />}
         {active === 'feed' && <Feed
-                        onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
-                        onViewRestaurant={setViewingRestaurant}
-                        onViewUser={viewUser}
-                        onViewReview={(id, tab) => setViewingReview({ id, tab })}
-                      />}
-                {active === 'reviews'  && <Reviews
+                                    onViewDish={openDish}
+                                    onViewRestaurant={setViewingRestaurant}
+                                    onViewUser={viewUser}
+                                    onViewReview={openReview}
+                                    onViewMeal={openMeal}
+                                  />}
+        {active === 'reviews' && <Reviews
                                     entries={entries}
                                     loading={loading}
                                     fetchError={fetchError}
                                     onNavigate={goTo}
                                     onDelete={handleDelete}
+                                    onDeleteMeal={handleDeleteMeal}
                                     initialFilter={reviewFilter}
-                                    onViewReview={(id, tab) => setViewingReview({ id, tab })}
+                                    onViewReview={openReview}
+                                    onViewMeal={openMeal}
                                     onViewRestaurant={setViewingRestaurant}
-                                    onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+                                    onViewDish={openDish}
                                   />}
         {active === 'create' && <CreateReview onSave={handleSave} onMealSaved={handleSaveMeal} />}
-        {active === 'search'   && <Search
-                                    onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+        {active === 'search' && <Search
+                                    onViewDish={openDish}
                                     onViewRestaurant={setViewingRestaurant}
                                     onViewUser={viewUser}
                                   />}
-        {active === 'trylist'  && <Trylist
-                                    onViewDish={(d, r) => setViewingDish({ dishName: d, restaurantName: r })}
+        {active === 'trylist' && <Trylist
+                                    onViewDish={openDish}
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
         {active === 'notifs' && <Notifications
-                                  onViewReview={(id, tab) => setViewingReview({ id, tab })}
-                                  onViewUser={viewUser}
-                                />}
+                                    onViewReview={openReview}
+                                    onViewUser={viewUser}
+                                  />}
       </main>
     </div>
   )
