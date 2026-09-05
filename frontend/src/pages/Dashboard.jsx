@@ -191,6 +191,7 @@ export default function Dashboard() {
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
             onBack={() => setViewingReview(null)}
+            onViewMeal={(id, tab) => { setViewingReview(null); openMeal(id, tab) }}
             onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
             onViewDish={(d, r) => { setViewingReview(null); openDish(d, r) }}
             onViewRestaurant={(r) => { setViewingReview(null); setViewingRestaurant(r) }}

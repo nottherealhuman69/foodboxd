@@ -18,6 +18,7 @@ def serialise_review(row: dict) -> dict:
         "rating":          row.get("rating"),
         "review":          row.get("review") or "",
         "logged_at":       row.get("logged_at"),
+        "meal_id":         row.get("meal_id"),
     }
 
 def serialise_meal(meal: dict, dish_rows: list) -> dict:

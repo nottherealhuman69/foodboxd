@@ -10,7 +10,7 @@ import styles from './DishPage.module.css'
 import AddToListButton from './AddToListButton'
 import RatingDistribution from '../components/RatingDistribution'
 
-export default function DishPage({ dishName, restaurantName, onBack, onViewReview }) {
+export default function DishPage({ dishName, restaurantName, onBack, onViewReview, onViewMeal }) {
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -107,7 +107,9 @@ const myAvgRating = myReviews.length > 0
           <div className={styles.section}>
             <h3 className={shared.sectionTitle}>All reviews</h3>
             <div className={styles.reviewList}>
-              {dish.reviews.map(r => <ReviewCard key={r.id} review={r} onViewReview={onViewReview} />)}
+              {dish.reviews.map(r => (
+                <ReviewCard key={r.id} review={r} onViewReview={onViewReview} onViewMeal={onViewMeal} />
+              ))}
             </div>
           </div>
         </>
@@ -116,15 +118,18 @@ const myAvgRating = myReviews.length > 0
   )
 }
 
-function ReviewCard({ review, onViewReview }) {
+function ReviewCard({ review, onViewReview, onViewMeal }) {
+  const isMeal = review.meal_id != null
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
   return (
     <div
       className={styles.card}
-      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
-      onClick={() => onViewReview?.(review.id, 'comments')}
+      style={{ cursor: 'pointer' }}
+      onClick={() => isMeal
+        ? onViewMeal?.(review.meal_id, 'comments')
+        : onViewReview?.(review.id, 'comments')}
     >
       <div className={styles.cardHeader}>
         <div className={styles.userAvatar}>{review.username.charAt(0).toUpperCase()}</div>
@@ -136,6 +141,7 @@ function ReviewCard({ review, onViewReview }) {
           <StarRating rating={review.rating} showLabel />
         </div>
       </div>
+      {isMeal && <span className={shared.typePill} data-type="meal">part of a meal →</span>}
       {review.review && <p className={styles.cardReview}>{review.review}</p>}
     </div>
   )

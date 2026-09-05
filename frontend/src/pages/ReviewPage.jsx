@@ -11,7 +11,7 @@ const TABS = [
   { id: 'comments', label: 'Comments' },
 ]
 
-export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant }) {
+export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant, onViewMeal }) {
   const [review,  setReview]  = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -43,6 +43,13 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     }
     load()
   }, [reviewId])
+    // A dish review that belongs to a meal has no page of its own —
+  // the meal owns the conversation, so bounce there.
+  useEffect(() => {
+    if (review?.meal_id != null) {
+      onViewMeal?.(review.meal_id, initialTab)
+    }
+  }, [review])
 
   const loadLikes = async () => {
     setLikesLoading(true)
