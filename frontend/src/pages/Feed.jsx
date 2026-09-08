@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useFetch, apiFetch } from '../hooks/useApi'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
-import { usernameFrom } from '../utils/reviews'
+import { usernameFrom, normaliseMeal } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './Feed.module.css'
+import MealCard from '../components/MealCard'
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -18,7 +19,7 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewReview }) {
+export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewReview, onViewMeal }) {
   const { data: items, loading, error } = useFetch('/api/feed')
 
   return (
@@ -39,14 +40,24 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
       {!loading && !error && items?.length > 0 && (
         <div className={styles.feed}>
           {items.map(item => (
-            <FeedCard
-              key={item.id}
-              item={item}
-              onViewDish={onViewDish}
-              onViewRestaurant={onViewRestaurant}
-              onViewUser={onViewUser}
-              onViewReview={onViewReview}
-            />
+              item.kind === 'meal' ? (
+                <MealCard
+                  key={`meal-${item.id}`}
+                  meal={normaliseMeal(item)}
+                  onViewMeal={onViewMeal}
+                  onViewDish={onViewDish}
+                  onViewRestaurant={onViewRestaurant}
+                />
+              ) : (
+                <FeedCard
+                  key={`review-${item.id}`}
+                  item={item}
+                  onViewDish={onViewDish}
+                  onViewRestaurant={onViewRestaurant}
+                  onViewUser={onViewUser}
+                  onViewReview={onViewReview}
+                />
+              )
           ))}
         </div>
       )}
