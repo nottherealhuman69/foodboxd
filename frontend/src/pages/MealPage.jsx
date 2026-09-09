@@ -179,31 +179,46 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
           {!likesLoading && likes?.length === 0 && <p className={styles.emptyText}>No likes yet.</p>}
           {!likesLoading && likes?.map(l => (
             <button key={l.user_email} className={styles.likeRow} onClick={() => onViewUser?.(l.user_email)}>
-              @{l.username}
+              <span className={styles.likeAvatar}>{l.username.charAt(0).toUpperCase()}</span>
+              <span className={styles.likeUsername}>@{l.username}</span>
             </button>
           ))}
         </div>
       )}
 
       {tab === 'comments' && (
-        <div className={styles.commentsList}>
+        <div className={styles.commentsSection}>
           {commentsLoading && <p className={styles.loadingText}>Loading…</p>}
           {!commentsLoading && comments?.length === 0 && <p className={styles.emptyText}>No comments yet.</p>}
-          {!commentsLoading && comments?.map(c => (
-            <div key={c.id} className={styles.commentRow}>
-              <button className={styles.usernameBtn} onClick={() => onViewUser?.(c.user_email)}>
-                @{c.username}
-              </button>
-              <p className={styles.commentText}>{c.content}</p>
-              {c.user_email === myEmail && (
-                <button className={styles.deleteCommentBtn} onClick={() => deleteComment(c.id)}>Delete</button>
-              )}
+          {!commentsLoading && comments?.length > 0 && (
+            <div className={styles.commentList}>
+              {comments.map(c => (
+                <div key={c.id} className={styles.comment}>
+                  <button className={styles.commentAvatar} onClick={() => onViewUser?.(c.user_email)}>
+                    {c.username.charAt(0).toUpperCase()}
+                  </button>
+                  <div className={styles.commentBody}>
+                    <button className={styles.commentUsername} onClick={() => onViewUser?.(c.user_email)}>
+                      @{c.username}
+                    </button>
+                    <p className={styles.commentContent}>{c.content}</p>
+                  </div>
+                  {c.user_email === myEmail && (
+                    <button className={styles.deleteCommentBtn} onClick={() => deleteComment(c.id)} title="Delete">×</button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-          <form onSubmit={postComment} className={styles.commentForm}>
-            <input className={styles.commentInput} placeholder="Add a comment…"
-              value={commentText} onChange={e => setCommentText(e.target.value)} />
-            <button type="submit" className={styles.postBtn} disabled={!commentText.trim() || posting}>
+          )}
+          <form className={styles.commentForm} onSubmit={postComment}>
+            <input
+              className={styles.commentInput}
+              placeholder="Add a comment…"
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              maxLength={500}
+            />
+            <button type="submit" className={styles.commentSubmit} disabled={!commentText.trim() || posting}>
               {posting ? '…' : 'Post'}
             </button>
           </form>
