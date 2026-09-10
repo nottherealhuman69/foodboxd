@@ -71,7 +71,8 @@ export function SearchDropdown({ id, placeholder, options, value, onChange, disa
 export default function CreateReview({ onSave, onMealSaved }) {
   const [form, setForm] = useState({
     type: 'restaurant', restaurantName: '', dishName: '',
-    recipe: '', rating: 0, hoverRating: 0, review: '',
+    recipe: '', recipeSource: 'mine', recipeOwnerEmail: '',
+    rating: 0, hoverRating: 0, review: '',
   })
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
@@ -79,9 +80,17 @@ export default function CreateReview({ onSave, onMealSaved }) {
   const [saveError,      setSaveError]      = useState('')
   const [restaurants,    setRestaurants]    = useState([])
   const [dishes,         setDishes]         = useState([])
+  const [friends,        setFriends]        = useState([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [newRestaurant,  setNewRestaurant]  = useState(false)
   const [newDish,        setNewDish]        = useState(false)
+
+  useEffect(() => {
+    apiFetch('/api/friends')
+      .then(r => r.ok ? r.json() : [])
+      .then(setFriends)
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (form.type !== 'restaurant') return
@@ -120,12 +129,18 @@ export default function CreateReview({ onSave, onMealSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.dishName.trim() || form.rating === 0) return
+    if (form.type === 'homemade' && form.recipeSource === 'other' && !form.recipeOwnerEmail) {
+      setSaveError('Pick the friend whose recipe this is, or switch to "My own recipe".')
+      return
+    }
     setSaving(true)
     setSaveError('')
     try {
       await onSave({
         dishName: form.dishName, type: form.type,
         restaurantName: form.restaurantName, recipe: form.recipe,
+        recipeOwnerEmail: form.type === 'homemade' && form.recipeSource === 'other'
+          ? form.recipeOwnerEmail : null,
         rating: form.rating, review: form.review,
       })
       handleReset()
@@ -139,7 +154,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
   // Resets every field and returns to the dish form. Callers that want a
   // different mode must set `type` *after* calling this.
   const handleReset = () => {
-    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', rating: 0, hoverRating: 0, review: '' })
+    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', recipeSource: 'mine', recipeOwnerEmail: '', rating: 0, hoverRating: 0, review: '' })
     setNewRestaurant(false)
     setNewDish(false)
     setDishes([])
@@ -260,14 +275,44 @@ export default function CreateReview({ onSave, onMealSaved }) {
 
           {/* 4. Recipe (homemade only) */}
           {form.type === 'homemade' && (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="recipe">
-                Recipe <span className={styles.labelHint}>optional</span>
-              </label>
-              <textarea id="recipe" className={`${styles.input} ${styles.textarea}`}
-                placeholder="Share ingredients, steps, or a link to the recipe…"
-                rows={4} value={form.recipe} onChange={e => set('recipe', e.target.value)} />
-            </div>
+            <>
+              <div className={styles.field}>
+                <label className={styles.label}>Whose recipe is this?</label>
+                <div className={styles.toggle}>
+                  <button type="button"
+                    className={`${styles.toggleBtn} ${form.recipeSource === 'mine' ? styles.toggleActive : ''}`}
+                    onClick={() => { set('recipeSource', 'mine'); set('recipeOwnerEmail', '') }}>
+                    My Recipe
+                  </button>
+                  <button type="button"
+                    className={`${styles.toggleBtn} ${form.recipeSource === 'other' ? styles.toggleActive : ''}`}
+                    onClick={() => set('recipeSource', 'other')}>
+                    Other's Recipe
+                  </button>
+                </div>
+                {form.recipeSource === 'other' && (
+                  friends.length === 0
+                    ? <p className={styles.labelHint} style={{ marginTop: 8 }}>Add friends first to tag their recipe.</p>
+                    : <select className={styles.input} style={{ marginTop: 8 }}
+                        value={form.recipeOwnerEmail}
+                        onChange={e => set('recipeOwnerEmail', e.target.value)}>
+                        <option value="">Select a friend…</option>
+                        {friends.map(f => (
+                          <option key={f.email} value={f.email}>@{f.username}</option>
+                        ))}
+                      </select>
+                )}
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="recipe">
+                  Recipe <span className={styles.labelHint}>optional</span>
+                </label>
+                <textarea id="recipe" className={`${styles.input} ${styles.textarea}`}
+                  placeholder="Share ingredients, steps, or a link to the recipe…"
+                  rows={4} value={form.recipe} onChange={e => set('recipe', e.target.value)} />
+              </div>
+            </>
           )}
 
           {/* 5. Photo placeholder */}
@@ -296,7 +341,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
                 size={28}
               />
               {form.rating > 0 && (
-                <span className={styles.ratingLabel}>{RATING_LABELS[form.rating]}</span>
+                <span className={styles.ratingLabel}>{RATING_LABELS[Math.round(form.rating)]}</span>
               )}
             </div>
           </div>

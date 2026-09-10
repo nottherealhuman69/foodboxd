@@ -204,7 +204,7 @@ export default function MealForm({ onSaved }) {
                     onChange={n => patchDish(d.key, { rating: n === d.rating ? 0 : n })}
                   />
                   {d.rating > 0 && (
-                    <span className={styles.dishRatingLabel}>{RATING_LABELS[d.rating]}</span>
+                    <span className={styles.dishRatingLabel}>{RATING_LABELS[Math.round(d.rating)]}</span>
                   )}
                   {!newRestaurant && restaurantSelected && (
                     <button type="button" className={styles.toggleLink}
@@ -245,7 +245,7 @@ export default function MealForm({ onSaved }) {
             onChange={n => setRating(n === rating ? 0 : n)}
             size={28}
           />
-          {rating > 0 && <span className={styles.ratingLabel}>{RATING_LABELS[rating]}</span>}
+          {rating > 0 && <span className={styles.ratingLabel}>{RATING_LABELS[Math.round(rating)]}</span>}
         </div>
       </div>
 

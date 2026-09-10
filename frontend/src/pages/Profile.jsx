@@ -265,6 +265,11 @@ function DiaryCard({ entry, onViewReview, onViewMeal, onViewDish, onViewRestaura
         <span className={shared.dot}>·</span>
         <span className={shared.date}>{date}</span>
       </div>
+      {entry.type === 'homemade' && entry.recipeOwner && (
+        <p className={shared.reviewText} style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
+          Recipe by @{entry.recipeOwner}
+        </p>
+      )}
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}
     </div>
   )

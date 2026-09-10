@@ -1,14 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiFetch } from '../hooks/useApi'
 import shared from './shared.module.css'
 
 /**
- * <FriendButton email="user@example.com" initialStatus="pending_sent" onSent={fn} />
+ * <FriendButton email="user@example.com" initialStatus="pending_sent" onSent={fn} onStatusChange={fn} />
  * Owns all friend-request state. Drop in wherever a friend action is needed.
  */
-export default function FriendButton({ email, initialStatus, onSent }) {
+export default function FriendButton({ email, initialStatus, onSent, onStatusChange }) {
   const [status,  setStatus]  = useState(initialStatus)
   const [loading, setLoading] = useState(false)
+
+  // Keep in sync when the parent supplies a status asynchronously (e.g. a profile
+  // that loads the friendship state after mount) or swaps to a different user.
+  useEffect(() => { setStatus(initialStatus) }, [initialStatus])
 
   const send = async () => {
     setLoading(true)
@@ -20,6 +24,7 @@ export default function FriendButton({ email, initialStatus, onSent }) {
       if (!res.ok) throw new Error()
       setStatus('pending_sent')
       onSent?.()
+      onStatusChange?.(email, 'pending_sent')
     } catch {
       alert('Could not send request. Try again.')
     } finally {

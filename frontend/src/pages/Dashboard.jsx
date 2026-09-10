@@ -106,12 +106,13 @@ export default function Dashboard() {
     const res = await apiFetch('/api/reviews', {
       method: 'POST',
       body: JSON.stringify({
-        dish_name:       formData.dishName,
-        type:            formData.type,
-        restaurant_name: formData.restaurantName || null,
-        recipe:          formData.recipe || null,
-        rating:          formData.rating,
-        review:          formData.review || null,
+        dish_name:          formData.dishName,
+        type:               formData.type,
+        restaurant_name:    formData.restaurantName || null,
+        recipe:             formData.recipe || null,
+        recipe_owner_email: formData.recipeOwnerEmail || null,
+        rating:             formData.rating,
+        review:             formData.review || null,
       }),
     })
     if (!res.ok) {
