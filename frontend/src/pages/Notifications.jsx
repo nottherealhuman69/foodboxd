@@ -16,7 +16,7 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export default function Notifications({ onViewReview, onViewUser }) {
+export default function Notifications({ onViewReview, onViewMeal, onViewUser }) {
   const [requests, setRequests] = useState([])
   const [activity, setActivity] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -167,35 +167,45 @@ export default function Notifications({ onViewReview, onViewUser }) {
 
       {!loading && !error && activity.length > 0 && (
         <div className={styles.list} style={{ marginTop: requests.length > 0 ? 16 : 0 }}>
-          {activity.map(a => (
-            <div
-              key={`${a.type}-${a.review_id}-${a.created_at}`}
-              className={styles.activityCard}
-              role="button"
-              tabIndex={0}
-              onClick={() => onViewReview?.(a.review_id, a.type === 'like' ? 'likes' : 'comments')}
-              onKeyDown={e => { if (e.key === 'Enter') onViewReview?.(a.review_id, a.type === 'like' ? 'likes' : 'comments') }}
-            >
-              <div className={styles.activityIcon} data-type={a.type}>
-                {a.type === 'like' ? '❤️' : '💬'}
+          {activity.map(a => {
+            const open = () => {
+              const tab = a.type === 'like' ? 'likes' : 'comments'
+              if (a.target_type === 'meal') onViewMeal?.(a.target_id, tab)
+              else onViewReview?.(a.target_id, tab)
+            }
+            const what = a.target_type === 'meal'
+              ? (a.subject ? `your meal "${a.subject}"` : `your meal at ${a.restaurant_name}`)
+              : `your review of ${a.subject}`
+            return (
+              <div
+                key={`${a.target_type}-${a.type}-${a.id}`}
+                className={styles.activityCard}
+                role="button"
+                tabIndex={0}
+                onClick={open}
+                onKeyDown={e => { if (e.key === 'Enter') open() }}
+              >
+                <div className={styles.activityIcon} data-type={a.type}>
+                  {a.type === 'like' ? '❤️' : '💬'}
+                </div>
+                <div className={styles.info}>
+                  <p className={styles.name}>
+                    @<button
+                      type="button"
+                      className={styles.nameLink}
+                      onClick={e => { e.stopPropagation(); onViewUser?.(a.actor_email) }}
+                    >
+                      {a.actor_username}
+                    </button>
+                  </p>
+                  <p className={styles.sub2}>
+                    {a.type === 'like' ? 'liked' : 'commented on'} {what}
+                  </p>
+                </div>
+                <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
               </div>
-              <div className={styles.info}>
-                <p className={styles.name}>
-                  @<button
-                    type="button"
-                    className={styles.nameLink}
-                    onClick={e => { e.stopPropagation(); onViewUser?.(a.actor_email) }}
-                  >
-                    {a.actor_username}
-                  </button>
-                </p>
-                <p className={styles.sub2}>
-                  {a.type === 'like' ? 'liked' : 'commented on'} your review of {a.dish_name}
-                </p>
-              </div>
-              <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

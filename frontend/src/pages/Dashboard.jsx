@@ -327,9 +327,10 @@ export default function Dashboard() {
                                     onViewRestaurant={setViewingRestaurant}
                                   />}
         {active === 'notifs' && <Notifications
-                                    onViewReview={openReview}
-                                    onViewUser={viewUser}
-                                  />}
+                            onViewReview={openReview}
+                            onViewMeal={openMeal}
+                            onViewUser={viewUser}
+                          />}
       </main>
     </div>
   )

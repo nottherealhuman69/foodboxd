@@ -1402,37 +1402,55 @@ def delete_group_list(list_id: int, email: str = Depends(get_current_user), db=D
         db.commit()
 
 # ── Notifications ──────────────────────────────────────────────────────────────
-
 @app.get("/notifications/activity")
 def get_activity_notifications(email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
         cur.execute("""
-            SELECT 'like' AS type, l.id, l.user_email AS actor_email, l.created_at,
-                   r.id AS review_id, r.dish_name, r.restaurant_name
+            SELECT 'like' AS type, 'review' AS target_type, l.id AS event_id, l.created_at,
+                   r.id AS target_id, l.user_email AS actor_email,
+                   r.dish_name AS subject, r.restaurant_name
             FROM review_likes l
             JOIN dish_reviews r ON r.id = l.review_id
-            WHERE r.user_email = %s AND l.user_email != %s
+            WHERE r.user_email = %s AND l.user_email != %s AND r.meal_id IS NULL
 
             UNION ALL
 
-            SELECT 'comment' AS type, c.id, c.user_email AS actor_email, c.created_at,
-                   r.id AS review_id, r.dish_name, r.restaurant_name
+            SELECT 'comment', 'review', c.id, c.created_at,
+                   r.id, c.user_email, r.dish_name, r.restaurant_name
             FROM review_comments c
             JOIN dish_reviews r ON r.id = c.review_id
-            WHERE r.user_email = %s AND c.user_email != %s
+            WHERE r.user_email = %s AND c.user_email != %s AND r.meal_id IS NULL
+
+            UNION ALL
+
+            SELECT 'like', 'meal', l.id, l.created_at,
+                   m.id, l.user_email, m.title, m.restaurant_name
+            FROM meal_likes l
+            JOIN meals m ON m.id = l.meal_id
+            WHERE m.user_email = %s AND l.user_email != %s
+
+            UNION ALL
+
+            SELECT 'comment', 'meal', c.id, c.created_at,
+                   m.id, c.user_email, m.title, m.restaurant_name
+            FROM meal_comments c
+            JOIN meals m ON m.id = c.meal_id
+            WHERE m.user_email = %s AND c.user_email != %s
 
             ORDER BY created_at DESC
             LIMIT 50
-        """, (email, email, email, email))
+        """, (email,) * 8)
         rows = cur.fetchall()
     return [{
-        "type": r["type"],
-        "actor_email": r["actor_email"],
-        "actor_username": username_from(r["actor_email"]),
-        "review_id": r["review_id"],
-        "dish_name": r["dish_name"],
+        "id":              r["event_id"],
+        "type":            r["type"],
+        "target_type":     r["target_type"],
+        "target_id":       r["target_id"],
+        "actor_email":     r["actor_email"],
+        "actor_username":  username_from(r["actor_email"]),
+        "subject":         r["subject"],
         "restaurant_name": r["restaurant_name"],
-        "created_at": r["created_at"],
+        "created_at":      r["created_at"],
     } for r in rows]
 
 @app.get("/notifications/unseen_count")
@@ -1457,15 +1475,29 @@ def get_unseen_count(since: Optional[datetime] = None,
             SELECT COUNT(*) AS count FROM (
                 SELECT l.id FROM review_likes l
                 JOIN dish_reviews r ON r.id = l.review_id
-                WHERE r.user_email = %s AND l.user_email != %s AND l.created_at > %s
- 
+                WHERE r.user_email = %s AND l.user_email != %s
+                  AND l.created_at > %s AND r.meal_id IS NULL
+
                 UNION ALL
- 
+
                 SELECT c.id FROM review_comments c
                 JOIN dish_reviews r ON r.id = c.review_id
-                WHERE r.user_email = %s AND c.user_email != %s AND c.created_at > %s
+                WHERE r.user_email = %s AND c.user_email != %s
+                  AND c.created_at > %s AND r.meal_id IS NULL
+
+                UNION ALL
+
+                SELECT l.id FROM meal_likes l
+                JOIN meals m ON m.id = l.meal_id
+                WHERE m.user_email = %s AND l.user_email != %s AND l.created_at > %s
+
+                UNION ALL
+
+                SELECT c.id FROM meal_comments c
+                JOIN meals m ON m.id = c.meal_id
+                WHERE m.user_email = %s AND c.user_email != %s AND c.created_at > %s
             ) combined
-        """, (email, email, since_val, email, email, since_val))
+        """, (email, email, since_val) * 4)
         activity_count = cur.fetchone()["count"]
  
     return {"count": pending_count + group_invite_count + activity_count}
