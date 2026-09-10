@@ -7,6 +7,8 @@ export function normaliseReview(r) {
     type:           r.type,
     restaurantName: r.restaurant_name ?? '',
     recipe:         r.recipe ?? '',
+    recipeOwnerEmail: r.recipe_owner_email ?? null,
+    recipeOwner:    r.recipe_owner ?? (r.recipe_owner_email ? r.recipe_owner_email.split('@')[0] : null),
     rating:         r.rating,
     review:         r.review ?? '',
     loggedAt:       r.logged_at,

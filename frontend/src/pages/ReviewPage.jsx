@@ -172,6 +172,14 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         <StarRating rating={review.rating} showLabel />
       </div>
 
+      {review.type === 'homemade' && review.recipe_owner && (
+        <p className={styles.date} style={{ marginTop: 8 }}>
+          Recipe by{' '}
+          <button className={styles.usernameBtn} onClick={() => onViewUser?.(review.recipe_owner_email)}>
+            @{review.recipe_owner}
+          </button>
+        </p>
+      )}
       {review.review && <p className={styles.reviewText}>{review.review}</p>}
       {review.recipe && (
         <details className={styles.recipeDetails}>
