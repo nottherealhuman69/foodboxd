@@ -157,6 +157,19 @@ def create_tables():
                 logged_at TIMESTAMP DEFAULT NOW()
             )
         """)
+        # Recipe ownership: NULL = original/your own recipe, else the tagged author's email.
+        cur.execute("""
+            ALTER TABLE dish_reviews
+            ADD COLUMN IF NOT EXISTS recipe_owner_email VARCHAR(255)
+                REFERENCES users(email) ON DELETE SET NULL
+        """)
+        # Half-star ratings: widen INTEGER → NUMERIC(2,1) and allow 0.5 as the floor.
+        cur.execute("ALTER TABLE dish_reviews DROP CONSTRAINT IF EXISTS dish_reviews_rating_check")
+        cur.execute("ALTER TABLE dish_reviews ALTER COLUMN rating TYPE NUMERIC(2,1)")
+        cur.execute("ALTER TABLE dish_reviews ADD CONSTRAINT dish_reviews_rating_check CHECK (rating >= 0.5 AND rating <= 5)")
+        cur.execute("ALTER TABLE meals DROP CONSTRAINT IF EXISTS meals_rating_check")
+        cur.execute("ALTER TABLE meals ALTER COLUMN rating TYPE NUMERIC(2,1)")
+        cur.execute("ALTER TABLE meals ADD CONSTRAINT meals_rating_check CHECK (rating >= 0.5 AND rating <= 5)")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS friendships (
                 id SERIAL PRIMARY KEY,
@@ -255,18 +268,19 @@ class ReviewCreate(BaseModel):
     type: str
     restaurant_name: Optional[str] = None
     recipe: Optional[str] = None
-    rating: int
+    recipe_owner_email: Optional[str] = None
+    rating: float
     review: Optional[str] = None
 
 class MealDishIn(BaseModel):
     dish_name: str
-    rating: int
+    rating: float
     review: Optional[str] = None
 
 class MealCreate(BaseModel):
     restaurant_name: str
     title: Optional[str] = None
-    rating: int
+    rating: float
     review: Optional[str] = None
     dishes: List[MealDishIn]
 
@@ -276,7 +290,8 @@ class ReviewOut(BaseModel):
     type: str
     restaurant_name: Optional[str]
     recipe: Optional[str]
-    rating: int
+    recipe_owner_email: Optional[str] = None
+    rating: float
     review: Optional[str]
     logged_at: datetime
     like_count: int = 0
@@ -294,6 +309,13 @@ class FriendRequestOut(BaseModel):
     addressee_email: str
     status: str
     created_at: datetime
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 class TrylistAdd(BaseModel):
     item_type: str
@@ -345,6 +367,47 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_token(email: str) -> str:
     payload = {"sub": email, "exp": datetime.utcnow() + timedelta(hours=24)}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def valid_rating(r: float) -> bool:
+    """Ratings run 0.5–5 in half-star steps."""
+    return r is not None and 0.5 <= r <= 5 and (r * 2) == int(r * 2)
+
+def create_reset_token(email: str) -> str:
+    payload = {"sub": email, "purpose": "reset",
+               "exp": datetime.utcnow() + timedelta(hours=1)}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def send_reset_email(to_email: str, reset_link: str) -> None:
+    """Send the password-reset link over Gmail SMTP. Falls back to logging the
+    link if SMTP isn't configured or the send fails, so the flow never hard-crashes."""
+    import smtplib
+    from email.message import EmailMessage
+
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+
+    if not smtp_user or not smtp_pass:
+        print(f"[reset] SMTP not configured — reset link for {to_email}: {reset_link}")
+        return
+
+    msg = EmailMessage()
+    msg["Subject"] = "Reset your Dishlog password"
+    msg["From"]    = smtp_user
+    msg["To"]      = to_email
+    msg.set_content(
+        f"We received a request to reset your Dishlog password.\n\n"
+        f"Reset it here (link expires in 1 hour):\n{reset_link}\n\n"
+        f"If you didn't request this, you can safely ignore this email."
+    )
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+    except Exception as exc:
+        print(f"[reset] Email send failed ({exc}) — link for {to_email}: {reset_link}")
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -451,6 +514,42 @@ def login(body: LoginRequest, db=Depends(get_db)):
 def me(email: str = Depends(get_current_user)):
     return {"email": email}
 
+@app.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, db=Depends(get_db)):
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (body.email,))
+        user = cur.fetchone()
+    # Only email real accounts, but always return the same message so the
+    # endpoint can't be used to discover which emails are registered.
+    if user:
+        token = create_reset_token(body.email)
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        reset_link = f"{frontend_url}/reset-password?token={token}"
+        send_reset_email(body.email, reset_link)
+    return {"message": "If that email is registered, a reset link is on its way."}
+
+@app.post("/reset-password")
+def reset_password(body: ResetPasswordRequest, db=Depends(get_db)):
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    try:
+        payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="This reset link has expired. Request a new one.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid reset link.")
+    if payload.get("purpose") != "reset":
+        raise HTTPException(status_code=400, detail="Invalid reset link.")
+    email = payload["sub"]
+    with with_cursor(db) as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Account not found")
+        cur.execute("UPDATE users SET hashed_password = %s WHERE email = %s",
+                    (hash_password(body.new_password), email))
+        db.commit()
+    return {"message": "Password updated. You can now log in."}
+
 
 # ── Review endpoints ──────────────────────────────────────────────────────────
 
@@ -458,15 +557,28 @@ def me(email: str = Depends(get_current_user)):
 def create_review(body: ReviewCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
     if body.type not in ("restaurant", "homemade"):
         raise HTTPException(status_code=400, detail="type must be 'restaurant' or 'homemade'")
-    if not 1 <= body.rating <= 5:
-        raise HTTPException(status_code=400, detail="rating must be between 1 and 5")
+    if not valid_rating(body.rating):
+        raise HTTPException(status_code=400, detail="rating must be between 0.5 and 5 in half-star steps")
+
+    # Recipe tagging only applies to homemade dishes. NULL means it's your own recipe.
+    recipe_owner = body.recipe_owner_email.strip() if body.recipe_owner_email else None
+    if recipe_owner and body.type != "homemade":
+        raise HTTPException(status_code=400, detail="Only homemade dishes can tag a recipe author")
+    if recipe_owner == email:
+        recipe_owner = None  # tagging yourself just means it's your own recipe
+
     with with_cursor(db) as cur:
+        if recipe_owner:
+            cur.execute("SELECT id FROM users WHERE email = %s", (recipe_owner,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Tagged recipe author not found")
         cur.execute(
-            """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, rating, review)
-               VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+            """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, recipe_owner_email, rating, review)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
             (email, body.dish_name.strip(), body.type,
              body.restaurant_name.strip() if body.restaurant_name else None,
              body.recipe.strip() if body.recipe else None,
+             recipe_owner,
              body.rating,
              body.review.strip() if body.review else None)
         )
@@ -798,7 +910,8 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
 
         cur.execute(f"""
             SELECT
-                r.id, r.user_email, r.dish_name, r.type, r.restaurant_name, r.rating, r.review, r.logged_at,
+                r.id, r.user_email, r.dish_name, r.type, r.restaurant_name,
+                r.recipe, r.recipe_owner_email, r.rating, r.review, r.logged_at,
                 COUNT(DISTINCT l.id) AS like_count,
                 COUNT(DISTINCT c.id) AS comment_count,
                 COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
@@ -1492,8 +1605,8 @@ def create_meal(body: MealCreate, email: str = Depends(get_current_user), db=Dep
     restaurant = body.restaurant_name.strip()
     if not restaurant:
         raise HTTPException(status_code=400, detail="Restaurant is required")
-    if not 1 <= body.rating <= 5:
-        raise HTTPException(status_code=400, detail="Overall rating must be between 1 and 5")
+    if not valid_rating(body.rating):
+        raise HTTPException(status_code=400, detail="Overall rating must be between 0.5 and 5 in half-star steps")
 
     dishes, seen = [], set()
     for d in body.dishes:
@@ -1502,8 +1615,8 @@ def create_meal(body: MealCreate, email: str = Depends(get_current_user), db=Dep
             continue
         if name.lower() in seen:
             raise HTTPException(status_code=400, detail=f"'{name}' is listed twice")
-        if not 1 <= d.rating <= 5:
-            raise HTTPException(status_code=400, detail=f"Rating for '{name}' must be between 1 and 5")
+        if not valid_rating(d.rating):
+            raise HTTPException(status_code=400, detail=f"Rating for '{name}' must be between 0.5 and 5 in half-star steps")
         seen.add(name.lower())
         dishes.append((name, d.rating, (d.review or "").strip() or None))
 
