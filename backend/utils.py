@@ -15,7 +15,10 @@ def serialise_review(row: dict) -> dict:
         "dish_name":       row.get("dish_name", ""),
         "type":            row.get("type", ""),
         "restaurant_name": row.get("restaurant_name"),
-        "rating":          row.get("rating"),
+        "recipe":          row.get("recipe") or "",
+        "recipe_owner_email": row.get("recipe_owner_email"),
+        "recipe_owner":    username_from(row["recipe_owner_email"]) if row.get("recipe_owner_email") else None,
+        "rating":          float(row["rating"]) if row.get("rating") is not None else None,
         "review":          row.get("review") or "",
         "logged_at":       row.get("logged_at"),
         "meal_id":         row.get("meal_id"),
@@ -23,7 +26,7 @@ def serialise_review(row: dict) -> dict:
 
 def serialise_meal(meal: dict, dish_rows: list) -> dict:
     """A meal plus the dish_reviews rows that belong to it."""
-    ratings = [d["rating"] for d in dish_rows]
+    ratings = [float(d["rating"]) for d in dish_rows if d.get("rating") is not None]
     return {
         "id":              meal["id"],
         "kind":            "meal",
@@ -31,7 +34,7 @@ def serialise_meal(meal: dict, dish_rows: list) -> dict:
         "user_email":      meal.get("user_email", ""),
         "restaurant_name": meal["restaurant_name"],
         "title":           meal.get("title"),
-        "rating":          meal["rating"],
+        "rating":          float(meal["rating"]) if meal.get("rating") is not None else None,
         "review":          meal.get("review") or "",
         "logged_at":       meal.get("logged_at"),
         "dish_count":      len(dish_rows),
@@ -40,7 +43,7 @@ def serialise_meal(meal: dict, dish_rows: list) -> dict:
             {
                 "id":        d["id"],
                 "dish_name": d["dish_name"],
-                "rating":    d["rating"],
+                "rating":    float(d["rating"]) if d.get("rating") is not None else None,
                 "review":    d.get("review") or "",
             }
             for d in dish_rows
