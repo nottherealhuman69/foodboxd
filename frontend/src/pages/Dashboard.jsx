@@ -324,9 +324,10 @@ export default function Dashboard() {
                                     onViewUser={viewUser}
                                   />}
         {active === 'trylist' && <Trylist
-                                    onViewDish={openDish}
-                                    onViewRestaurant={setViewingRestaurant}
-                                  />}
+                            onViewDish={openDish}
+                            onViewRestaurant={setViewingRestaurant}
+                            onViewUser={viewUser}
+                          />}
         {active === 'notifs' && <Notifications
                             onViewReview={openReview}
                             onViewMeal={openMeal}
