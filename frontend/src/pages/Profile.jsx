@@ -66,7 +66,7 @@ export default function Profile({
         <StatCard count={restaurantEntries.length} label="Restaurant"    onClick={() => setSection('restaurant')} active={section === 'restaurant'} />
         <StatCard count={homemadeEntries.length}   label="Homemade"      onClick={() => setSection('homemade')}   active={section === 'homemade'} />
         <StatCard count={mealEntries.length}       label="Meals"         onClick={() => setSection('meals')}      active={section === 'meals'} />
-        <StatCard count={friendCount}              label="Friends"       onClick={() => setSection('friends')}    active={section === 'friends'} />
+        <StatCard count={friendCount}              label="Following"     onClick={() => setSection('friends')}    active={section === 'friends'} />
         <StatCard count={lists ? lists.length : null} label="Lists"      onClick={() => setSection('lists')}      active={section === 'lists'} />
       </StatGrid>
 
@@ -164,14 +164,14 @@ export default function Profile({
 
       {section === 'friends' && (
         <div className={styles.section}>
-          <h3 className={shared.sectionTitle}>Friends</h3>
+          <h3 className={shared.sectionTitle}>Following</h3>
           <PageState loading={friendsLoading} error={friendsError} />
           {!friendsLoading && !friendsError && friends !== null && friends.length === 0 && (
             <PageState
               empty
-              emptyTitle="No friends yet"
-              emptyHint="Search for people and send friend requests"
-              emptyAction={<button className={shared.ctaBtn} onClick={() => onNavigate('search')}>Find friends</button>}
+              emptyTitle="Not following anyone yet"
+              emptyHint="Search for people to follow"
+              emptyAction={<button className={shared.ctaBtn} onClick={() => onNavigate('search')}>Find people</button>}
             />
           )}
           {!friendsLoading && !friendsError && friends && friends.length > 0 && (

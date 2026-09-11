@@ -3,6 +3,7 @@ import { apiFetch } from '../hooks/useApi'
 import { StarPicker } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import MealForm from './MealForm'
+import TagPicker from '../components/TagPicker'
 import styles from './CreateReview.module.css'
 
 const MAX_REVIEW_CHARS = 1000
@@ -72,7 +73,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
   const [form, setForm] = useState({
     type: 'restaurant', restaurantName: '', dishName: '',
     recipe: '', recipeSource: 'mine', recipeOwnerEmail: '',
-    rating: 0, hoverRating: 0, review: '',
+    rating: 0, hoverRating: 0, review: '', taggedEmails: [],
   })
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
@@ -142,6 +143,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
         recipeOwnerEmail: form.type === 'homemade' && form.recipeSource === 'other'
           ? form.recipeOwnerEmail : null,
         rating: form.rating, review: form.review,
+        taggedEmails: form.taggedEmails,
       })
       handleReset()
     } catch (err) {
@@ -154,7 +156,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
   // Resets every field and returns to the dish form. Callers that want a
   // different mode must set `type` *after* calling this.
   const handleReset = () => {
-    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', recipeSource: 'mine', recipeOwnerEmail: '', rating: 0, hoverRating: 0, review: '' })
+    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', recipeSource: 'mine', recipeOwnerEmail: '', rating: 0, hoverRating: 0, review: '', taggedEmails: [] })
     setNewRestaurant(false)
     setNewDish(false)
     setDishes([])
@@ -360,6 +362,16 @@ export default function CreateReview({ onSave, onMealSaved }) {
               placeholder="What made it special? How was the texture, flavour, presentation…"
               rows={5} maxLength={MAX_REVIEW_CHARS}
               value={form.review} onChange={e => set('review', e.target.value)} />
+          </div>
+
+          {/* 8. Tag companions */}
+          <div className={styles.field}>
+            <label className={styles.label}>Who were you with? <span className={styles.labelHint}>optional</span></label>
+            <TagPicker
+              options={friends}
+              value={form.taggedEmails}
+              onChange={emails => set('taggedEmails', emails)}
+            />
           </div>
 
           {saveError && <p className={styles.saveError}>{saveError}</p>}

@@ -1,0 +1,46 @@
+.wrap { position: relative; }
+.hint { font-size: 12px; color: #6b6f8a; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(99, 102, 241, 0.12); color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12px; font-weight: 500;
+}
+.chipX {
+  background: none; border: none; color: #a5b4fc; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.chipX:hover { color: #f87171; }
+
+.input {
+  width: 100%; box-sizing: border-box;
+  background: #16192A; border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 10px;
+  padding: 10px 14px; font-size: 14px; font-family: inherit; color: #e8e9f0; outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus { border-color: rgba(99, 102, 241, 0.5); }
+.input::placeholder { color: #3d4060; }
+
+.list {
+  position: absolute; z-index: 20; left: 0; right: 0; top: 100%;
+  margin-top: 4px; max-height: 200px; overflow-y: auto;
+  background: #1a1e30; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; color: #c4c6db; font-size: 13px; font-family: inherit;
+  padding: 9px 14px; cursor: pointer;
+}
+.item:hover { background: rgba(99, 102, 241, 0.12); color: #e8e9f0; }
+
+.taggedWith { font-size: 13px; color: #6b6f8a; }
+.taggedName {
+  background: none; border: none; padding: 0; font-family: inherit; font-size: 13px;
+  color: #818cf8; cursor: pointer;
+}
+.taggedName:hover:not(:disabled) { color: #a5b4fc; }
+.taggedName:disabled { cursor: default; color: #818cf8; }
+

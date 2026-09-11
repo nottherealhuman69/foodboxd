@@ -91,8 +91,11 @@ function UserCard({ item, onViewProfile, onStatusChange }) {
       <div className={styles.cardAvatar}>{item.username.charAt(0).toUpperCase()}</div>
       <div className={styles.cardBody}>
         <div className={styles.userRow} onClick={e => e.stopPropagation()}>
-          <h3 className={styles.cardTitle} style={{ marginBottom: 0 }}>@{item.username}</h3>
-          <FriendButton email={item.email} initialStatus={item.friendship_status} onStatusChange={onStatusChange} />
+          <h3 className={styles.cardTitle} style={{ marginBottom: 0 }}>
+            @{item.username}
+            {item.is_private && <span title="Private account"> 🔒</span>}
+          </h3>
+          <FriendButton email={item.email} initialStatus={item.friendship_status} isPrivate={item.is_private} onStatusChange={onStatusChange} />
         </div>
         <div className={styles.userStats}>
           <span>{item.review_count > 0 ? `${item.review_count} dish${item.review_count !== 1 ? 'es' : ''} logged` : 'New member'}</span>
@@ -141,6 +144,7 @@ export default function Search({ onViewDish, onViewRestaurant, onViewUser }) {
           username:          u.email.split('@')[0],
           review_count:      u.review_count,
           friendship_status: u.friendship_status,
+          is_private:        u.is_private,
         })))
       } catch {
         setError('Could not load data. Please try again.')
