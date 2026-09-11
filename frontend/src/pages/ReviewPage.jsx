@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../hooks/useApi'
-import { StarRating } from '../components/StarRating'
+import { StarRating, StarPicker } from '../components/StarRating'
 import PageState from '../components/PageState'
+import CommentThread from '../components/CommentThread'
+import TagPicker, { TaggedWith } from '../components/TagPicker'
+import { RATING_LABELS } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 
@@ -16,6 +19,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
   const [tab,     setTab]     = useState(initialTab)
+  const [editing, setEditing] = useState(false)
 
   const [likes,        setLikes]        = useState(null)
   const [likesLoading, setLikesLoading] = useState(false)
@@ -27,23 +31,23 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
 
   const myEmail = localStorage.getItem('email')
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError('')
-      try {
-        const res = await apiFetch(`/api/reviews/${reviewId}/detail`)
-        if (!res.ok) throw new Error()
-        setReview(await res.json())
-      } catch {
-        setError('Could not load this review.')
-      } finally {
-        setLoading(false)
-      }
+  async function loadReview() {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await apiFetch(`/api/reviews/${reviewId}/detail`)
+      if (!res.ok) throw new Error()
+      setReview(await res.json())
+    } catch {
+      setError('Could not load this review.')
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [reviewId])
-    // A dish review that belongs to a meal has no page of its own —
+  }
+
+  useEffect(() => { loadReview() }, [reviewId])
+
+  // A dish review that belongs to a meal has no page of its own —
   // the meal owns the conversation, so bounce there.
   useEffect(() => {
     if (review?.meal_id != null) {
@@ -82,6 +86,20 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     if (tab === 'comments' && comments === null) loadComments()
   }, [tab])
 
+  const toggleLike = async () => {
+    const prev = { liked: review.user_liked, count: review.like_count }
+    setReview(r => ({ ...r, user_liked: !r.user_liked, like_count: r.like_count + (r.user_liked ? -1 : 1) }))
+    try {
+      const res = await apiFetch(`/api/reviews/${reviewId}/like`, { method: 'POST' })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setReview(r => ({ ...r, user_liked: data.liked, like_count: data.like_count }))
+      setLikes(null) // refresh likers list next time it's opened
+    } catch {
+      setReview(r => ({ ...r, user_liked: prev.liked, like_count: prev.count }))
+    }
+  }
+
   const postComment = async (e) => {
     e.preventDefault()
     if (!commentText.trim() || posting) return
@@ -89,7 +107,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     try {
       const res = await apiFetch(`/api/reviews/${reviewId}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content: commentText.trim() }),
+        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
       })
       if (!res.ok) throw new Error()
       const newComment = await res.json()
@@ -103,17 +121,6 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     }
   }
 
-  const deleteComment = async (commentId) => {
-    try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/comments/${commentId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      setComments(prev => prev.filter(c => c.id !== commentId))
-      setReview(r => ({ ...r, comment_count: r.comment_count - 1 }))
-    } catch {
-      // silently fail
-    }
-  }
-
   if (loading || error) {
     return (
       <div className={shared.page}>
@@ -123,9 +130,23 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     )
   }
 
+  if (editing) {
+    return (
+      <div className={shared.page}>
+        <button className={shared.backBtn} onClick={() => setEditing(false)}>← Cancel</button>
+        <EditReviewForm
+          review={review}
+          onCancel={() => setEditing(false)}
+          onSaved={() => { setEditing(false); loadReview() }}
+        />
+      </div>
+    )
+  }
+
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
+  const isOwner = review.user_email === myEmail
 
   return (
     <div className={shared.page}>
@@ -180,6 +201,13 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           </button>
         </p>
       )}
+
+      {review.tagged?.length > 0 && (
+        <p style={{ marginTop: 8 }}>
+          <TaggedWith tagged={review.tagged} onViewUser={onViewUser} />
+        </p>
+      )}
+
       {review.review && <p className={styles.reviewText}>{review.review}</p>}
       {review.recipe && (
         <details className={styles.recipeDetails}>
@@ -187,6 +215,15 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           <p>{review.recipe}</p>
         </details>
       )}
+
+      <div className={styles.pageActions}>
+        <button className={`${styles.likeBtn} ${review.user_liked ? styles.likeBtnActive : ''}`} onClick={toggleLike}>
+          {review.user_liked ? '❤️' : '🤍'} {review.like_count}
+        </button>
+        {isOwner && (
+          <button className={styles.editBtn} onClick={() => setEditing(true)}>Edit</button>
+        )}
+      </div>
 
       <div className={styles.tabs}>
         {TABS.map(t => (
@@ -221,24 +258,15 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           {commentsLoading && <p className={styles.loadingText}>Loading…</p>}
           {!commentsLoading && comments?.length === 0 && <p className={styles.emptyText}>No comments yet.</p>}
           {!commentsLoading && comments?.length > 0 && (
-            <div className={styles.commentList}>
-              {comments.map(c => (
-                <div key={c.id} className={styles.comment}>
-                  <button className={styles.commentAvatar} onClick={() => onViewUser?.(c.user_email)}>
-                    {c.username.charAt(0).toUpperCase()}
-                  </button>
-                  <div className={styles.commentBody}>
-                    <button className={styles.commentUsername} onClick={() => onViewUser?.(c.user_email)}>
-                      @{c.username}
-                    </button>
-                    <p className={styles.commentContent}>{c.content}</p>
-                  </div>
-                  {c.user_email === myEmail && (
-                    <button className={styles.deleteCommentBtn} onClick={() => deleteComment(c.id)} title="Delete">×</button>
-                  )}
-                </div>
-              ))}
-            </div>
+            <CommentThread
+              comments={comments}
+              setComments={setComments}
+              commentType="review"
+              basePath={`/api/reviews/${reviewId}/comments`}
+              myEmail={myEmail}
+              onViewUser={onViewUser}
+              onCountChange={(delta) => setReview(r => ({ ...r, comment_count: Math.max(0, r.comment_count + delta) }))}
+            />
           )}
           <form className={styles.commentForm} onSubmit={postComment}>
             <input
@@ -255,5 +283,93 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         </div>
       )}
     </div>
+  )
+}
+
+function EditReviewForm({ review, onCancel, onSaved }) {
+  const [dishName,       setDishName]       = useState(review.dish_name || '')
+  const [restaurantName, setRestaurantName] = useState(review.restaurant_name || '')
+  const [recipe,         setRecipe]         = useState(review.recipe || '')
+  const [rating,         setRating]         = useState(review.rating || 0)
+  const [hover,          setHover]          = useState(0)
+  const [text,           setText]           = useState(review.review || '')
+  const [taggedEmails,   setTaggedEmails]   = useState((review.tagged || []).map(t => t.email))
+  const [friends,        setFriends]        = useState([])
+  const [saving,         setSaving]         = useState(false)
+  const [error,          setError]          = useState('')
+
+  useEffect(() => {
+    apiFetch('/api/friends').then(r => r.ok ? r.json() : []).then(setFriends).catch(() => {})
+  }, [])
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!dishName.trim() || rating === 0) return
+    setSaving(true)
+    setError('')
+    try {
+      const res = await apiFetch(`/api/reviews/${review.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          dish_name:          dishName.trim(),
+          type:               review.type,
+          restaurant_name:    restaurantName.trim() || null,
+          recipe:             review.type === 'homemade' ? (recipe.trim() || null) : null,
+          recipe_owner_email: review.recipe_owner_email || null,
+          rating,
+          review:             text.trim() || null,
+          tagged_emails:      taggedEmails,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Could not save changes.')
+      }
+      onSaved()
+    } catch (err) {
+      setError(err.message || 'Could not save changes.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className={styles.editForm} onSubmit={submit}>
+      <h2 className={styles.dishName}>Edit review</h2>
+
+      <label className={styles.editLabel}>Dish name</label>
+      <input className={styles.editInput} value={dishName} onChange={e => setDishName(e.target.value)} required />
+
+      <label className={styles.editLabel}>Restaurant {review.type === 'homemade' && <span className={styles.date}>(optional)</span>}</label>
+      <input className={styles.editInput} value={restaurantName} onChange={e => setRestaurantName(e.target.value)} />
+
+      {review.type === 'homemade' && (
+        <>
+          <label className={styles.editLabel}>Recipe</label>
+          <textarea className={`${styles.editInput} ${styles.editTextarea}`} rows={3} value={recipe} onChange={e => setRecipe(e.target.value)} />
+        </>
+      )}
+
+      <label className={styles.editLabel}>Rating</label>
+      <div className={styles.ratingRow}>
+        <StarPicker value={rating} hoverValue={hover} onHover={setHover} onLeave={() => setHover(0)} onChange={setRating} size={26} />
+        {rating > 0 && <span className={styles.ratingLabelInline}>{RATING_LABELS[Math.round(rating)]}</span>}
+      </div>
+
+      <label className={styles.editLabel}>Review</label>
+      <textarea className={`${styles.editInput} ${styles.editTextarea}`} rows={5} maxLength={1000} value={text} onChange={e => setText(e.target.value)} />
+
+      <label className={styles.editLabel}>Who were you with?</label>
+      <TagPicker options={friends} value={taggedEmails} onChange={setTaggedEmails} />
+
+      {error && <p className={styles.emptyText} style={{ color: '#f87171' }}>{error}</p>}
+
+      <div className={styles.editActions}>
+        <button type="submit" className={styles.commentSubmit} disabled={saving || !dishName.trim() || rating === 0}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+        <button type="button" className={styles.editBtn} onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
   )
 }

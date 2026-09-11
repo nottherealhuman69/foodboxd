@@ -14,6 +14,7 @@ export function normaliseReview(r) {
     loggedAt:       r.logged_at,
     likeCount:      r.like_count ?? 0,
     commentCount:   r.comment_count ?? 0,
+    tagged:         r.tagged ?? [],
   }
 }
 
@@ -29,6 +30,7 @@ export function normaliseMeal(m) {
     loggedAt:       m.logged_at,
     dishCount:      m.dish_count ?? 0,
     dishAvg:        m.dish_avg ?? null,
+    tagged:         m.tagged ?? [],
     dishes:         (m.dishes ?? []).map(d => ({
       id: d.id, dishName: d.dish_name, rating: d.rating, review: d.review ?? '',
     })),

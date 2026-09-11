@@ -3,6 +3,7 @@ import { apiFetch } from '../hooks/useApi'
 import { StarPicker } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import { SearchDropdown } from './Createreview'
+import TagPicker from '../components/TagPicker'
 import styles from './CreateReview.module.css'
 
 const MAX_REVIEW_CHARS = 1000
@@ -19,12 +20,21 @@ export default function MealForm({ onSaved }) {
   const [hoverRating,    setHoverRating]    = useState(0)
   const [review,         setReview]         = useState('')
   const [dishes,         setDishes]         = useState([emptyDish(), emptyDish()])
+  const [taggedEmails,   setTaggedEmails]   = useState([])
+  const [friends,        setFriends]        = useState([])
 
   const [restaurants,    setRestaurants]    = useState([])
   const [menu,           setMenu]           = useState([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [saving,         setSaving]         = useState(false)
   const [saveError,      setSaveError]      = useState('')
+
+  useEffect(() => {
+    apiFetch('/api/friends')
+      .then(r => r.ok ? r.json() : [])
+      .then(setFriends)
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     setLoadingCatalog(true)
@@ -84,6 +94,7 @@ export default function MealForm({ onSaved }) {
     setRestaurantName(''); setNewRestaurant(false); setTitle('')
     setRating(0); setHoverRating(0); setReview('')
     setDishes([emptyDish(), emptyDish()]); setMenu([]); setSaveError('')
+    setTaggedEmails([])
   }
 
   const handleSubmit = async (e) => {
@@ -104,6 +115,7 @@ export default function MealForm({ onSaved }) {
             rating:    d.rating,
             review:    d.note.trim() || null,
           })),
+          tagged_emails: taggedEmails,
         }),
       })
       if (!res.ok) {
@@ -263,6 +275,12 @@ export default function MealForm({ onSaved }) {
           rows={5} maxLength={MAX_REVIEW_CHARS}
           placeholder="Who you were with, how it was paced, what you'd order again…"
           value={review} onChange={e => setReview(e.target.value)} />
+      </div>
+
+      {/* Tag companions */}
+      <div className={styles.field}>
+        <label className={styles.label}>Who were you with? <span className={styles.labelHint}>optional</span></label>
+        <TagPicker options={friends} value={taggedEmails} onChange={setTaggedEmails} />
       </div>
 
       {saveError && <p className={styles.saveError}>{saveError}</p>}
