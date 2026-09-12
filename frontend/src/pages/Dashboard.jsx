@@ -7,7 +7,7 @@ import CreateReview from './CreateReview'
 import Search from './Search'
 import Notifications from './Notifications'
 import Trylist from './Trylist'
-import DishPage from './DishPage'
+import DishPage from './Dishpage'
 import RestaurantPage from './RestaurantPage'
 import UserProfile from './UserProfile'
 import ReviewPage from './ReviewPage'
@@ -154,6 +154,7 @@ export default function Dashboard() {
   // Central place to handle "view this user's profile" — redirects to your own
   // Profile tab if the clicked user is you, instead of opening the read-only overlay.
   const viewUser = (targetEmail) => {
+    if (!targetEmail) return
     if (targetEmail === email) {
       setViewingUser(null)
       setViewingDish(null)
@@ -205,6 +206,7 @@ export default function Dashboard() {
             onBack={() => setViewingDish(null)}
             onViewReview={openReview}
             onViewMeal={openMeal}
+            onViewUser={(userEmail) => { setViewingDish(null); viewUser(userEmail) }}
           />
         </div>
       )}
@@ -215,6 +217,7 @@ export default function Dashboard() {
             onBack={() => setViewingRestaurant(null)}
             onViewReview={openReview}
             onViewMeal={openMeal}
+            onViewUser={(userEmail) => { setViewingRestaurant(null); viewUser(userEmail) }}
           />
         </div>
       )}

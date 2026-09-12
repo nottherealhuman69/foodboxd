@@ -11,7 +11,7 @@ import RatingDistribution from '../components/RatingDistribution'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
-export default function RestaurantPage({ restaurantName, onBack, onViewReview }) {
+export default function RestaurantPage({ restaurantName, onBack, onViewReview, onViewMeal, onViewUser }) {
   const [data,        setData]        = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -42,7 +42,16 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
     ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
     : null
   if (viewingDish) {
-    return <DishPage dishName={viewingDish} restaurantName={restaurantName} onBack={() => setViewingDish(null)} />
+    return (
+      <DishPage
+        dishName={viewingDish}
+        restaurantName={restaurantName}
+        onBack={() => setViewingDish(null)}
+        onViewReview={onViewReview}
+        onViewMeal={onViewMeal}
+        onViewUser={onViewUser}
+      />
+    )
   }
 
   return (
@@ -62,9 +71,14 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
             <div className={styles.heroIcon}>🏠</div>
             <div className={styles.heroBody}>
               <h1 className={styles.restaurantName}>{data.restaurant_name}</h1>
-              <p className={styles.createdBy}>
-                Page created by <span className={styles.creator}>@{data.created_by}</span>
-              </p>
+              <div className={styles.createdByRow}>
+                <span className={styles.createdBy}>Page created by</span>
+                <CreatorChip
+                  username={data.created_by}
+                  email={data.created_by_email}
+                  onViewUser={onViewUser}
+                />
+              </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {myAvgRating !== null ? (
                   <div className={styles.myRatingBadge}>
@@ -137,7 +151,13 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
           {activeTab === 'reviews' && (
               <div className={styles.reviewList}>
                 {data.reviews.map(r => (
-                  <ReviewCard key={r.id} review={r} onViewDish={() => setViewingDish(r.dish_name)} onViewReview={onViewReview} />
+                  <ReviewCard
+                    key={r.id}
+                    review={r}
+                    onViewDish={() => setViewingDish(r.dish_name)}
+                    onViewReview={onViewReview}
+                    onViewUser={onViewUser}
+                  />
                 ))}
               </div>
             )}
@@ -147,7 +167,30 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
   )
 }
 
-function ReviewCard({ review, onViewDish, onViewReview }) {
+/* Username chip — pill-shaped handle that opens the creator's profile. */
+function CreatorChip({ username, email, onViewUser }) {
+  const handle    = username || 'unknown'
+  const clickable = Boolean(onViewUser && email)
+
+  const inner = <span className={styles.creatorChipName}>@{handle}</span>
+
+  if (!clickable) {
+    return <span className={`${styles.creatorChip} ${styles.creatorChipStatic}`}>{inner}</span>
+  }
+
+  return (
+    <button
+      type="button"
+      className={styles.creatorChip}
+      onClick={() => onViewUser(email)}
+      title={`View @${handle}'s profile`}
+    >
+      {inner}
+    </button>
+  )
+}
+
+function ReviewCard({ review, onViewDish, onViewReview, onViewUser }) {
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -160,7 +203,18 @@ function ReviewCard({ review, onViewDish, onViewReview }) {
       <div className={styles.reviewHeader}>
         <div className={styles.reviewAvatar}>{review.username.charAt(0).toUpperCase()}</div>
         <div className={styles.reviewHeaderBody}>
-          <span className={styles.reviewUsername}>@{review.username}</span>
+          {onViewUser && review.user_email ? (
+            <button
+              type="button"
+              className={`${styles.reviewUsername} ${styles.linkBtn}`}
+              onClick={e => { e.stopPropagation(); onViewUser(review.user_email) }}
+              title={`View @${review.username}'s profile`}
+            >
+              @{review.username}
+            </button>
+          ) : (
+            <span className={styles.reviewUsername}>@{review.username}</span>
+          )}
           <span className={styles.reviewDate}>{date}</span>
         </div>
         <div className={styles.reviewRating}>

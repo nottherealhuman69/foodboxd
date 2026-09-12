@@ -1,0 +1,195 @@
+/* ─── RatingBarChart.module.css ───────────────────────────────────────────────
+   Palette matches the rest of the app:
+   bar #818cf8 / #6366F1, axis lines rgba(99,102,241,.18), muted text #6b6f8a.
+─────────────────────────────────────────────────────────────────────────────── */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  max-width: 200px;
+}
+
+/* ── y-axis ── */
+.yCaption {
+  display: flex;
+  align-items: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 8px;
+  color: #4e5272;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.yAxis {
+  position: relative;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.yTick {
+  position: absolute;
+  right: 0;
+  font-size: 9px;
+  line-height: 10px;
+  color: #4e5272;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── plot ── */
+.plotWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 0 3px;
+  border-left: 1px solid rgba(99, 102, 241, 0.18);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(99, 102, 241, 0.1);
+  pointer-events: none;
+}
+
+.col {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: default;
+}
+
+.bar {
+  width: 68%;
+  max-width: 18px;
+  background: linear-gradient(180deg, #818cf8, #6366F1);
+  border-radius: 3px 3px 0 0;
+  transition: filter 0.15s;
+}
+.col:hover .bar { filter: brightness(1.25); }
+
+.barEmpty {
+  width: 68%;
+  max-width: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px 2px 0 0;
+}
+
+.count {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 9px;
+  line-height: 10px;
+  font-weight: 600;
+  color: #a5b4fc;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ── x-axis ── */
+.xAxis {
+  display: flex;
+  gap: 4px;
+  padding: 3px 3px 0;
+  margin-left: 1px; /* line up with the plot's left axis border */
+}
+
+.xTick {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 9px;
+  line-height: 10px;
+  color: #6b6f8a;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  font-size: 10px;
+  color: #6b6f8a;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Compact variant (dish rows) ── */
+.compactWrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compactPlot {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.compactCol {
+  display: flex;
+  align-items: flex-end;
+  cursor: default;
+}
+
+.compactBar {
+  width: 6px;
+  background: #818cf8;
+  border-radius: 2px 2px 0 0;
+  transition: filter 0.15s;
+}
+.compactCol:hover .compactBar { filter: brightness(1.25); }
+
+.compactBarEmpty {
+  width: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px 2px 0 0;
+}
+
+.compactAxis {
+  display: flex;
+  gap: 3px;
+}
+
+.compactTick {
+  width: 6px;
+  text-align: center;
+  font-size: 8px;
+  line-height: 9px;
+  color: #4e5272;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  .bar, .compactBar { transition: none; }
+}
+
+/* ── Narrow screens: drop the rotated caption, keep the graph legible ── */
+@media (max-width: 560px) {
+  .yCaption { display: none; }
+  .chart { max-width: 160px; }
+}

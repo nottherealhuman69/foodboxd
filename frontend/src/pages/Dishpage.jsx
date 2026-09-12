@@ -10,7 +10,7 @@ import styles from './DishPage.module.css'
 import AddToListButton from './AddToListButton'
 import RatingDistribution from '../components/RatingDistribution'
 
-export default function DishPage({ dishName, restaurantName, onBack, onViewReview, onViewMeal }) {
+export default function DishPage({ dishName, restaurantName, onBack, onViewReview, onViewMeal, onViewUser }) {
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -34,13 +34,23 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
     }
     load()
   }, [dishName, restaurantName])
-const email = localStorage.getItem('email') || ''
-const myReviews = dish ? dish.reviews.filter(r => r.user_email === email) : []
-const myAvgRating = myReviews.length > 0
-  ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
-  : null
+
+  const email = localStorage.getItem('email') || ''
+  const myReviews = dish ? dish.reviews.filter(r => r.user_email === email) : []
+  const myAvgRating = myReviews.length > 0
+    ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
+    : null
+
   if (viewingRestaurant) {
-    return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} onViewReview={onViewReview} />
+    return (
+      <RestaurantPage
+        restaurantName={restaurantName}
+        onBack={() => setViewingRestaurant(false)}
+        onViewReview={onViewReview}
+        onViewMeal={onViewMeal}
+        onViewUser={onViewUser}
+      />
+    )
   }
 
   return (
@@ -99,7 +109,11 @@ const myAvgRating = myReviews.length > 0
             </div>
             <div className={styles.divider} />
             <div className={styles.statItem}>
-              <span className={styles.statNum}>@{dish.created_by}</span>
+              <CreatorChip
+                username={dish.created_by}
+                email={dish.created_by_email}
+                onViewUser={onViewUser}
+              />
               <span className={styles.statLabel}>page created by</span>
             </div>
           </div>
@@ -108,7 +122,13 @@ const myAvgRating = myReviews.length > 0
             <h3 className={shared.sectionTitle}>All reviews</h3>
             <div className={styles.reviewList}>
               {dish.reviews.map(r => (
-                <ReviewCard key={r.id} review={r} onViewReview={onViewReview} onViewMeal={onViewMeal} />
+                <ReviewCard
+                  key={r.id}
+                  review={r}
+                  onViewReview={onViewReview}
+                  onViewMeal={onViewMeal}
+                  onViewUser={onViewUser}
+                />
               ))}
             </div>
           </div>
@@ -118,7 +138,30 @@ const myAvgRating = myReviews.length > 0
   )
 }
 
-function ReviewCard({ review, onViewReview, onViewMeal }) {
+/* Username chip — pill-shaped handle that opens the creator's profile. */
+function CreatorChip({ username, email, onViewUser }) {
+  const handle    = username || 'unknown'
+  const clickable = Boolean(onViewUser && email)
+
+  const inner = <span className={styles.creatorChipName}>@{handle}</span>
+
+  if (!clickable) {
+    return <span className={`${styles.creatorChip} ${styles.creatorChipStatic}`}>{inner}</span>
+  }
+
+  return (
+    <button
+      type="button"
+      className={styles.creatorChip}
+      onClick={() => onViewUser(email)}
+      title={`View @${handle}'s profile`}
+    >
+      {inner}
+    </button>
+  )
+}
+
+function ReviewCard({ review, onViewReview, onViewMeal, onViewUser }) {
   const isMeal = review.meal_id != null
   const date = new Date(review.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
@@ -134,7 +177,18 @@ function ReviewCard({ review, onViewReview, onViewMeal }) {
       <div className={styles.cardHeader}>
         <div className={styles.userAvatar}>{review.username.charAt(0).toUpperCase()}</div>
         <div className={styles.cardHeaderBody}>
-          <span className={styles.cardUsername}>@{review.username}</span>
+          {onViewUser && review.user_email ? (
+            <button
+              type="button"
+              className={`${styles.cardUsername} ${styles.linkBtn}`}
+              onClick={e => { e.stopPropagation(); onViewUser(review.user_email) }}
+              title={`View @${review.username}'s profile`}
+            >
+              @{review.username}
+            </button>
+          ) : (
+            <span className={styles.cardUsername}>@{review.username}</span>
+          )}
           <span className={styles.cardDate}>{date}</span>
         </div>
         <div className={styles.cardRating}>
