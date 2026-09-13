@@ -528,24 +528,21 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
       </div>
 
             {/* Members */}
+            {/* Members */}
       <div className={styles.memberStrip}>
-        {accepted.map(m => {
-          const isMe = m.email === currentEmail
-          return (
-            <button
-              key={m.email}
-              type="button"
-              className={`${styles.memberChip} ${isMe ? styles.memberChipSelf : ''}`}
-              title={isMe ? 'Go to your profile' : m.email}
-              onClick={() => onViewUser?.(m.email)}
-            >
-              <span className={styles.avatarSm}>{initials(m.email)}</span>
-              @{m.username}
-              {isMe && <span className={styles.youTag}>you</span>}
-              {m.role === 'owner' && <span className={styles.ownerTag}>owner</span>}
-            </button>
-          )
-        })}
+        {accepted.map(m => (
+          <button
+            key={m.email}
+            type="button"
+            className={styles.memberChip}
+            title={m.email}
+            onClick={() => onViewUser?.(m.email)}
+          >
+            <span className={styles.avatarSm}>{initials(m.email)}</span>
+            @{m.username}
+            {m.role === 'owner' && <span className={styles.ownerTag}>owner</span>}
+          </button>
+        ))}
         {pending.map(m => (
           <button
             key={m.email}
