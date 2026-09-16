@@ -7,11 +7,14 @@ export function normaliseReview(r) {
     type:           r.type,
     restaurantName: r.restaurant_name ?? '',
     recipe:         r.recipe ?? '',
+    recipeOwnerEmail: r.recipe_owner_email ?? null,
+    recipeOwner:    r.recipe_owner ?? (r.recipe_owner_email ? r.recipe_owner_email.split('@')[0] : null),
     rating:         r.rating,
     review:         r.review ?? '',
     loggedAt:       r.logged_at,
     likeCount:      r.like_count ?? 0,
     commentCount:   r.comment_count ?? 0,
+    tagged:         r.tagged ?? [],
   }
 }
 
@@ -27,6 +30,7 @@ export function normaliseMeal(m) {
     loggedAt:       m.logged_at,
     dishCount:      m.dish_count ?? 0,
     dishAvg:        m.dish_avg ?? null,
+    tagged:         m.tagged ?? [],
     dishes:         (m.dishes ?? []).map(d => ({
       id: d.id, dishName: d.dish_name, rating: d.rating, review: d.review ?? '',
     })),

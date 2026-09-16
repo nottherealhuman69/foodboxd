@@ -6,6 +6,8 @@ import { usernameFrom, normaliseMeal } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './Feed.module.css'
 import MealCard from '../components/MealCard'
+import CommentThread from '../components/CommentThread'
+import { TaggedWith } from '../components/TagPicker'
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -47,6 +49,7 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
                   onViewMeal={onViewMeal}
                   onViewDish={onViewDish}
                   onViewRestaurant={onViewRestaurant}
+                  onViewUser={onViewUser}
                 />
               ) : (
                 <FeedCard
@@ -141,17 +144,6 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     }
   }
 
-  const deleteComment = async (commentId) => {
-    try {
-      const res = await apiFetch(`/api/reviews/${item.id}/comments/${commentId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      setComments(prev => prev.filter(c => c.id !== commentId))
-      setCommentCount(c => c - 1)
-    } catch {
-      // silently fail
-    }
-  }
-
   return (
     <div
       className={styles.card}
@@ -206,6 +198,11 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
         <div className={styles.ratingRow}>
           <StarRating rating={item.rating} showLabel />
         </div>
+        {item.tagged?.length > 0 && (
+          <div style={{ marginBottom: 6 }}>
+            <TaggedWith tagged={item.tagged} onViewUser={onViewUser} />
+          </div>
+        )}
         {item.review && <p className={styles.reviewText}>{item.review}</p>}
 
         <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
@@ -223,17 +220,15 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
           <div className={styles.commentsSection} onClick={(e) => e.stopPropagation()}>
             {commentsLoading && <p className={styles.commentsLoading}>Loading…</p>}
             {!commentsLoading && comments && comments.length > 0 && (
-              <div className={styles.commentList}>
-                {comments.map(c => (
-                  <div key={c.id} className={styles.comment}>
-                    <span className={styles.commentUsername}>@{c.username}</span>
-                    <span className={styles.commentContent}>{c.content}</span>
-                    {c.user_email === myEmail && (
-                      <button className={styles.deleteCommentBtn} onClick={() => deleteComment(c.id)} title="Delete">×</button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <CommentThread
+                comments={comments}
+                setComments={setComments}
+                commentType="review"
+                basePath={`/api/reviews/${item.id}/comments`}
+                myEmail={myEmail}
+                onViewUser={onViewUser}
+                onCountChange={(delta) => setCommentCount(c => Math.max(0, c + delta))}
+              />
             )}
             <form className={styles.commentForm} onSubmit={postComment}>
               <input

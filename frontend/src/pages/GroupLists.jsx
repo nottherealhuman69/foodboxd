@@ -409,7 +409,7 @@ function AddItemModal({ listId, onClose, onAdded }) {
 /* ══════════════════════════════════════════════════════════════════════════
    Group list detail
    ══════════════════════════════════════════════════════════════════════════ */
-function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaurant, currentEmail }) {
+function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaurant, onViewUser, currentEmail }) {
   const [list, setList]       = useState(null)
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
@@ -500,8 +500,16 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
       <div className={styles.detailHeader}>
         <div>
           <h2 className={styles.detailTitle}>{list.name}</h2>
-          <p className={styles.detailSub}>
-            Started by @{list.owner_username} · {accepted.length} member{accepted.length !== 1 ? 's' : ''}
+                    <p className={styles.detailSub}>
+            Started by{' '}
+            <button
+              type="button"
+              className={styles.userLink}
+              onClick={() => onViewUser?.(list.owner_email)}
+            >
+              @{list.owner_username}
+            </button>
+            {' '}· {accepted.length} member{accepted.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className={styles.detailActions}>
@@ -519,21 +527,37 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
         </div>
       </div>
 
-      {/* Members */}
+            {/* Members */}
       <div className={styles.memberStrip}>
-        {accepted.map(m => (
-          <span key={m.email} className={styles.memberChip} title={m.email}>
-            <span className={styles.avatarSm}>{initials(m.email)}</span>
-            @{m.username}
-            {m.role === 'owner' && <span className={styles.ownerTag}>owner</span>}
-          </span>
-        ))}
+        {accepted.map(m => {
+          const isMe = m.email === currentEmail
+          return (
+            <button
+              key={m.email}
+              type="button"
+              className={`${styles.memberChip} ${isMe ? styles.memberChipSelf : ''}`}
+              title={isMe ? 'Go to your profile' : m.email}
+              onClick={() => onViewUser?.(m.email)}
+            >
+              <span className={styles.avatarSm}>{initials(m.email)}</span>
+              @{m.username}
+              {isMe && <span className={styles.youTag}>you</span>}
+              {m.role === 'owner' && <span className={styles.ownerTag}>owner</span>}
+            </button>
+          )
+        })}
         {pending.map(m => (
-          <span key={m.email} className={`${styles.memberChip} ${styles.memberPending}`} title="Hasn't responded yet">
+          <button
+            key={m.email}
+            type="button"
+            className={`${styles.memberChip} ${styles.memberPending}`}
+            title="Hasn't responded yet"
+            onClick={() => onViewUser?.(m.email)}
+          >
             <span className={`${styles.avatarSm} ${styles.avatarMuted}`}>{initials(m.email)}</span>
             @{m.username}
             <span className={styles.pendingTag}>invited</span>
-          </span>
+          </button>
         ))}
       </div>
       {pending.length > 0 && (
@@ -614,7 +638,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
 /* ══════════════════════════════════════════════════════════════════════════
    Main Group Lists tab
    ══════════════════════════════════════════════════════════════════════════ */
-export default function GroupLists({ onViewDish, onViewRestaurant, currentEmail }) {
+export default function GroupLists({ onViewDish, onViewRestaurant, onViewUser, currentEmail }) {
   const myEmail = currentEmail || localStorage.getItem('email') || ''
   const [lists, setLists]     = useState([])
   const [invites, setInvites] = useState([])
@@ -655,7 +679,7 @@ export default function GroupLists({ onViewDish, onViewRestaurant, currentEmail 
     finally { setActing(p => { const n = { ...p }; delete n[groupListId]; return n }) }
   }
 
-  if (openId) {
+    if (openId) {
     return (
       <GroupListDetail
         listId={openId}
@@ -664,6 +688,7 @@ export default function GroupLists({ onViewDish, onViewRestaurant, currentEmail 
         onChanged={load}
         onViewDish={onViewDish}
         onViewRestaurant={onViewRestaurant}
+        onViewUser={onViewUser}
       />
     )
   }

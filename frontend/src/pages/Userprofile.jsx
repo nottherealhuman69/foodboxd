@@ -14,6 +14,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
   const [friendStatus, setFriendStatus] = useState(null)
+  const [isPrivate,    setIsPrivate]    = useState(false)
 
   const [section,        setSection]        = useState('dishes')
   const [friends,        setFriends]        = useState(null)
@@ -38,7 +39,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
         if (searchRes.ok) {
           const users = await searchRes.json()
           const match = users.find(u => u.email === userEmail)
-          if (match) setFriendStatus(match.friendship_status)
+          if (match) { setFriendStatus(match.friendship_status); setIsPrivate(!!match.is_private) }
         }
         if (!revRes.ok) throw new Error()
         setReviews((await revRes.json()).map(normaliseReview))
@@ -95,7 +96,8 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
         <FriendButton
           email={userEmail}
           initialStatus={friendStatus}
-          onSent={() => setFriendStatus('pending_sent')}
+          isPrivate={isPrivate}
+          onStatusChange={(_e, s) => setFriendStatus(s)}
         />
       </div>
 
@@ -104,7 +106,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
         <StatCard count={avg}                                                  label="Avg rating" />
         <StatCard count={reviews.filter(r => r.type === 'restaurant').length} label="Restaurant" />
         <StatCard count={reviews.filter(r => r.type === 'homemade').length}   label="Homemade" />
-        <StatCard count={friendCount}                                        label="Friends"      onClick={() => setSection('friends')} active={section === 'friends'} />
+        <StatCard count={friendCount}                                        label="Following"    onClick={() => setSection('friends')} active={section === 'friends'} />
         <StatCard count={lists ? lists.length : null}                        label="Lists"        onClick={() => setSection('lists')}   active={section === 'lists'} />
       </StatGrid>
 
@@ -127,10 +129,10 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
 
       {section === 'friends' && (
         <div className={styles.section}>
-          <h3 className={shared.sectionTitle}>Friends</h3>
+          <h3 className={shared.sectionTitle}>Following</h3>
           <PageState loading={friendsLoading} error={friendsError} />
           {!friendsLoading && !friendsError && friends !== null && friends.length === 0 && (
-            <PageState empty emptyTitle="No friends yet" />
+            <PageState empty emptyTitle="Not following anyone yet" />
           )}
           {!friendsLoading && !friendsError && friends && friends.length > 0 && (
             <div className={styles.friendsList}>
@@ -210,6 +212,11 @@ function ReviewCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
         <span className={shared.dot}>·</span>
         <span className={shared.date}>{date}</span>
       </div>
+      {entry.type === 'homemade' && entry.recipeOwner && (
+        <p className={shared.reviewText} style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
+          Recipe by @{entry.recipeOwner}
+        </p>
+      )}
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}
     </div>
   )

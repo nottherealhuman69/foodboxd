@@ -13,6 +13,7 @@ import UserProfile from './UserProfile'
 import ReviewPage from './ReviewPage'
 import MealPage from './MealPage'
 import ListPage from './ListPage'
+import Settings from './Settings'
 import { apiFetch } from '../hooks/useApi'
 import { normaliseReview, normaliseMeal } from '../utils/reviews'
 import styles from './Dashboard.module.css'
@@ -25,6 +26,7 @@ const NAV = [
   { id: 'search',  label: 'Search',        icon: SearchIcon   },
   { id: 'trylist', label: 'Trylist',       icon: TrylistIcon  },
   { id: 'notifs',  label: 'Notifications', icon: BellIcon     },
+  { id: 'settings',label: 'Settings',      icon: SettingsIcon },
 ]
 
 export default function Dashboard() {
@@ -106,12 +108,14 @@ export default function Dashboard() {
     const res = await apiFetch('/api/reviews', {
       method: 'POST',
       body: JSON.stringify({
-        dish_name:       formData.dishName,
-        type:            formData.type,
-        restaurant_name: formData.restaurantName || null,
-        recipe:          formData.recipe || null,
-        rating:          formData.rating,
-        review:          formData.review || null,
+        dish_name:          formData.dishName,
+        type:               formData.type,
+        restaurant_name:    formData.restaurantName || null,
+        recipe:             formData.recipe || null,
+        recipe_owner_email: formData.recipeOwnerEmail || null,
+        rating:             formData.rating,
+        review:             formData.review || null,
+        tagged_emails:      formData.taggedEmails || [],
       }),
     })
     if (!res.ok) {
@@ -323,14 +327,16 @@ export default function Dashboard() {
                                     onViewUser={viewUser}
                                   />}
         {active === 'trylist' && <Trylist
-                                    onViewDish={openDish}
-                                    onViewRestaurant={setViewingRestaurant}
-                                  />}
+                            onViewDish={openDish}
+                            onViewRestaurant={setViewingRestaurant}
+                            onViewUser={viewUser}
+                          />}
         {active === 'notifs' && <Notifications
                             onViewReview={openReview}
                             onViewMeal={openMeal}
                             onViewUser={viewUser}
                           />}
+        {active === 'settings' && <Settings />}
       </main>
     </div>
   )
@@ -357,6 +363,9 @@ function TrylistIcon({ className }) {
 }
 function BellIcon({ className }) {
   return <svg className={className} viewBox="0 0 20 20" fill="none"><path d="M10 2a6 6 0 00-6 6v3l-1.5 2.5h15L16 11V8a6 6 0 00-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M8.5 16.5a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+}
+function SettingsIcon({ className }) {
+  return <svg className={className} viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1L4.7 4.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
 }
 function LogoutIcon() {
   return <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M7.5 10h9M13 6.5L16.5 10 13 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 3.5H4.5v13H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>

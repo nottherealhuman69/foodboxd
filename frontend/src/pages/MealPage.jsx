@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '../hooks/useApi'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
+import CommentThread from '../components/CommentThread'
+import { TaggedWith } from '../components/TagPicker'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 
@@ -74,7 +76,7 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
     try {
       const res = await apiFetch(`/api/meals/${mealId}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content: commentText.trim() }),
+        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
       })
       if (!res.ok) throw new Error()
       const added = await res.json()
@@ -83,13 +85,6 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
       setCommentText('')
     } catch { /* silently fail */ }
     finally { setPosting(false) }
-  }
-
-  const deleteComment = async (commentId) => {
-    const res = await apiFetch(`/api/meals/${mealId}/comments/${commentId}`, { method: 'DELETE' })
-    if (!res.ok) return
-    setComments(prev => prev.filter(c => c.id !== commentId))
-    setMeal(m => ({ ...m, comment_count: m.comment_count - 1 }))
   }
 
   if (loading || error) return (
@@ -141,6 +136,12 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
         )}
       </div>
 
+      {meal.tagged?.length > 0 && (
+        <p style={{ marginTop: 8 }}>
+          <TaggedWith tagged={meal.tagged} onViewUser={onViewUser} />
+        </p>
+      )}
+
       {meal.review && <p className={styles.reviewText}>{meal.review}</p>}
 
       <div className={styles.mealDishes}>
@@ -191,24 +192,15 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
           {commentsLoading && <p className={styles.loadingText}>Loading…</p>}
           {!commentsLoading && comments?.length === 0 && <p className={styles.emptyText}>No comments yet.</p>}
           {!commentsLoading && comments?.length > 0 && (
-            <div className={styles.commentList}>
-              {comments.map(c => (
-                <div key={c.id} className={styles.comment}>
-                  <button className={styles.commentAvatar} onClick={() => onViewUser?.(c.user_email)}>
-                    {c.username.charAt(0).toUpperCase()}
-                  </button>
-                  <div className={styles.commentBody}>
-                    <button className={styles.commentUsername} onClick={() => onViewUser?.(c.user_email)}>
-                      @{c.username}
-                    </button>
-                    <p className={styles.commentContent}>{c.content}</p>
-                  </div>
-                  {c.user_email === myEmail && (
-                    <button className={styles.deleteCommentBtn} onClick={() => deleteComment(c.id)} title="Delete">×</button>
-                  )}
-                </div>
-              ))}
-            </div>
+            <CommentThread
+              comments={comments}
+              setComments={setComments}
+              commentType="meal"
+              basePath={`/api/meals/${mealId}/comments`}
+              myEmail={myEmail}
+              onViewUser={onViewUser}
+              onCountChange={(delta) => setMeal(m => ({ ...m, comment_count: Math.max(0, m.comment_count + delta) }))}
+            />
           )}
           <form className={styles.commentForm} onSubmit={postComment}>
             <input

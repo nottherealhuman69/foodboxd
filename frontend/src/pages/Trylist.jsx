@@ -65,7 +65,7 @@ function ListsNavIcon() {
 
 const FILTERS = ['All', 'Dishes', 'Restaurants']
 
-export default function Trylist({ onViewDish, onViewRestaurant }) {
+export default function Trylist({ onViewDish, onViewRestaurant, onViewUser }) {
   const [tab, setTab] = useState('trylist')
   const { data: items, loading, error, refetch } = useFetch('/api/trylist')
   const [filter,   setFilter]   = useState('All')
@@ -117,7 +117,7 @@ export default function Trylist({ onViewDish, onViewRestaurant }) {
       {tab === 'lists' ? (
         <MyLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
       ) : tab === 'groups' ? (
-        <GroupLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} />
+        <GroupLists onViewDish={onViewDish} onViewRestaurant={onViewRestaurant} onViewUser={onViewUser} />
       ) : (
         <div className={styles.page}>
           <div className={styles.header}>

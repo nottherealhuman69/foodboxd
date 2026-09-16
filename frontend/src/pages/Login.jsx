@@ -49,7 +49,10 @@ export default function Login() {
             onChange={handleChange} className={styles.input} />
         </div>
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="password">Password</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <label className={styles.label} htmlFor="password">Password</label>
+            <Link to="/forgot-password" className={styles.footerLink} style={{ fontSize: 13 }}>Forgot password?</Link>
+          </div>
           <input id="password" name="password" type="password" autoComplete="current-password" required
             placeholder="••••••••" value={form.password}
             onChange={handleChange} className={styles.input} />

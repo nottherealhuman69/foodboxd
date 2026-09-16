@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { StarRating } from './StarRating'
+import { TaggedWith } from './TagPicker'
 import shared from './shared.module.css'
 import styles from './MealCard.module.css'
 
-export default function MealCard({ meal, onViewMeal, onViewDish, onViewRestaurant, onDelete }) {
+export default function MealCard({ meal, onViewMeal, onViewDish, onViewRestaurant, onViewUser, onDelete }) {
   console.log('MealCard render', meal.id, 'onViewMeal is', typeof onViewMeal)
   const [open, setOpen] = useState(false)
   const date = new Date(meal.loggedAt).toLocaleDateString('en-IN', {
@@ -36,6 +37,12 @@ export default function MealCard({ meal, onViewMeal, onViewDish, onViewRestauran
         <span className={shared.dot}>·</span>
         <span className={shared.date}>{date}</span>
       </div>
+
+      {meal.tagged?.length > 0 && (
+        <div style={{ margin: '4px 0' }} onClick={e => e.stopPropagation()}>
+          <TaggedWith tagged={meal.tagged} onViewUser={onViewUser} />
+        </div>
+      )}
 
       {meal.review && <p className={shared.reviewText}>{meal.review}</p>}
 
