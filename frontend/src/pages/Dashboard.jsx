@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { reviewPath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
@@ -44,7 +45,13 @@ export default function Dashboard() {
   const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
-  const [viewingReview,     setViewingReview]     = useState(null) // { id, tab }
+    // The URL decides which review is open, so the link can be shared.
+  const { reviewId: routeReviewId } = useParams()
+  const [reviewTab, setReviewTab] = useState('comments')
+  const viewingReview = routeReviewId
+    ? { id: Number(routeReviewId), tab: reviewTab }
+    : null
+  const closeReview = () => { if (routeReviewId) navigate('/dashboard') } // { id, tab }
   const [viewingMeal,       setViewingMeal]       = useState(null) // { id, tab }
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
 
@@ -161,7 +168,7 @@ export default function Dashboard() {
     if (targetEmail === email) {
       setViewingUser(null)
       setViewingDish(null)
-      setViewingRestaurant(null)
+      closeReview()
       setViewingReview(null)
       setViewingMeal(null)
       setViewingList(null)
@@ -172,7 +179,10 @@ export default function Dashboard() {
   }
 
   const openDish  = (d, r) => setViewingDish({ dishName: d, restaurantName: r })
-  const openReview = (id, tab) => setViewingReview({ id, tab })
+  const openReview = (id, tab = 'comments') => {
+    setReviewTab(tab)
+    navigate(reviewPath(id))
+  }
   const openMeal   = (id, tab) => setViewingMeal({ id, tab })
 
   return (
@@ -194,11 +204,11 @@ export default function Dashboard() {
           <ReviewPage
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
-            onBack={() => setViewingReview(null)}
-            onViewMeal={(id, tab) => { setViewingReview(null); openMeal(id, tab) }}
-            onViewUser={(userEmail) => { setViewingReview(null); viewUser(userEmail) }}
-            onViewDish={(d, r) => { setViewingReview(null); openDish(d, r) }}
-            onViewRestaurant={(r) => { setViewingReview(null); setViewingRestaurant(r) }}
+            onBack={closeReview}
+            onViewMeal={(id, tab) => { closeReview(); openMeal(id, tab) }}
+            onViewUser={(userEmail) => { closeReview(); viewUser(userEmail) }}
+            onViewDish={(d, r) => { closeReview(); openDish(d, r) }}
+            onViewRestaurant={(r) => { closeReview(); setViewingRestaurant(r) }}
           />
         </div>
       )}

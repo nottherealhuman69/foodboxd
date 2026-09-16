@@ -5,9 +5,10 @@ import PageState from '../components/PageState'
 import CommentThread from '../components/CommentThread'
 import TagPicker, { TaggedWith } from '../components/TagPicker'
 import { RATING_LABELS } from '../utils/reviews'
+import ShareButton from '../components/ShareButton'
+import { reviewUrl } from '../utils/links'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
-
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -172,13 +173,13 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         </span>
       </div>
 
-      <h2
-          className={styles.dishName}
-          style={{ cursor: onViewDish ? 'pointer' : 'default' }}
-          onClick={() => onViewDish?.(review.dish_name, review.restaurant_name)}
-        >
-          {review.dish_name}
-        </h2>
+            <h2
+        className={styles.dishName}
+        style={{ cursor: (onViewDish && review.restaurant_name) ? 'pointer' : 'default' }}
+        onClick={() => review.restaurant_name && onViewDish?.(review.dish_name, review.restaurant_name)}
+      >
+        {review.dish_name}
+      </h2>
         {review.restaurant_name && (
           <p
             className={styles.restaurant}
@@ -220,6 +221,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         <button className={`${styles.likeBtn} ${review.user_liked ? styles.likeBtnActive : ''}`} onClick={toggleLike}>
           {review.user_liked ? '❤️' : '🤍'} {review.like_count}
         </button>
+        <ShareButton url={reviewUrl(review.id)} />
         {isOwner && (
           <button className={styles.editBtn} onClick={() => setEditing(true)}>Edit</button>
         )}
