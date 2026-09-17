@@ -8,6 +8,8 @@ import TrylistButton from './TrylistButton'
 import shared from '../components/shared.module.css'
 import styles from './DishPage.module.css'
 import AddToListButton from './AddToListButton'
+import ShareButton from '../components/ShareButton'
+import { dishUrl } from '../utils/links'
 import RatingDistribution from '../components/RatingDistribution'
 
 export default function DishPage({ dishName, restaurantName, onBack, onViewReview, onViewMeal }) {
@@ -84,6 +86,7 @@ const myAvgRating = myReviews.length > 0
                   <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
                 )}
                 <AddToListButton itemType="dish" name={dish.dish_name} restaurantName={dish.restaurant_name} />
+                <ShareButton url={dishUrl(dish.dish_name, dish.restaurant_name)} />
               </div>
             </div>
           </div>

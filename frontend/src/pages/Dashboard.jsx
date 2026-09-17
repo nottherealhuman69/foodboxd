@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { reviewPath } from '../utils/links'
+import { dishPath, reviewPath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
@@ -42,11 +42,20 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true)
   const [fetchError,   setFetchError]   = useState('')
   const [notifCount,   setNotifCount]   = useState(0)
-  const [viewingDish,       setViewingDish]       = useState(null)
   const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
     // The URL decides which review is open, so the link can be shared.
-  const { reviewId: routeReviewId } = useParams()
+  const {
+    reviewId: routeReviewId,
+    restaurantName: routeRestaurant,
+    dishName: routeDish,
+  } = useParams()
+
+  // The URL decides which dish page is open, so the link can be shared.
+  const viewingDish = routeDish && routeRestaurant
+    ? { dishName: routeDish, restaurantName: routeRestaurant }
+    : null
+  const closeDish = () => { if (routeDish) navigate('/dashboard') }
   const [reviewTab, setReviewTab] = useState('comments')
   const viewingReview = routeReviewId
     ? { id: Number(routeReviewId), tab: reviewTab }
@@ -167,7 +176,7 @@ export default function Dashboard() {
   const viewUser = (targetEmail) => {
     if (targetEmail === email) {
       setViewingUser(null)
-      setViewingDish(null)
+      closeDish()
       closeReview()
       setViewingReview(null)
       setViewingMeal(null)
@@ -178,7 +187,10 @@ export default function Dashboard() {
     }
   }
 
-  const openDish  = (d, r) => setViewingDish({ dishName: d, restaurantName: r })
+  const openDish = (d, r) => {
+    if (!r) return  // homemade dishes have no dish page
+    navigate(dishPath(d, r))
+  }
   const openReview = (id, tab = 'comments') => {
     setReviewTab(tab)
     navigate(reviewPath(id))
@@ -216,7 +228,7 @@ export default function Dashboard() {
         <div className={styles.overlayPage}>
           <DishPage
             {...viewingDish}
-            onBack={() => setViewingDish(null)}
+            onBack={closeDish}
             onViewReview={openReview}
             onViewMeal={openMeal}
           />
