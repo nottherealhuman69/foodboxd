@@ -7,6 +7,8 @@ import DishPage from './DishPage'
 import shared from '../components/shared.module.css'
 import styles from './RestaurantPage.module.css'
 import AddToListButton from './AddToListButton'
+import ShareButton from '../components/ShareButton'
+import { restaurantUrl } from '../utils/links'
 import RatingDistribution from '../components/RatingDistribution'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
@@ -77,6 +79,7 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
                   <TrylistButton itemType="restaurant" restaurantName={data.restaurant_name} />
                 )}
                 <AddToListButton itemType="restaurant" name={data.restaurant_name} />
+                <ShareButton url={restaurantUrl(data.restaurant_name)} />
               </div>
             </div>
           </div>

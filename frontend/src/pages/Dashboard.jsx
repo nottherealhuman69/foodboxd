@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { dishPath, reviewPath } from '../utils/links'
+import { dishPath, reviewPath, restaurantPath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
@@ -42,15 +42,19 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true)
   const [fetchError,   setFetchError]   = useState('')
   const [notifCount,   setNotifCount]   = useState(0)
-  const [viewingRestaurant, setViewingRestaurant] = useState(null)
   const [viewingUser,       setViewingUser]       = useState(null)
     // The URL decides which review is open, so the link can be shared.
   const {
     reviewId: routeReviewId,
     restaurantName: routeRestaurant,
     dishName: routeDish,
+    restaurant: routeRestaurantOnly,
   } = useParams()
 
+  // The URL decides which restaurant page is open, so the link can be shared.
+  const viewingRestaurant = routeRestaurantOnly || null
+  const openRestaurant = (r) => navigate(restaurantPath(r))
+  const closeRestaurant = () => { if (routeRestaurantOnly) navigate('/dashboard') }
   // The URL decides which dish page is open, so the link can be shared.
   const viewingDish = routeDish && routeRestaurant
     ? { dishName: routeDish, restaurantName: routeRestaurant }
@@ -207,7 +211,7 @@ export default function Dashboard() {
             onBack={() => setViewingMeal(null)}
             onViewUser={(userEmail) => { setViewingMeal(null); viewUser(userEmail) }}
             onViewDish={(d, r) => { setViewingMeal(null); openDish(d, r) }}
-            onViewRestaurant={(r) => { setViewingMeal(null); setViewingRestaurant(r) }}
+            onViewRestaurant={(r) => { setViewingMeal(null); openRestaurant(r) }}
           />
         </div>
       )}
@@ -220,7 +224,7 @@ export default function Dashboard() {
             onViewMeal={(id, tab) => { closeReview(); openMeal(id, tab) }}
             onViewUser={(userEmail) => { closeReview(); viewUser(userEmail) }}
             onViewDish={(d, r) => { closeReview(); openDish(d, r) }}
-            onViewRestaurant={(r) => { closeReview(); setViewingRestaurant(r) }}
+            onViewRestaurant={(r) => { closeReview(); openRestaurant(r) }}
           />
         </div>
       )}
@@ -238,7 +242,7 @@ export default function Dashboard() {
         <div className={styles.overlayPage}>
           <RestaurantPage
             restaurantName={viewingRestaurant}
-            onBack={() => setViewingRestaurant(null)}
+            onBack={closeRestaurant}
             onViewReview={openReview}
             onViewMeal={openMeal}
           />
@@ -251,7 +255,7 @@ export default function Dashboard() {
             listName={viewingList.name}
             onBack={() => setViewingList(null)}
             onViewDish={openDish}
-            onViewRestaurant={setViewingRestaurant}
+            onViewRestaurant={openRestaurant}
           />
         </div>
       )}
@@ -265,7 +269,7 @@ export default function Dashboard() {
             onViewMeal={openMeal}
             onViewList={(list) => setViewingList(list)}
             onViewDish={openDish}
-            onViewRestaurant={setViewingRestaurant}
+            onViewRestaurant={openRestaurant}
           />
         </div>
       )}
@@ -320,11 +324,11 @@ export default function Dashboard() {
                                     onDeleteMeal={handleDeleteMeal}
                                     onViewUser={viewUser}
                                     onViewDish={openDish}
-                                    onViewRestaurant={setViewingRestaurant}
+                                    onViewRestaurant={openRestaurant}
                                   />}
         {active === 'feed' && <Feed
                                     onViewDish={openDish}
-                                    onViewRestaurant={setViewingRestaurant}
+                                    onViewRestaurant={openRestaurant}
                                     onViewUser={viewUser}
                                     onViewReview={openReview}
                                     onViewMeal={openMeal}
@@ -339,18 +343,18 @@ export default function Dashboard() {
                                     initialFilter={reviewFilter}
                                     onViewReview={openReview}
                                     onViewMeal={openMeal}
-                                    onViewRestaurant={setViewingRestaurant}
+                                    onViewRestaurant={openRestaurant}
                                     onViewDish={openDish}
                                   />}
         {active === 'create' && <CreateReview onSave={handleSave} onMealSaved={handleSaveMeal} />}
         {active === 'search' && <Search
                                     onViewDish={openDish}
-                                    onViewRestaurant={setViewingRestaurant}
+                                    onViewRestaurant={openRestaurant}
                                     onViewUser={viewUser}
                                   />}
         {active === 'trylist' && <Trylist
                             onViewDish={openDish}
-                            onViewRestaurant={setViewingRestaurant}
+                            onViewRestaurant={openRestaurant}
                             onViewUser={viewUser}
                           />}
         {active === 'notifs' && <Notifications

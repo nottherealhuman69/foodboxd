@@ -12,3 +12,12 @@ export function reviewPath(reviewId) {
 export function reviewUrl(reviewId) {
   return `${window.location.origin}${reviewPath(reviewId)}`
 }
+
+
+export function restaurantPath(restaurantName) {
+  return `/restaurant/${encodeURIComponent(restaurantName)}`
+}
+
+export function restaurantUrl(restaurantName) {
+  return `${window.location.origin}${restaurantPath(restaurantName)}`
+}
