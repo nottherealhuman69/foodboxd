@@ -22,6 +22,7 @@ export default function App() {
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/review/:reviewId" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/dish/:restaurantName/:dishName" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/user/:userEmail" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/restaurant/:restaurant" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>

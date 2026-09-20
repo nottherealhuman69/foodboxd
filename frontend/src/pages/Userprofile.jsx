@@ -7,6 +7,8 @@ import FriendButton from '../components/FriendButton'
 import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './UserProfile.module.css'
+import ShareButton from '../components/ShareButton'
+import { userUrl } from '../utils/links'
 
 
 export default function UserProfile({ userEmail, onBack, onViewUser, onViewReview, onViewList, onViewDish, onViewRestaurant}) {
@@ -99,6 +101,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
           isPrivate={isPrivate}
           onStatusChange={(_e, s) => setFriendStatus(s)}
         />
+        <ShareButton url={userUrl(userEmail)} label="Share profile" />
       </div>
 
       <StatGrid cols={6}>

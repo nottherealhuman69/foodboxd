@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { dishPath, reviewPath, restaurantPath } from '../utils/links'
+import { dishPath, reviewPath, restaurantPath, userPath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
@@ -42,16 +42,17 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true)
   const [fetchError,   setFetchError]   = useState('')
   const [notifCount,   setNotifCount]   = useState(0)
-  const [viewingUser,       setViewingUser]       = useState(null)
     // The URL decides which review is open, so the link can be shared.
   const {
     reviewId: routeReviewId,
     restaurantName: routeRestaurant,
     dishName: routeDish,
     restaurant: routeRestaurantOnly,
+    userEmail: routeUser,
   } = useParams()
 
   // The URL decides which restaurant page is open, so the link can be shared.
+  const viewingUser = routeUser || null
   const viewingRestaurant = routeRestaurantOnly || null
   const openRestaurant = (r) => navigate(restaurantPath(r))
   const closeRestaurant = () => { if (routeRestaurantOnly) navigate('/dashboard') }
@@ -179,18 +180,12 @@ export default function Dashboard() {
   // Profile tab if the clicked user is you, instead of opening the read-only overlay.
   const viewUser = (targetEmail) => {
     if (targetEmail === email) {
-      setViewingUser(null)
-      closeDish()
-      closeReview()
-      setViewingReview(null)
-      setViewingMeal(null)
-      setViewingList(null)
+      navigate('/dashboard')
       goTo('profile')
     } else {
-      setViewingUser(targetEmail)
+      navigate(userPath(targetEmail))
     }
   }
-
   const openDish = (d, r) => {
     if (!r) return  // homemade dishes have no dish page
     navigate(dishPath(d, r))
@@ -263,7 +258,7 @@ export default function Dashboard() {
         <div className={styles.overlayPage}>
           <UserProfile
             userEmail={viewingUser}
-            onBack={() => setViewingUser(null)}
+            onBack={() => navigate('/dashboard')}
             onViewUser={viewUser}
             onViewReview={openReview}
             onViewMeal={openMeal}

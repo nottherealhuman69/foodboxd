@@ -21,3 +21,11 @@ export function restaurantPath(restaurantName) {
 export function restaurantUrl(restaurantName) {
   return `${window.location.origin}${restaurantPath(restaurantName)}`
 }
+
+export function userPath(userEmail) {
+  return `/user/${encodeURIComponent(userEmail)}`
+}
+
+export function userUrl(userEmail) {
+  return `${window.location.origin}${userPath(userEmail)}`
+}
