@@ -7,6 +7,8 @@ import MealCard from '../components/MealCard'
 import { avgRating } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './Profile.module.css'
+import ShareButton from '../components/ShareButton'
+import { userUrl } from '../utils/links'
 
 
 export default function Profile({
@@ -20,7 +22,7 @@ export default function Profile({
   const [lists, setLists] = useState(null)
   const [listsLoading, setListsLoading] = useState(true)
   const [listsError, setListsError] = useState('')
-
+  const myEmail = localStorage.getItem('email') || ''
   const cardProps = { onViewReview, onViewMeal, onViewDish, onViewRestaurant, onDeleteMeal }
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function Profile({
       <div className={styles.header}>
         <h2 className={styles.title}>Profile</h2>
         <p className={styles.sub}>Your food diary at a glance.</p>
+        <ShareButton url={userUrl(myEmail)} label="Share profile" />
       </div>
 
       <StatGrid cols={7}>
