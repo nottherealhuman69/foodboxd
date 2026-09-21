@@ -7,6 +7,9 @@ import { TaggedWith } from '../components/TagPicker'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 import MealForm from './MealForm'
+import ShareButton from '../components/ShareButton'
+import RepostButton from '../components/RepostButton'
+import { mealUrl } from '../utils/links'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -173,10 +176,18 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
         ))}
       </div>
 
-      <button className={styles.likeBtn} onClick={toggleLike}>
-        {meal.user_liked ? '❤️' : '🤍'} {meal.like_count}
-        
-      </button>
+      <div className={styles.pageActions}>
+        <button
+          className={`${styles.likeBtn} ${meal.user_liked ? styles.likeBtnActive : ''}`}
+          onClick={toggleLike}
+        >
+          {meal.user_liked ? '❤️' : '🤍'} {meal.like_count}
+        </button>
+        <ShareButton url={mealUrl(meal.id)} />
+        {meal.is_tagged && (
+          <RepostButton postType="meal" postId={meal.id} initialReposted={meal.user_reposted} />
+        )}
+      </div>
 
       <div className={styles.tabs}>
         {TABS.map(t => (

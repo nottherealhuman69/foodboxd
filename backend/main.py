@@ -2236,8 +2236,7 @@ def get_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends(ge
         if not meal:
             raise HTTPException(status_code=404, detail="Meal not found")
         tagged = _post_tags(cur, "meal", meal_id)
-        repost = _repost_state(cur, "meal", meal_id, email)
-    return {**serialise_meal(meal, dish_rows), "tagged": tagged, **repost}
+    return {**serialise_meal(meal, dish_rows), "tagged": tagged}
 
 
 @app.delete("/meals/{meal_id}", status_code=204)
@@ -2363,12 +2362,14 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
         """, (meal_id,))
         dish_rows = cur.fetchall()
         tagged = _post_tags(cur, "meal", meal_id)
+        repost = _repost_state(cur, "meal", meal_id, email)  
     return {
         **serialise_meal(row, dish_rows),
         "like_count":    int(row["like_count"]),
         "comment_count": int(row["comment_count"]),
         "user_liked":    bool(row["user_liked"]),
         "tagged":        tagged,
+        **repost, 
     }
 
 

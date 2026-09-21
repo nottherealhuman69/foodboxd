@@ -49,6 +49,7 @@ export default function Dashboard() {
     restaurant: routeRestaurantOnly,
     userEmail: routeUser,
     recipeOwner: routeRecipeOwner,
+    mealId: routeMealId,
   } = useParams()
 
   // The URL decides which restaurant page is open, so the link can be shared.
@@ -68,7 +69,9 @@ export default function Dashboard() {
     ? { id: Number(routeReviewId), tab: reviewTab }
     : null
   const closeReview = () => { if (routeReviewId) navigate('/dashboard') } // { id, tab }
-  const [viewingMeal,       setViewingMeal]       = useState(null) // { id, tab }
+  const [mealTab, setMealTab] = useState('comments')
+  const viewingMeal = routeMealId ? { id: Number(routeMealId), tab: mealTab } : null
+  const closeMeal = () => { if (routeMealId) navigate('/dashboard') }
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
 
   const logout = useCallback(() => {
@@ -196,7 +199,10 @@ export default function Dashboard() {
     setReviewTab(tab)
     navigate(reviewPath(id))
   }
-  const openMeal   = (id, tab) => setViewingMeal({ id, tab })
+  const openMeal = (id, tab = 'comments', replace = false) => {
+    setMealTab(tab)
+    navigate(mealPath(id), { replace })
+  }
 
   return (
     <div className={styles.shell}>
@@ -205,10 +211,10 @@ export default function Dashboard() {
           <MealPage
             mealId={viewingMeal.id}
             initialTab={viewingMeal.tab}
-            onBack={() => setViewingMeal(null)}
-            onViewUser={(userEmail) => { setViewingMeal(null); viewUser(userEmail) }}
-            onViewDish={(d, r, o) => { setViewingMeal(null); openDish(d, r, o) }}
-            onViewRestaurant={(r) => { setViewingMeal(null); openRestaurant(r) }}
+            onBack={closeMeal}
+            onViewUser={viewUser}
+            onViewDish={openDish}
+            onViewRestaurant={openRestaurant}
           />
         </div>
       )}
@@ -217,7 +223,7 @@ export default function Dashboard() {
           <ReviewPage
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
-            onViewMeal={(id, tab) => { closeReview(); openMeal(id, tab) }}
+            onViewMeal={(id, tab) => openMeal(id, tab, true)}
             onViewUser={(userEmail) => { closeReview(); viewUser(userEmail) }}
             onViewDish={openDish}
             onViewRestaurant={(r) => { closeReview(); openRestaurant(r) }}
