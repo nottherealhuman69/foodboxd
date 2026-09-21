@@ -6,6 +6,7 @@ import CommentThread from '../components/CommentThread'
 import { TaggedWith } from '../components/TagPicker'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
+import MealForm from './MealForm'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -25,6 +26,7 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentText,     setCommentText]     = useState('')
   const [posting,         setPosting]         = useState(false)
+  const [editing, setEditing] = useState(false)
 
   const myEmail = localStorage.getItem('email')
 
@@ -93,6 +95,17 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
       <PageState loading={loading} error={error} />
     </div>
   )
+  if (editing) return (
+    <div className={shared.page}>
+      <button className={shared.backBtn} onClick={() => setEditing(false)}>← Cancel</button>
+      <h2 className={styles.dishName} style={{ marginBottom: '1.5rem' }}>Edit meal</h2>
+      <MealForm
+        meal={meal}
+        onCancel={() => setEditing(false)}
+        onSaved={(saved) => { setMeal(m => ({ ...m, ...saved })); setEditing(false) }}
+      />
+    </div>
+  )
 
   const date = new Date(meal.logged_at).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
@@ -118,6 +131,9 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
           <p className={styles.date}>{date}</p>
         </div>
         <span className={shared.typePill} data-type="meal">🍽️ Meal</span>
+        {meal.user_email === myEmail && (
+          <button className={shared.ctaBtn} onClick={() => setEditing(true)}>Edit</button>
+        )}
       </div>
 
       <h2 className={styles.dishName}>{meal.title || 'Meal'}</h2>

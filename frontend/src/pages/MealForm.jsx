@@ -11,16 +11,22 @@ const MAX_DISHES = 12
 
 let uid = 0
 const emptyDish = () => ({ key: ++uid, name: '', rating: 0, hover: 0, note: '', isNew: false })
+const dishFromMeal = (d) => ({
+  key: ++uid, id: d.id, name: d.dish_name, rating: d.rating, hover: 0, note: d.review || '', isNew: false,
+})
 
-export default function MealForm({ onSaved }) {
-  const [restaurantName, setRestaurantName] = useState('')
+export default function MealForm({ meal, onSaved, onCancel }) {
+  const isEdit = !!meal
+  const [restaurantName, setRestaurantName] = useState(meal?.restaurant_name || '')
   const [newRestaurant,  setNewRestaurant]  = useState(false)
-  const [title,          setTitle]          = useState('')
-  const [rating,         setRating]         = useState(0)
+  const [title,          setTitle]          = useState(meal?.title || '')
+  const [rating,         setRating]         = useState(meal?.rating || 0)
   const [hoverRating,    setHoverRating]    = useState(0)
-  const [review,         setReview]         = useState('')
-  const [dishes,         setDishes]         = useState([emptyDish(), emptyDish()])
-  const [taggedEmails,   setTaggedEmails]   = useState([])
+  const [review,         setReview]         = useState(meal?.review || '')
+  const [dishes,         setDishes]         = useState(
+    meal?.dishes?.length ? meal.dishes.map(dishFromMeal) : [emptyDish(), emptyDish()]
+  )
+  const [taggedEmails,   setTaggedEmails]   = useState((meal?.tagged || []).map(t => t.email))
   const [friends,        setFriends]        = useState([])
 
   const [restaurants,    setRestaurants]    = useState([])
@@ -103,14 +109,15 @@ export default function MealForm({ onSaved }) {
     setSaving(true)
     setSaveError('')
     try {
-      const res = await apiFetch('/api/meals', {
-        method: 'POST',
+      const res = await apiFetch(isEdit ? `/api/meals/${meal.id}` : '/api/meals', {
+        method: isEdit ? 'PATCH' : 'POST',
         body: JSON.stringify({
           restaurant_name: restaurantName.trim(),
           title:           title.trim() || null,
           rating,
           review:          review.trim() || null,
           dishes: filled.map(d => ({
+            id:        d.id ?? null,
             dish_name: d.name.trim(),
             rating:    d.rating,
             review:    d.note.trim() || null,
@@ -123,7 +130,7 @@ export default function MealForm({ onSaved }) {
         throw new Error(err.detail || 'Failed to save meal')
       }
       const saved = await res.json()
-      reset()
+      if (!isEdit) reset()
       onSaved?.(saved)
     } catch (err) {
       setSaveError(err.message || 'Failed to save. Please try again.')
@@ -287,9 +294,11 @@ export default function MealForm({ onSaved }) {
 
       <div className={styles.actions}>
         <button type="submit" className={styles.primaryBtn} disabled={!canSave}>
-          {saving ? 'Saving…' : `Save meal${filled.length ? ` (${filled.length} dishes)` : ''}`}
+          {saving ? 'Saving…' : isEdit ? 'Save changes' : `Save meal${filled.length ? ` (${filled.length} dishes)` : ''}`}
         </button>
-        <button type="button" className={styles.ghostBtn} onClick={reset}>Clear</button>
+        <button type="button" className={styles.ghostBtn} onClick={isEdit ? onCancel : reset}>
+          {isEdit ? 'Cancel' : 'Clear'}
+        </button>
       </div>
     </form>
   )

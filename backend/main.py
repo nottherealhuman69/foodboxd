@@ -379,6 +379,7 @@ class ReviewUpdate(BaseModel):
     tagged_emails: List[EmailStr] = []
 
 class MealDishIn(BaseModel):
+    id: Optional[int] = None
     dish_name: str
     rating: float
     review: Optional[str] = None
@@ -2010,6 +2011,77 @@ def delete_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends
             raise HTTPException(status_code=404, detail="Meal not found")
         cur.execute("DELETE FROM meals WHERE id = %s", (meal_id,))
         db.commit()
+
+@app.patch("/meals/{meal_id}")
+def update_meal(meal_id: int, body: MealCreate, email: str = Depends(get_current_user), db=Depends(get_db)):
+    restaurant = body.restaurant_name.strip()
+    if not restaurant:
+        raise HTTPException(status_code=400, detail="Restaurant is required")
+    if not valid_rating(body.rating):
+        raise HTTPException(status_code=400, detail="Overall rating must be between 0.5 and 5 in half-star steps")
+
+    dishes, seen = [], set()
+    for d in body.dishes:
+        name = d.dish_name.strip()
+        if not name:
+            continue
+        if name.lower() in seen:
+            raise HTTPException(status_code=400, detail=f"'{name}' is listed twice")
+        if not valid_rating(d.rating):
+            raise HTTPException(status_code=400, detail=f"Rating for '{name}' must be between 0.5 and 5 in half-star steps")
+        seen.add(name.lower())
+        dishes.append((d.id, name, d.rating, (d.review or "").strip() or None))
+    if not dishes:
+        raise HTTPException(status_code=400, detail="A meal needs at least one rated dish")
+
+    try:
+        with with_cursor(db) as cur:
+            cur.execute("SELECT id FROM meals WHERE id = %s AND user_email = %s", (meal_id, email))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Meal not found")
+
+            cur.execute("""
+                UPDATE meals SET restaurant_name = %s, title = %s, rating = %s, review = %s
+                WHERE id = %s RETURNING *
+            """, (restaurant, (body.title or "").strip() or None,
+                  body.rating, (body.review or "").strip() or None, meal_id))
+            meal = cur.fetchone()
+
+            cur.execute("SELECT id FROM dish_reviews WHERE meal_id = %s", (meal_id,))
+            existing_ids = {r["id"] for r in cur.fetchall()}
+            kept_ids = set()
+
+            for dish_id, name, dish_rating, note in dishes:
+                if dish_id in existing_ids:
+                    cur.execute("""
+                        UPDATE dish_reviews
+                        SET dish_name = %s, restaurant_name = %s, rating = %s, review = %s
+                        WHERE id = %s
+                    """, (name, restaurant, dish_rating, note, dish_id))
+                    kept_ids.add(dish_id)
+                else:
+                    cur.execute("""
+                        INSERT INTO dish_reviews
+                            (user_email, dish_name, type, restaurant_name, rating, review, meal_id)
+                        VALUES (%s, %s, 'restaurant', %s, %s, %s, %s)
+                    """, (email, name, restaurant, dish_rating, note, meal_id))
+
+            removed = existing_ids - kept_ids
+            if removed:
+                cur.execute("DELETE FROM dish_reviews WHERE id = ANY(%s)", (list(removed),))
+
+            _set_post_tags(cur, "meal", meal_id, email, body.tagged_emails)
+            _, dish_rows = _load_meal(cur, meal_id)
+            tagged = _post_tags(cur, "meal", meal_id)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not update meal")
+
+    return {**serialise_meal(meal, dish_rows), "tagged": tagged}
 
 
 @app.get("/users/{user_email}/meals")
