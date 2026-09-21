@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { useFetch, apiFetch } from '../hooks/useApi'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
-import { usernameFrom, normaliseMeal } from '../utils/reviews'
+import { usernameFrom } from '../utils/reviews'
 import shared from '../components/shared.module.css'
 import styles from './Feed.module.css'
-import MealCard from '../components/MealCard'
 import CommentThread from '../components/CommentThread'
 import { TaggedWith } from '../components/TagPicker'
 
@@ -42,25 +41,15 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
       {!loading && !error && items?.length > 0 && (
         <div className={styles.feed}>
           {items.map(item => (
-              item.kind === 'meal' ? (
-                <MealCard
-                  key={`meal-${item.id}`}
-                  meal={normaliseMeal(item)}
-                  onViewMeal={onViewMeal}
-                  onViewDish={onViewDish}
-                  onViewRestaurant={onViewRestaurant}
-                  onViewUser={onViewUser}
-                />
-              ) : (
-                <FeedCard
-                  key={`review-${item.id}`}
-                  item={item}
-                  onViewDish={onViewDish}
-                  onViewRestaurant={onViewRestaurant}
-                  onViewUser={onViewUser}
-                  onViewReview={onViewReview}
-                />
-              )
+            <FeedCard
+              key={`${item.kind}-${item.id}`}
+              item={item}
+              onViewDish={onViewDish}
+              onViewRestaurant={onViewRestaurant}
+              onViewUser={onViewUser}
+              onViewReview={onViewReview}
+              onViewMeal={onViewMeal}
+            />
           ))}
         </div>
       )}
@@ -68,7 +57,9 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
   )
 }
 
-function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview }) {
+function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview, onViewMeal }) {
+  const isMeal   = item.kind === 'meal'
+  const base     = isMeal ? `/api/meals/${item.id}` : `/api/reviews/${item.id}`
   const username = usernameFrom(item.username || item.user_email)
   const myEmail  = localStorage.getItem('email')
 
@@ -91,7 +82,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     setLiked(!liked)
     setLikeCount(liked ? likeCount - 1 : likeCount + 1)
     try {
-      const res = await apiFetch(`/api/reviews/${item.id}/like`, { method: 'POST' })
+      const res = await apiFetch(`${base}/like`, { method: 'POST' })
       if (!res.ok) throw new Error()
       const data = await res.json()
       setLiked(data.liked)
@@ -107,7 +98,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
   const loadComments = async () => {
     setCommentsLoading(true)
     try {
-      const res = await apiFetch(`/api/reviews/${item.id}/comments`)
+      const res = await apiFetch(`${base}/comments`)
       if (!res.ok) throw new Error()
       setComments(await res.json())
     } catch {
@@ -128,9 +119,9 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     if (!commentText.trim() || posting) return
     setPosting(true)
     try {
-      const res = await apiFetch(`/api/reviews/${item.id}/comments`, {
+      const res = await apiFetch(`${base}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content: commentText.trim() }),
+        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
       })
       if (!res.ok) throw new Error()
       const newComment = await res.json()
@@ -144,12 +135,12 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     }
   }
 
+  const openPost = () => isMeal
+    ? onViewMeal?.(item.id, 'comments')
+    : onViewReview?.(item.id, 'comments')
+
   return (
-    <div
-      className={styles.card}
-      style={{ cursor: onViewReview ? 'pointer' : 'default' }}
-      onClick={() => onViewReview?.(item.id, 'comments')}
-    >
+    <div className={styles.card} style={{ cursor: 'pointer' }} onClick={openPost}>
       <div className={styles.avatarCol}>
         <button
           className={styles.avatarBtn}
@@ -159,6 +150,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
         </button>
         <div className={styles.timelineLine} />
       </div>
+
       <div className={styles.content}>
         <div className={styles.cardHeader}>
           <div className={styles.meta}>
@@ -171,20 +163,22 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
             <span className={styles.dot}>·</span>
             <span className={styles.time}>{timeAgo(item.logged_at)}</span>
           </div>
-          <span className={shared.typePill} data-type={item.type}>
-            {item.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
+          <span className={shared.typePill} data-type={isMeal ? 'meal' : item.type}>
+            {isMeal ? '🍽️ Meal' : item.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
           </span>
         </div>
+
         <div className={styles.dishRow}>
           <button
             className={styles.dishName}
             onClick={(e) => {
               e.stopPropagation()
-              item.restaurant_name && onViewDish?.(item.dish_name, item.restaurant_name)
+              if (isMeal) onViewMeal?.(item.id, 'comments')
+              else if (item.restaurant_name) onViewDish?.(item.dish_name, item.restaurant_name)
             }}
-            disabled={!item.restaurant_name}
+            disabled={!isMeal && !item.restaurant_name}
           >
-            {item.dish_name}
+            {isMeal ? (item.title || 'Meal') : item.dish_name}
           </button>
           {item.restaurant_name && (
             <button
@@ -195,15 +189,34 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
             </button>
           )}
         </div>
+
         <div className={styles.ratingRow}>
           <StarRating rating={item.rating} showLabel />
         </div>
+
         {item.tagged?.length > 0 && (
-          <div style={{ marginBottom: 6 }}>
+          <div style={{ marginBottom: 6 }} onClick={(e) => e.stopPropagation()}>
             <TaggedWith tagged={item.tagged} onViewUser={onViewUser} />
           </div>
         )}
+
         {item.review && <p className={styles.reviewText}>{item.review}</p>}
+
+        {isMeal && item.dishes?.length > 0 && (
+          <ul className={styles.mealDishes}>
+            {item.dishes.map(d => (
+              <li key={d.id} className={styles.mealDish}>
+                <button
+                  className={styles.mealDishName}
+                  onClick={(e) => { e.stopPropagation(); onViewDish?.(d.dish_name, item.restaurant_name) }}
+                >
+                  {d.dish_name}
+                </button>
+                <StarRating rating={d.rating} size={12} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
           <button className={`${styles.actionBtn} ${liked ? styles.actionLiked : ''}`} onClick={toggleLike}>
@@ -223,8 +236,8 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
               <CommentThread
                 comments={comments}
                 setComments={setComments}
-                commentType="review"
-                basePath={`/api/reviews/${item.id}/comments`}
+                commentType={isMeal ? 'meal' : 'review'}
+                basePath={`${base}/comments`}
                 myEmail={myEmail}
                 onViewUser={onViewUser}
                 onCountChange={(delta) => setCommentCount(c => Math.max(0, c + delta))}
@@ -251,18 +264,18 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
 
 function HeartIcon({ filled }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill={filled ? 'currentColor' : 'none'}>
-      <path d="M10 17s-7-4.35-7-9a4 4 0 017-2.65A4 4 0 0117 8c0 4.65-7 9-7 9z"
-        stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}>
+      <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"
+        stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   )
 }
 
 function CommentIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-      <path d="M17 10c0 3.866-3.134 7-7 7a7.1 7.1 0 01-3.5-.917L3 17l.917-3.5A7.1 7.1 0 013 10c0-3.866 3.134-7 7-7s7 3.134 7 7z"
-        stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20l1-4.4A8 8 0 1 1 21 12z"
+        stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   )
 }

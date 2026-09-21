@@ -390,3 +390,20 @@
   transition: color 0.15s;
 }
 .usernameBtn:hover { color: #a5b4fc; }
+
+
+.mealDishes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid rgba(251, 191, 36, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mealDish { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mealDishName {
+  background: none; border: none; padding: 0; font-family: inherit;
+  font-size: 14px; color: #c4c6db; cursor: pointer; text-align: left;
+}
+.mealDishName:hover { color: #a5b4fc; }
