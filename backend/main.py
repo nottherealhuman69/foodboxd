@@ -1213,10 +1213,17 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
         } for r in review_rows]
 
         cur.execute(f"""
-            SELECT * FROM meals
-            WHERE user_email IN ({placeholders})
-            ORDER BY logged_at DESC LIMIT 50
-        """, friend_emails)
+            SELECT m.*,
+                   COUNT(DISTINCT l.id) AS like_count,
+                   COUNT(DISTINCT c.id) AS comment_count,
+                   COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+            FROM meals m
+            LEFT JOIN meal_likes    l ON l.meal_id = m.id
+            LEFT JOIN meal_comments c ON c.meal_id = m.id
+            WHERE m.user_email IN ({placeholders})
+            GROUP BY m.id
+            ORDER BY m.logged_at DESC LIMIT 50
+        """, [email] + friend_emails)
         meal_rows = cur.fetchall()
 
         meals = []
@@ -1228,9 +1235,9 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
             dish_rows = cur.fetchall()
             meals.append({
                 **serialise_meal(m, dish_rows),
-                "like_count":    0,
-                "comment_count": 0,
-                "user_liked":    False,
+                "like_count":    int(m["like_count"]),
+                "comment_count": int(m["comment_count"]),
+                "user_liked":    bool(m["user_liked"]),
                 "tagged":        _post_tags(cur, "meal", m["id"]),
             })
 
