@@ -175,6 +175,7 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
 
       <button className={styles.likeBtn} onClick={toggleLike}>
         {meal.user_liked ? '❤️' : '🤍'} {meal.like_count}
+        
       </button>
 
       <div className={styles.tabs}>

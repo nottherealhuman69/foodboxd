@@ -270,8 +270,22 @@ def create_tables():
             )
         """)
         cur.execute("""
-            CREATE INDEX IF NOT EXISTS post_tags_lookup_idx
-            ON post_tags (post_type, post_id)
+            CREATE TABLE IF NOT EXISTS post_reposts (
+                id             SERIAL PRIMARY KEY,
+                post_type      VARCHAR(10) NOT NULL CHECK (post_type IN ('review', 'meal')),
+                post_id        INTEGER NOT NULL,
+                reposter_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+                created_at     TIMESTAMP DEFAULT NOW(),
+                UNIQUE (post_type, post_id, reposter_email)
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS post_reposts_reposter_idx
+            ON post_reposts (reposter_email, created_at DESC)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS post_tags_tagged_idx
+            ON post_tags (tagged_email, created_at DESC)
         """)
 
         # ── Threaded comments (full nesting via self-referential parent_id) ──
@@ -405,6 +419,8 @@ class ReviewOut(BaseModel):
     like_count: int = 0
     comment_count: int = 0
     tagged: List[dict] = []
+    reposted_by: Optional[dict] = None
+    reposted_at: Optional[datetime] = None
 
 class FriendRequestBody(BaseModel):
     addressee_email: EmailStr
@@ -592,22 +608,121 @@ def _post_tags(cur, post_type: str, post_id: int) -> list:
             for r in cur.fetchall()]
 
 def _set_post_tags(cur, post_type: str, post_id: int, author: str, emails: list) -> None:
-    """Replace a post's companion tags. Only people the author follows can be
-    tagged; the author and unknown users are silently skipped."""
-    cur.execute("DELETE FROM post_tags WHERE post_type = %s AND post_id = %s", (post_type, post_id))
-    seen = set()
-    for target in emails:
+    """Sync a post's companion tags without re-notifying existing tags."""
+    wanted, seen = [], set()
+    for target in emails or []:
         target = (target or "").strip().lower()
         if not target or target == author or target in seen:
             continue
         if not _is_following(cur, author, target):
             continue
         seen.add(target)
-        cur.execute("""
-            INSERT INTO post_tags (post_type, post_id, tagged_email)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (post_type, post_id, tagged_email) DO NOTHING
-        """, (post_type, post_id, target))
+        wanted.append(target)
+
+    cur.execute("SELECT tagged_email FROM post_tags WHERE post_type = %s AND post_id = %s",
+                (post_type, post_id))
+    existing = {r["tagged_email"] for r in cur.fetchall()}
+
+    removed = list(existing - seen)
+    if removed:
+        cur.execute("""DELETE FROM post_tags
+                       WHERE post_type = %s AND post_id = %s AND tagged_email = ANY(%s)""",
+                    (post_type, post_id, removed))
+        cur.execute("""DELETE FROM post_reposts
+                       WHERE post_type = %s AND post_id = %s AND reposter_email = ANY(%s)""",
+                    (post_type, post_id, removed))
+
+    for target in wanted:
+        if target not in existing:
+            cur.execute("""INSERT INTO post_tags (post_type, post_id, tagged_email)
+                           VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (post_type, post_id, target))
+
+def _delete_post_extras(cur, post_type: str, post_id: int) -> None:
+    cur.execute("DELETE FROM post_tags    WHERE post_type = %s AND post_id = %s", (post_type, post_id))
+    cur.execute("DELETE FROM post_reposts WHERE post_type = %s AND post_id = %s", (post_type, post_id))
+
+
+def _repost_state(cur, post_type: str, post_id: int, email: str) -> dict:
+    cur.execute("""
+        SELECT
+          EXISTS (SELECT 1 FROM post_tags
+                  WHERE post_type = %s AND post_id = %s AND tagged_email = %s)   AS is_tagged,
+          EXISTS (SELECT 1 FROM post_reposts
+                  WHERE post_type = %s AND post_id = %s AND reposter_email = %s) AS user_reposted
+    """, (post_type, post_id, email) * 2)
+    row = cur.fetchone()
+    return {"is_tagged": bool(row["is_tagged"]), "user_reposted": bool(row["user_reposted"])}
+
+
+def _feed_review(cur, review_id: int, viewer: str):
+    cur.execute("""
+        SELECT r.*,
+               COUNT(DISTINCT l.id) AS like_count,
+               COUNT(DISTINCT c.id) AS comment_count,
+               COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+        FROM dish_reviews r
+        LEFT JOIN review_likes l    ON l.review_id = r.id
+        LEFT JOIN review_comments c ON c.review_id = r.id
+        WHERE r.id = %s AND r.meal_id IS NULL
+        GROUP BY r.id
+    """, (viewer, review_id))
+    r = cur.fetchone()
+    if not r:
+        return None
+    return {**serialise_review(r), "kind": "review",
+            "like_count": int(r["like_count"]), "comment_count": int(r["comment_count"]),
+            "user_liked": bool(r["user_liked"]), "tagged": _post_tags(cur, "review", r["id"])}
+
+
+def _feed_meal(cur, meal_id: int, viewer: str):
+    cur.execute("""
+        SELECT m.*,
+               COUNT(DISTINCT l.id) AS like_count,
+               COUNT(DISTINCT c.id) AS comment_count,
+               COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
+        FROM meals m
+        LEFT JOIN meal_likes    l ON l.meal_id = m.id
+        LEFT JOIN meal_comments c ON c.meal_id = m.id
+        WHERE m.id = %s
+        GROUP BY m.id
+    """, (viewer, meal_id))
+    m = cur.fetchone()
+    if not m:
+        return None
+    cur.execute("SELECT id, dish_name, rating, review FROM dish_reviews WHERE meal_id = %s ORDER BY id ASC",
+                (meal_id,))
+    return {**serialise_meal(m, cur.fetchall()),
+            "like_count": int(m["like_count"]), "comment_count": int(m["comment_count"]),
+            "user_liked": bool(m["user_liked"]), "tagged": _post_tags(cur, "meal", m["id"])}
+
+
+def _reposts_by(cur, reposter_emails: list, viewer: str, post_type=None, limit: int = 50) -> list:
+    if not reposter_emails:
+        return []
+    sql = "SELECT post_type, post_id, reposter_email, created_at FROM post_reposts WHERE reposter_email = ANY(%s)"
+    params = [list(reposter_emails)]
+    if post_type:
+        sql += " AND post_type = %s"
+        params.append(post_type)
+    sql += " ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+    cur.execute(sql, params)
+
+    out = []
+    for rp in cur.fetchall():
+        loader = _feed_review if rp["post_type"] == "review" else _feed_meal
+        item = loader(cur, rp["post_id"], viewer)
+        if item:
+            out.append({**item,
+                        "reposted_by": {"email": rp["reposter_email"],
+                                        "username": username_from(rp["reposter_email"])},
+                        "reposted_at": rp["created_at"]})
+    return out
+
+
+def _sort_at(item):
+    return item.get("reposted_at") or item["logged_at"]
 
 def _invite_friends(cur, group_list_id: int, inviter: str, emails: list) -> dict:
     """
@@ -782,7 +897,9 @@ def get_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
             ORDER BY r.logged_at DESC
         """, (email,))
         rows = cur.fetchall()
-        return [{**dict(r), "tagged": _post_tags(cur, "review", r["id"])} for r in rows]
+        own = [{**dict(r), "tagged": _post_tags(cur, "review", r["id"])} for r in rows]
+        reposts = _reposts_by(cur, [email], email, post_type="review", limit=200)
+    return sorted(own + reposts, key=_sort_at, reverse=True)
 
 @app.delete("/reviews/{review_id}", status_code=204)
 def delete_review(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -793,6 +910,9 @@ def delete_review(review_id: int, email: str = Depends(get_current_user), db=Dep
             raise HTTPException(status_code=404, detail="Review not found")
         if row["meal_id"] is not None:
             raise HTTPException(status_code=400, detail="This dish is part of a meal — delete the meal instead")
+        _delete_post_extras(cur, "review", review_id)
+        cur.execute("DELETE FROM dish_reviews WHERE id = %s", (review_id,))
+        db.commit()
 
 @app.get("/reviews/{review_id}/detail")
 def get_review_detail(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -812,6 +932,7 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         if not row:
             raise HTTPException(status_code=404, detail="Review not found")
         tagged = _post_tags(cur, "review", review_id)
+        repost = _repost_state(cur, "review", review_id, email)
     return {
         **serialise_review(row),
         "username":      username_from(row["user_email"]),
@@ -821,7 +942,38 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         "user_liked":    bool(row["user_liked"]),
         "meal_id":         row.get("meal_id"),
         "tagged":        tagged,
+        **repost
     }
+
+@app.post("/posts/{post_type}/{post_id}/repost")
+def toggle_repost(post_type: str, post_id: int,
+                  email: str = Depends(get_current_user), db=Depends(get_db)):
+    if post_type not in ("review", "meal"):
+        raise HTTPException(status_code=400, detail="post_type must be 'review' or 'meal'")
+    with with_cursor(db) as cur:
+        if post_type == "review":
+            cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND meal_id IS NULL", (post_id,))
+        else:
+            cur.execute("SELECT id FROM meals WHERE id = %s", (post_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        state = _repost_state(cur, post_type, post_id, email)
+        if not state["is_tagged"]:
+            raise HTTPException(status_code=403, detail="You can only repost posts you're tagged in")
+
+        if state["user_reposted"]:
+            cur.execute("""DELETE FROM post_reposts
+                           WHERE post_type = %s AND post_id = %s AND reposter_email = %s""",
+                        (post_type, post_id, email))
+            reposted = False
+        else:
+            cur.execute("""INSERT INTO post_reposts (post_type, post_id, reposter_email)
+                           VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (post_type, post_id, email))
+            reposted = True
+        db.commit()
+    return {"reposted": reposted}
 
 @app.patch("/reviews/{review_id}", response_model=ReviewOut)
 def update_review(review_id: int, body: ReviewUpdate, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -1028,9 +1180,12 @@ def get_user_reviews(user_email: str, email: str = Depends(get_current_user), db
         cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="User not found")
-        cur.execute("SELECT * FROM dish_reviews WHERE user_email = %s AND meal_id IS NULL ORDER BY logged_at DESC", (user_email,))
-        rows = cur.fetchall()
-        return [{**dict(r), "tagged": _post_tags(cur, "review", r["id"])} for r in rows]
+        cur.execute("""SELECT * FROM dish_reviews
+                       WHERE user_email = %s AND meal_id IS NULL
+                       ORDER BY logged_at DESC""", (user_email,))
+        own = [{**dict(r), "tagged": _post_tags(cur, "review", r["id"])} for r in cur.fetchall()]
+        reposts = _reposts_by(cur, [user_email], email, post_type="review", limit=200)
+    return sorted(own + reposts, key=_sort_at, reverse=True)
     
 @app.get("/users/{user_email}/friends")
 def get_user_friends(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
@@ -1241,9 +1396,14 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
                 "user_liked":    bool(m["user_liked"]),
                 "tagged":        _post_tags(cur, "meal", m["id"]),
             })
+            reposts = _reposts_by(cur, friend_emails, email)
 
-    combined = reviews + meals
-    combined.sort(key=lambda x: x["logged_at"], reverse=True)
+    by_key = {}
+    for item in reviews + meals + reposts:
+        key = (item["kind"], item["id"])
+        if key not in by_key or _sort_at(item) > _sort_at(by_key[key]):
+            by_key[key] = item
+    combined = sorted(by_key.values(), key=_sort_at, reverse=True)
     return combined[:50]
 
 
@@ -1886,11 +2046,27 @@ def get_activity_notifications(email: str = Depends(get_current_user), db=Depend
             FROM meal_comments c
             JOIN meals m ON m.id = c.meal_id
             WHERE m.user_email = %s AND c.user_email != %s
+            UNION ALL
 
+            SELECT 'tag', 'review', t.id, t.created_at,
+                  r.id, r.user_email, r.dish_name, r.restaurant_name
+            FROM post_tags t
+            JOIN dish_reviews r ON t.post_type = 'review' AND r.id = t.post_id
+            WHERE t.tagged_email = %s
+
+            UNION ALL
+
+            SELECT 'tag', 'meal', t.id, t.created_at,
+                      m.id, m.user_email, m.title, m.restaurant_name
+            FROM post_tags t
+            JOIN meals m ON t.post_type = 'meal' AND m.id = t.post_id
+            WHERE t.tagged_email = %s
             ORDER BY created_at DESC
             LIMIT 50
-        """, (email,) * 8)
+        """, (email,) * 10)
         rows = cur.fetchall()
+        cur.execute("SELECT post_type, post_id FROM post_reposts WHERE reposter_email = %s", (email,))
+        reposted = {(r["post_type"], r["post_id"]) for r in cur.fetchall()}
     return [{
         "id":              r["event_id"],
         "type":            r["type"],
@@ -1901,6 +2077,7 @@ def get_activity_notifications(email: str = Depends(get_current_user), db=Depend
         "subject":         r["subject"],
         "restaurant_name": r["restaurant_name"],
         "created_at":      r["created_at"],
+        "user_reposted": (r["target_type"], r["target_id"]) in reposted if r["type"] == "tag" else None,
     } for r in rows]
 
 @app.get("/notifications/unseen_count")
@@ -1946,8 +2123,19 @@ def get_unseen_count(since: Optional[datetime] = None,
                 SELECT c.id FROM meal_comments c
                 JOIN meals m ON m.id = c.meal_id
                 WHERE m.user_email = %s AND c.user_email != %s AND c.created_at > %s
+                UNION ALL
+
+                SELECT t.id FROM post_tags t
+                JOIN dish_reviews r ON t.post_type = 'review' AND r.id = t.post_id
+                WHERE t.tagged_email = %s AND t.created_at > %s
+
+                UNION ALL
+
+                SELECT t.id FROM post_tags t
+                JOIN meals m ON t.post_type = 'meal' AND m.id = t.post_id
+                WHERE t.tagged_email = %s AND t.created_at > %s
             ) combined
-        """, (email, email, since_val) * 4)
+        """, (email, email, since_val) * 4 + (email, since_val) * 2)
         activity_count = cur.fetchone()["count"]
  
     return {"count": pending_count + group_invite_count + activity_count}
@@ -2036,6 +2224,8 @@ def get_my_meals(email: str = Depends(get_current_user), db=Depends(get_db)):
             """, (m["id"],))
             dish_rows = cur.fetchall()
             out.append({**serialise_meal(m, dish_rows), "tagged": _post_tags(cur, "meal", m["id"])})
+        out += _reposts_by(cur, [email], email, post_type="meal", limit=200)
+    out.sort(key=_sort_at, reverse=True)
     return out
 
 
@@ -2046,7 +2236,8 @@ def get_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends(ge
         if not meal:
             raise HTTPException(status_code=404, detail="Meal not found")
         tagged = _post_tags(cur, "meal", meal_id)
-    return {**serialise_meal(meal, dish_rows), "tagged": tagged}
+        repost = _repost_state(cur, "meal", meal_id, email)
+    return {**serialise_meal(meal, dish_rows), "tagged": tagged, **repost}
 
 
 @app.delete("/meals/{meal_id}", status_code=204)
@@ -2055,6 +2246,7 @@ def delete_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends
         cur.execute("SELECT id FROM meals WHERE id = %s AND user_email = %s", (meal_id, email))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Meal not found")
+        _delete_post_extras(cur, "meal", meal_id)
         cur.execute("DELETE FROM meals WHERE id = %s", (meal_id,))
         db.commit()
 
@@ -2143,6 +2335,8 @@ def get_user_meals(user_email: str, email: str = Depends(get_current_user), db=D
             """, (m["id"],))
             dish_rows = cur.fetchall()
             out.append({**serialise_meal(m, dish_rows), "tagged": _post_tags(cur, "meal", m["id"])})
+        out += _reposts_by(cur, [user_email], email, post_type="meal", limit=200)
+    out.sort(key=_sort_at, reverse=True)
     return out
 
 

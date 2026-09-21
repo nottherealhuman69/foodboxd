@@ -33,3 +33,11 @@ export function userUrl(userEmail) {
 export function recipePath(dishName, ownerEmail) {
   return `/recipe/${encodeURIComponent(ownerEmail)}/${encodeURIComponent(dishName)}`
 }
+
+
+export function mealPath(mealId) {
+  return `/meal/${mealId}`
+}
+export function mealUrl(mealId) {
+  return `${window.location.origin}${mealPath(mealId)}`
+}

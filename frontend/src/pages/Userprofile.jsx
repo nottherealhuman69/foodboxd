@@ -77,7 +77,8 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
       .finally(() => setListsLoading(false))
   }, [userEmail])
 
-  const avg = avgRating(reviews)
+  const ownReviews = reviews.filter(r => !r.repostedBy)
+  const avg = avgRating(ownReviews)
   const friendCount = friends ? friends.length : null
 
   return (

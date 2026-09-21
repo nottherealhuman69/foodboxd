@@ -9,6 +9,7 @@ import ShareButton from '../components/ShareButton'
 import { reviewUrl } from '../utils/links'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
+import RepostButton from '../components/RepostButton'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -223,6 +224,9 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           {review.user_liked ? '❤️' : '🤍'} {review.like_count}
         </button>
         <ShareButton url={reviewUrl(review.id)} />
+        {review.is_tagged && (
+          <RepostButton postType="review" postId={review.id} initialReposted={review.user_reposted} />
+        )}
         {isOwner && (
           <button className={styles.editBtn} onClick={() => setEditing(true)}>Edit</button>
         )}

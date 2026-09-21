@@ -152,6 +152,7 @@
 }
 .activityIcon[data-type="like"]    { background: rgba(248, 113, 113, 0.12); }
 .activityIcon[data-type="comment"] { background: rgba(99, 102, 241, 0.12); }
+.activityIcon[data-type="tag"] { background: rgba(34, 197, 94, 0.12); }
 
 .activityTime {
   font-size: 12px;

@@ -7,6 +7,7 @@ import shared from '../components/shared.module.css'
 import styles from './Feed.module.css'
 import CommentThread from '../components/CommentThread'
 import { TaggedWith } from '../components/TagPicker'
+import { RepostedBy } from '../components/RepostButton'
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -42,7 +43,7 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
         <div className={styles.feed}>
           {items.map(item => (
             <FeedCard
-              key={`${item.kind}-${item.id}`}
+              key={`${item.kind}-${item.id}-${item.reposted_by?.email || 'own'}`}
               item={item}
               onViewDish={onViewDish}
               onViewRestaurant={onViewRestaurant}
@@ -160,6 +161,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
             >
               @{username}
             </button>
+            <RepostedBy repostedBy={item.reposted_by} onViewUser={onViewUser} />
             <span className={styles.dot}>·</span>
             <span className={styles.time}>{timeAgo(item.logged_at)}</span>
           </div>

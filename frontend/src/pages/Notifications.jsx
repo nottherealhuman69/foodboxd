@@ -3,6 +3,7 @@ import { apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './Notifications.module.css'
+import RepostButton from '../components/RepostButton'
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -173,9 +174,13 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
               if (a.target_type === 'meal') onViewMeal?.(a.target_id, tab)
               else onViewReview?.(a.target_id, tab)
             }
+            const isTag = a.type === 'tag'
+            const owner = isTag ? 'their' : 'your'
             const what = a.target_type === 'meal'
-              ? (a.subject ? `your meal "${a.subject}"` : `your meal at ${a.restaurant_name}`)
-              : `your review of ${a.subject}`
+              ? (a.subject ? `${owner} meal "${a.subject}"` : `${owner} meal at ${a.restaurant_name}`)
+              : `${owner} review of ${a.subject}`
+            const verb = { like: 'liked', comment: 'commented on', tag: 'tagged you in' }[a.type]
+            const icon = { like: '❤️', comment: '💬', tag: '🏷️' }[a.type]
             return (
               <div
                 key={`${a.target_type}-${a.type}-${a.id}`}
@@ -186,7 +191,7 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
                 onKeyDown={e => { if (e.key === 'Enter') open() }}
               >
                 <div className={styles.activityIcon} data-type={a.type}>
-                  {a.type === 'like' ? '❤️' : '💬'}
+                  {icon}
                 </div>
                 <div className={styles.info}>
                   <p className={styles.name}>
@@ -199,9 +204,13 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
                     </button>
                   </p>
                   <p className={styles.sub2}>
-                    {a.type === 'like' ? 'liked' : 'commented on'} {what}
+                    {verb} {what}
                   </p>
                 </div>
+                {isTag && (
+                  <RepostButton compact postType={a.target_type}
+                    postId={a.target_id} initialReposted={a.user_reposted} />
+                )}
                 <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
               </div>
             )

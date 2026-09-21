@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useMatch } from 'react-router-dom'
-import { dishPath, reviewPath, restaurantPath, userPath, recipePath } from '../utils/links'
+import { dishPath, reviewPath, restaurantPath, userPath, recipePath, mealPath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
