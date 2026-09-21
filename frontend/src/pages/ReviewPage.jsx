@@ -172,14 +172,15 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           {review.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
         </span>
       </div>
-
-            <h2
-        className={styles.dishName}
-        style={{ cursor: (onViewDish && review.restaurant_name) ? 'pointer' : 'default' }}
-        onClick={() => review.restaurant_name && onViewDish?.(review.dish_name, review.restaurant_name)}
-      >
-        {review.dish_name}
-      </h2>
+        <h2
+          className={styles.dishName}
+          style={{ cursor: 'pointer' }}
+          onClick={() => review.type === 'homemade'
+            ? onViewDish?.(review.dish_name, null, review.recipe_owner_email || review.user_email)
+            : review.restaurant_name && onViewDish?.(review.dish_name, review.restaurant_name)}
+        >
+          {review.dish_name}
+        </h2>
         {review.restaurant_name && (
           <p
             className={styles.restaurant}

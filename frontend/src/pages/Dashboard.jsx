@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { dishPath, reviewPath, restaurantPath, userPath } from '../utils/links'
+import { useNavigate, useParams, useMatch } from 'react-router-dom'
+import { dishPath, reviewPath, restaurantPath, userPath, recipePath } from '../utils/links'
 import Profile from './Profile'
 import Feed from './Feed'
 import Reviews from './Reviews'
@@ -34,7 +34,6 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const email  = localStorage.getItem('email') || ''
   const handle = email.split('@')[0]
-
   const [active,       setActive]       = useState('profile')
   const [reviewFilter, setReviewFilter] = useState('All')
   const [menuOpen,     setMenuOpen]     = useState(false)
@@ -49,6 +48,7 @@ export default function Dashboard() {
     dishName: routeDish,
     restaurant: routeRestaurantOnly,
     userEmail: routeUser,
+    recipeOwner: routeRecipeOwner,
   } = useParams()
 
   // The URL decides which restaurant page is open, so the link can be shared.
@@ -59,7 +59,9 @@ export default function Dashboard() {
   // The URL decides which dish page is open, so the link can be shared.
   const viewingDish = routeDish && routeRestaurant
     ? { dishName: routeDish, restaurantName: routeRestaurant }
-    : null
+    : routeDish && routeRecipeOwner
+      ? { dishName: routeDish, restaurantName: null, recipeOwnerEmail: routeRecipeOwner }
+      : null
   const closeDish = () => { if (routeDish) navigate('/dashboard') }
   const [reviewTab, setReviewTab] = useState('comments')
   const viewingReview = routeReviewId
@@ -186,9 +188,9 @@ export default function Dashboard() {
       navigate(userPath(targetEmail))
     }
   }
-  const openDish = (d, r) => {
-    if (!r) return  // homemade dishes have no dish page
-    navigate(dishPath(d, r))
+  const openDish = (d, r, owner) => {
+    if (r) navigate(dishPath(d, r))
+    else if (owner) navigate(recipePath(d, owner))
   }
   const openReview = (id, tab = 'comments') => {
     setReviewTab(tab)
@@ -205,7 +207,7 @@ export default function Dashboard() {
             initialTab={viewingMeal.tab}
             onBack={() => setViewingMeal(null)}
             onViewUser={(userEmail) => { setViewingMeal(null); viewUser(userEmail) }}
-            onViewDish={(d, r) => { setViewingMeal(null); openDish(d, r) }}
+            onViewDish={(d, r, o) => { setViewingMeal(null); openDish(d, r, o) }}
             onViewRestaurant={(r) => { setViewingMeal(null); openRestaurant(r) }}
           />
         </div>
@@ -215,10 +217,9 @@ export default function Dashboard() {
           <ReviewPage
             reviewId={viewingReview.id}
             initialTab={viewingReview.tab}
-            onBack={closeReview}
             onViewMeal={(id, tab) => { closeReview(); openMeal(id, tab) }}
             onViewUser={(userEmail) => { closeReview(); viewUser(userEmail) }}
-            onViewDish={(d, r) => { closeReview(); openDish(d, r) }}
+            onViewDish={openDish}
             onViewRestaurant={(r) => { closeReview(); openRestaurant(r) }}
           />
         </div>

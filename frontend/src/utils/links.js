@@ -29,3 +29,7 @@ export function userPath(userEmail) {
 export function userUrl(userEmail) {
   return `${window.location.origin}${userPath(userEmail)}`
 }
+
+export function recipePath(dishName, ownerEmail) {
+  return `/recipe/${encodeURIComponent(ownerEmail)}/${encodeURIComponent(dishName)}`
+}

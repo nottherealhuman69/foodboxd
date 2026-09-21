@@ -12,7 +12,8 @@ import ShareButton from '../components/ShareButton'
 import { dishUrl } from '../utils/links'
 import RatingDistribution from '../components/RatingDistribution'
 
-export default function DishPage({ dishName, restaurantName, onBack, onViewReview, onViewMeal }) {
+export default function DishPage({ dishName, restaurantName, recipeOwnerEmail, onBack, onViewReview, onViewMeal }) {
+  const isRecipe = !!recipeOwnerEmail
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -23,9 +24,10 @@ export default function DishPage({ dishName, restaurantName, onBack, onViewRevie
       setLoading(true)
       setError('')
       try {
-        const res = await apiFetch(
-          `/api/dishes/${encodeURIComponent(dishName)}/restaurant/${encodeURIComponent(restaurantName)}`
-        )
+      const res = await apiFetch(isRecipe
+        ? `/api/recipes/page?dish_name=${encodeURIComponent(dishName)}&owner=${encodeURIComponent(recipeOwnerEmail)}`
+        : `/api/dishes/${encodeURIComponent(dishName)}/restaurant/${encodeURIComponent(restaurantName)}`
+      )
         if (!res.ok) throw new Error()
         setDish(await res.json())
       } catch {
@@ -59,9 +61,14 @@ const myAvgRating = myReviews.length > 0
       {!loading && !error && dish && (
         <>
           <div className={styles.hero}>
-            <div className={styles.dishIcon}>🍽️</div>
+            <div className={styles.dishIcon}>{isRecipe ? '🏠' : '🍽️'}</div>
             <div className={styles.heroBody}>
               <h1 className={styles.dishName}>{dish.dish_name}</h1>
+              {isRecipe ? (
+                <div className={styles.restaurantRow}>
+                  <span className={styles.restaurantName}>Recipe by @{dish.created_by}</span>
+                </div>
+              ) : (
               <div
                 className={styles.restaurantRow}
                 style={{ cursor: 'pointer' }}
@@ -74,6 +81,7 @@ const myAvgRating = myReviews.length > 0
                 </svg>
                 <span className={styles.restaurantName}>{dish.restaurant_name}</span>
               </div>
+              )}
               <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {myAvgRating !== null ? (
                   <div className={styles.myRatingBadge}>
@@ -103,11 +111,17 @@ const myAvgRating = myReviews.length > 0
             <div className={styles.divider} />
             <div className={styles.statItem}>
               <span className={styles.statNum}>@{dish.created_by}</span>
-              <span className={styles.statLabel}>page created by</span>
+              <span className={styles.statLabel}>{isRecipe ? 'recipe created by' : 'page created by'}</span>
             </div>
           </div>
 
           <div className={styles.section}>
+            {isRecipe && dish.recipe && (
+                <div className={styles.section}>
+                  <h3 className={shared.sectionTitle}>Recipe</h3>
+                  <p className={styles.cardReview} style={{ whiteSpace: 'pre-wrap' }}>{dish.recipe}</p>
+                </div>
+              )}
             <h3 className={shared.sectionTitle}>All reviews</h3>
             <div className={styles.reviewList}>
               {dish.reviews.map(r => (

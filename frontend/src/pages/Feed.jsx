@@ -174,9 +174,10 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
             onClick={(e) => {
               e.stopPropagation()
               if (isMeal) onViewMeal?.(item.id, 'comments')
+              else if (item.type === 'homemade') onViewDish?.(item.dish_name, null, item.recipe_owner_email || item.user_email)
               else if (item.restaurant_name) onViewDish?.(item.dish_name, item.restaurant_name)
             }}
-            disabled={!isMeal && !item.restaurant_name}
+            disabled={!isMeal && item.type !== 'homemade' && !item.restaurant_name}
           >
             {isMeal ? (item.title || 'Meal') : item.dish_name}
           </button>

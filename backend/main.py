@@ -1415,7 +1415,53 @@ def get_dish_page(dish_name: str, restaurant_name: str, email: str = Depends(get
         "reviews": [serialise_review(r) for r in reviews],
     }
 
+@app.get("/recipes/page")
+def get_recipe_page(dish_name: str, owner: str, email: str = Depends(get_current_user), db=Depends(get_db)):
+    owner_filter = """
+        type = 'homemade' AND dish_name ILIKE %s
+        AND COALESCE(recipe_owner_email, user_email) = %s
+    """
+    with with_cursor(db) as cur:
+        cur.execute(f"""
+            SELECT MIN(dish_name) AS dish_name,
+                   COUNT(*) AS review_count,
+                   ROUND(AVG(rating)::numeric, 1) AS avg_rating,
+                   MIN(logged_at) AS first_logged
+            FROM dish_reviews WHERE {owner_filter}
+        """, (dish_name, owner))
+        stats = cur.fetchone()
+        if not stats or stats["review_count"] == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
 
+        # The recipe text: prefer the owner's own latest version, else anyone's
+        cur.execute(f"""
+            SELECT recipe FROM dish_reviews
+            WHERE {owner_filter} AND recipe IS NOT NULL AND recipe <> ''
+            ORDER BY (user_email = %s) DESC, logged_at DESC
+            LIMIT 1
+        """, (dish_name, owner, owner))
+        recipe_row = cur.fetchone()
+
+        cur.execute(f"""
+            SELECT id, user_email, rating, review, logged_at, meal_id
+            FROM dish_reviews WHERE {owner_filter}
+            ORDER BY logged_at DESC
+        """, (dish_name, owner))
+        reviews = cur.fetchall()
+
+    return {
+        "dish_name":        stats["dish_name"],
+        "restaurant_name":  None,
+        "review_count":     stats["review_count"],
+        "avg_rating":       float(stats["avg_rating"]),
+        "created_by":       username_from(owner),
+        "created_by_email": owner,
+        "first_logged":     stats["first_logged"],
+        "recipe":           recipe_row["recipe"] if recipe_row else "",
+        "reviews":          [serialise_review(r) for r in reviews],
+    }
+
+    
 # ── Trylist ───────────────────────────────────────────────────────────────────
 # NOTE: /trylist/check must be defined before /trylist/{item_id}
 
