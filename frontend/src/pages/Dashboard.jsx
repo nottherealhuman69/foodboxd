@@ -70,6 +70,7 @@ export default function Dashboard() {
     : null
   const closeReview = () => { if (routeReviewId) navigate('/dashboard') } // { id, tab }
   const [mealTab, setMealTab] = useState('comments')
+  const [forkDraft, setForkDraft] = useState(null)
   const viewingMeal = routeMealId ? { id: Number(routeMealId), tab: mealTab } : null
   const closeMeal = () => { if (routeMealId) navigate('/dashboard') }
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
@@ -142,6 +143,7 @@ export default function Dashboard() {
         rating:             formData.rating,
         review:             formData.review || null,
         tagged_emails:      formData.taggedEmails || [],
+        forked_from_id: formData.forkedFromId ?? null,
       }),
     })
     if (!res.ok) {
@@ -203,6 +205,12 @@ export default function Dashboard() {
     setMealTab(tab)
     navigate(mealPath(id), { replace })
   }
+  const startFork = (kind, post) => {
+    setForkDraft({ ...post, kind })
+    navigate('/dashboard')
+    goTo('create')
+  }
+  const openPost = (kind, id) => (kind === 'meal' ? openMeal(id) : openReview(id))
 
   return (
     <div className={styles.shell}>
@@ -215,6 +223,8 @@ export default function Dashboard() {
             onViewUser={viewUser}
             onViewDish={openDish}
             onViewRestaurant={openRestaurant}
+            onFork={(post) => startFork('meal', post)}
+            onViewPost={openPost}
           />
         </div>
       )}
@@ -227,6 +237,8 @@ export default function Dashboard() {
             onViewUser={(userEmail) => { closeReview(); viewUser(userEmail) }}
             onViewDish={openDish}
             onViewRestaurant={(r) => { closeReview(); openRestaurant(r) }}
+            onFork={(post) => startFork('review', post)}
+            onViewPost={openPost}
           />
         </div>
       )}
@@ -348,7 +360,12 @@ export default function Dashboard() {
                                     onViewRestaurant={openRestaurant}
                                     onViewDish={openDish}
                                   />}
-        {active === 'create' && <CreateReview onSave={handleSave} onMealSaved={handleSaveMeal} />}
+        {active === 'create' && <CreateReview
+                                    key={forkDraft ? `fork-${forkDraft.kind}-${forkDraft.id}` : 'blank'}
+                                    draft={forkDraft}
+                                    onClearDraft={() => setForkDraft(null)}
+                                    onSave={handleSave}
+                                    onMealSaved={handleSaveMeal} />}
         {active === 'search' && <Search
                                     onViewDish={openDish}
                                     onViewRestaurant={openRestaurant}

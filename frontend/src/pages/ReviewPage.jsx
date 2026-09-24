@@ -10,13 +10,14 @@ import { reviewUrl } from '../utils/links'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 import RepostButton from '../components/RepostButton'
+import ForkButton, { ForkedFrom } from '../components/ForkButton'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
   { id: 'comments', label: 'Comments' },
 ]
 
-export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant, onViewMeal }) {
+export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant, onViewMeal, onFork, onViewPost }) {
   const [review,  setReview]  = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -208,6 +209,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
       {review.tagged?.length > 0 && (
         <p style={{ marginTop: 8 }}>
           <TaggedWith tagged={review.tagged} onViewUser={onViewUser} />
+          <ForkedFrom source={review.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
         </p>
       )}
 
@@ -227,6 +229,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
         {review.is_tagged && (
           <RepostButton postType="review" postId={review.id} initialReposted={review.user_reposted} />
         )}
+        {review.is_tagged && <ForkButton onFork={() => onFork?.(review)} />}
         {isOwner && (
           <button className={styles.editBtn} onClick={() => setEditing(true)}>Edit</button>
         )}

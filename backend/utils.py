@@ -22,6 +22,7 @@ def serialise_review(row: dict) -> dict:
         "review":          row.get("review") or "",
         "logged_at":       row.get("logged_at"),
         "meal_id":         row.get("meal_id"),
+        "forked_from_id": row.get("forked_from_id"),
     }
 
 def serialise_meal(meal: dict, dish_rows: list) -> dict:
@@ -48,6 +49,7 @@ def serialise_meal(meal: dict, dish_rows: list) -> dict:
             }
             for d in dish_rows
         ],
+        "forked_from_id": meal.get("forked_from_id"),
     }
 
 @contextmanager

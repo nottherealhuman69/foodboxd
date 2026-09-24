@@ -5,6 +5,7 @@ import { RATING_LABELS } from '../utils/reviews'
 import MealForm from './MealForm'
 import TagPicker from '../components/TagPicker'
 import styles from './CreateReview.module.css'
+import { ForkBanner } from '../components/ForkButton'
 
 const MAX_REVIEW_CHARS = 1000
 
@@ -69,9 +70,26 @@ export function SearchDropdown({ id, placeholder, options, value, onChange, disa
   )
 }
 
-export default function CreateReview({ onSave, onMealSaved }) {
-  const [form, setForm] = useState({
-    type: 'restaurant', restaurantName: '', dishName: '',
+export default function CreateReview({ onSave, onMealSaved, draft = null, onClearDraft }) {
+  const myEmail = localStorage.getItem('email')
+  const isForkedReview = draft?.kind === 'review'
+
+  const [forkOf, setForkOf] = useState(draft || null)
+  const [form, setForm] = useState(isForkedReview ? {
+    type:             draft.type,
+    restaurantName:   draft.restaurant_name || '',
+    dishName:         draft.dish_name || '',
+    recipe:           draft.recipe || '',
+    recipeSource:     draft.recipe_owner_email ? 'other' : 'mine',
+    recipeOwnerEmail: draft.recipe_owner_email || '',
+    rating:           draft.rating || 0,
+    hoverRating:      0,
+    review:           draft.review || '',
+    taggedEmails: [draft.user_email, ...(draft.tagged || []).map(t => t.email)]
+                    .filter((e, i, a) => e !== myEmail && a.indexOf(e) === i),
+  } : {
+    type: draft?.kind === 'meal' ? 'meal' : 'restaurant',
+    restaurantName: '', dishName: '',
     recipe: '', recipeSource: 'mine', recipeOwnerEmail: '',
     rating: 0, hoverRating: 0, review: '', taggedEmails: [],
   })
@@ -144,6 +162,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
           ? form.recipeOwnerEmail : null,
         rating: form.rating, review: form.review,
         taggedEmails: form.taggedEmails,
+        forkedFromId: forkOf?.kind === 'review' ? forkOf.id : null,
       })
       handleReset()
     } catch (err) {
@@ -161,6 +180,8 @@ export default function CreateReview({ onSave, onMealSaved }) {
     setNewDish(false)
     setDishes([])
     setSaveError('')
+    setForkOf(null)
+    onClearDraft?.()
   }
 
   const switchType = (type) => { handleReset(); set('type', type) }
@@ -174,6 +195,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
+      <ForkBanner source={forkOf} onClear={() => { handleReset(); if (draft?.kind === 'meal') set('type', 'restaurant') }} />
         <h2 className={styles.title}>{isMeal ? 'Log a Meal' : 'Log a Dish'}</h2>
         <p className={styles.sub}>
           {isMeal
@@ -223,7 +245,7 @@ export default function CreateReview({ onSave, onMealSaved }) {
       </div>
 
       {isMeal ? (
-        <MealForm onSaved={onMealSaved} />
+        <MealForm fork={forkOf?.kind === 'meal' ? forkOf : null} onSaved={onMealSaved} />
       ) : (
         <form onSubmit={handleSubmit} className={styles.form}>
 

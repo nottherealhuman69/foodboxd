@@ -288,6 +288,19 @@ def create_tables():
             ON post_tags (tagged_email, created_at DESC)
         """)
 
+        cur.execute("""
+            ALTER TABLE dish_reviews
+            ADD COLUMN IF NOT EXISTS forked_from_id INTEGER
+                REFERENCES dish_reviews(id) ON DELETE SET NULL
+        """)
+        cur.execute("""
+            ALTER TABLE meals
+            ADD COLUMN IF NOT EXISTS forked_from_id INTEGER
+                REFERENCES meals(id) ON DELETE SET NULL
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS dish_reviews_fork_idx ON dish_reviews (forked_from_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS meals_fork_idx        ON meals (forked_from_id)")
+
         # ── Threaded comments (full nesting via self-referential parent_id) ──
         cur.execute("""
             ALTER TABLE review_comments
@@ -381,6 +394,7 @@ class ReviewCreate(BaseModel):
     rating: float
     review: Optional[str] = None
     tagged_emails: List[EmailStr] = []
+    forked_from_id: Optional[int] = None
 
 class ReviewUpdate(BaseModel):
     dish_name: str
@@ -405,6 +419,7 @@ class MealCreate(BaseModel):
     review: Optional[str] = None
     dishes: List[MealDishIn]
     tagged_emails: List[EmailStr] = []
+    forked_from_id: Optional[int] = None
 
 class ReviewOut(BaseModel):
     id: int
@@ -421,6 +436,7 @@ class ReviewOut(BaseModel):
     tagged: List[dict] = []
     reposted_by: Optional[dict] = None
     reposted_at: Optional[datetime] = None
+    forked_from_id: Optional[int] = None
 
 class FriendRequestBody(BaseModel):
     addressee_email: EmailStr
@@ -654,6 +670,39 @@ def _repost_state(cur, post_type: str, post_id: int, email: str) -> dict:
     row = cur.fetchone()
     return {"is_tagged": bool(row["is_tagged"]), "user_reposted": bool(row["user_reposted"])}
 
+def _fork_source(cur, kind: str, forked_from_id):
+    """Describe the post a fork came from, or None."""
+    if not forked_from_id:
+        return None
+    if kind == "review":
+        cur.execute("SELECT id, user_email, dish_name FROM dish_reviews WHERE id = %s",
+                    (forked_from_id,))
+        row = cur.fetchone()
+        title = row["dish_name"] if row else None
+    else:
+        cur.execute("SELECT id, user_email, title, restaurant_name FROM meals WHERE id = %s",
+                    (forked_from_id,))
+        row = cur.fetchone()
+        title = (row["title"] or f"meal at {row['restaurant_name']}") if row else None
+    if not row:
+        return None
+    return {"kind": kind, "id": row["id"], "user_email": row["user_email"],
+            "username": username_from(row["user_email"]), "title": title}
+
+
+def _check_fork_source(cur, kind: str, fork_id, email: str):
+    """You can only fork a post you're tagged in."""
+    if fork_id is None:
+        return None
+    if kind == "review":
+        cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND meal_id IS NULL", (fork_id,))
+    else:
+        cur.execute("SELECT id FROM meals WHERE id = %s", (fork_id,))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail="Original post not found")
+    if not _repost_state(cur, kind, fork_id, email)["is_tagged"]:
+        raise HTTPException(status_code=403, detail="You can only fork posts you're tagged in")
+    return fork_id
 
 def _feed_review(cur, review_id: int, viewer: str):
     cur.execute("""
@@ -862,24 +911,26 @@ def create_review(body: ReviewCreate, email: str = Depends(get_current_user), db
         recipe_owner = None  # tagging yourself just means it's your own recipe
 
     with with_cursor(db) as cur:
+        fork_id = _check_fork_source(cur, "review", body.forked_from_id, email)
         if recipe_owner:
             cur.execute("SELECT id FROM users WHERE email = %s", (recipe_owner,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Tagged recipe author not found")
         cur.execute(
-            """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, recipe_owner_email, rating, review)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+            """INSERT INTO dish_reviews (user_email, dish_name, type, restaurant_name, recipe, recipe_owner_email, rating, review, forked_from_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
             (email, body.dish_name.strip(), body.type,
              body.restaurant_name.strip() if body.restaurant_name else None,
              body.recipe.strip() if body.recipe else None,
              recipe_owner,
              body.rating,
-             body.review.strip() if body.review else None)
+             body.review.strip() if body.review else None,
+             fork_id)
         )
         row = cur.fetchone()
         _set_post_tags(cur, "review", row["id"], email, body.tagged_emails)
         tagged = _post_tags(cur, "review", row["id"])
-        db.commit()
+        db.commit()   
     return {**dict(row), "tagged": tagged}
 
 @app.get("/reviews", response_model=List[ReviewOut])
@@ -933,6 +984,7 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
             raise HTTPException(status_code=404, detail="Review not found")
         tagged = _post_tags(cur, "review", review_id)
         repost = _repost_state(cur, "review", review_id, email)
+        fork_src = _fork_source(cur, "review", row["forked_from_id"])
     return {
         **serialise_review(row),
         "username":      username_from(row["user_email"]),
@@ -942,7 +994,8 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         "user_liked":    bool(row["user_liked"]),
         "meal_id":         row.get("meal_id"),
         "tagged":        tagged,
-        **repost
+        **repost,
+        "forked_from":    fork_src
     }
 
 @app.post("/posts/{post_type}/{post_id}/repost")
@@ -2182,11 +2235,12 @@ def create_meal(body: MealCreate, email: str = Depends(get_current_user), db=Dep
 
     try:
         with with_cursor(db) as cur:
+            fork_id = _check_fork_source(cur, "meal", body.forked_from_id, email)
             cur.execute("""
-                INSERT INTO meals (user_email, restaurant_name, title, rating, review)
-                VALUES (%s, %s, %s, %s, %s) RETURNING *
+                INSERT INTO meals (user_email, restaurant_name, title, rating, review, forked_from_id)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING *
             """, (email, restaurant, (body.title or "").strip() or None,
-                  body.rating, (body.review or "").strip() or None))
+                  body.rating, (body.review or "").strip() or None, fork_id))
             meal = cur.fetchone()
 
             dish_rows = []
@@ -2362,14 +2416,16 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
         """, (meal_id,))
         dish_rows = cur.fetchall()
         tagged = _post_tags(cur, "meal", meal_id)
-        repost = _repost_state(cur, "meal", meal_id, email)  
+        repost = _repost_state(cur, "meal", meal_id, email)
+        fork_src = _fork_source(cur, "meal", row["forked_from_id"])  
     return {
         **serialise_meal(row, dish_rows),
         "like_count":    int(row["like_count"]),
         "comment_count": int(row["comment_count"]),
         "user_liked":    bool(row["user_liked"]),
         "tagged":        tagged,
-        **repost, 
+        **repost,
+        "forked_from":   fork_src,
     }
 
 

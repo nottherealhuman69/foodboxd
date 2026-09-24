@@ -10,13 +10,14 @@ import MealForm from './MealForm'
 import ShareButton from '../components/ShareButton'
 import RepostButton from '../components/RepostButton'
 import { mealUrl } from '../utils/links'
+import ForkButton, { ForkedFrom } from '../components/ForkButton'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
   { id: 'comments', label: 'Comments' },
 ]
 
-export default function MealPage({ mealId, initialTab = 'comments', onBack, onViewUser, onViewDish, onViewRestaurant }) {
+export default function MealPage({ mealId, initialTab = 'comments', initialEditing = false, onBack, onViewUser, onViewDish, onViewRestaurant, onFork, onViewPost }) {
   const [meal,    setMeal]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -158,6 +159,7 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
       {meal.tagged?.length > 0 && (
         <p style={{ marginTop: 8 }}>
           <TaggedWith tagged={meal.tagged} onViewUser={onViewUser} />
+          <ForkedFrom source={meal.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
         </p>
       )}
 
@@ -187,6 +189,7 @@ export default function MealPage({ mealId, initialTab = 'comments', onBack, onVi
         {meal.is_tagged && (
           <RepostButton postType="meal" postId={meal.id} initialReposted={meal.user_reposted} />
         )}
+        {meal.is_tagged && <ForkButton onFork={() => onFork?.(meal)} />}
       </div>
 
       <div className={styles.tabs}>

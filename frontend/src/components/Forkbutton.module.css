@@ -1,0 +1,67 @@
+/* frontend/src/components/ForkButton.module.css */
+.wrap { display: inline-flex; align-items: center; gap: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid rgba(249, 168, 37, 0.3);
+  border-radius: 8px;
+  color: #d9b071;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn:hover:not(:disabled) { border-color: rgba(249, 168, 37, 0.6); color: #f5d190; }
+.btn:focus-visible { outline: 2px solid #f9a825; outline-offset: 2px; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.error { font-size: 12px; color: #fca5a5; }
+
+.forkedFrom {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #6b6f8a;
+}
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #d9b071;
+  font: inherit;
+  cursor: pointer;
+}
+.link:hover { color: #f5d190; text-decoration: underline; }
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  background: rgba(249, 168, 37, 0.08);
+  border: 1px solid rgba(249, 168, 37, 0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #e8dcc4;
+}
+.banner strong { color: #f5d190; font-weight: 600; }
+
+.bannerClear {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 5px 12px;
+  color: #a5a8c8;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.bannerClear:hover { border-color: rgba(255, 255, 255, 0.28); color: #e0e1f5; }

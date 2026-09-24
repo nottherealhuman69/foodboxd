@@ -15,18 +15,30 @@ const dishFromMeal = (d) => ({
   key: ++uid, id: d.id, name: d.dish_name, rating: d.rating, hover: 0, note: d.review || '', isNew: false,
 })
 
-export default function MealForm({ meal, onSaved, onCancel }) {
-  const isEdit = !!meal
-  const [restaurantName, setRestaurantName] = useState(meal?.restaurant_name || '')
+export default function MealForm({ meal, fork = null, onSaved, onCancel }) {
+  const isEdit  = !!meal
+  const src     = meal || fork
+  const myEmail = localStorage.getItem('email')
+
+  const [restaurantName, setRestaurantName] = useState(src?.restaurant_name || '')
   const [newRestaurant,  setNewRestaurant]  = useState(false)
-  const [title,          setTitle]          = useState(meal?.title || '')
-  const [rating,         setRating]         = useState(meal?.rating || 0)
+  const [title,          setTitle]          = useState(src?.title || '')
+  const [rating,         setRating]         = useState(src?.rating || 0)
   const [hoverRating,    setHoverRating]    = useState(0)
-  const [review,         setReview]         = useState(meal?.review || '')
+  const [review,         setReview]         = useState(src?.review || '')
   const [dishes,         setDishes]         = useState(
-    meal?.dishes?.length ? meal.dishes.map(dishFromMeal) : [emptyDish(), emptyDish()]
+    src?.dishes?.length
+      ? src.dishes.map(d => ({ ...dishFromMeal(d), id: isEdit ? d.id : null }))
+      : [emptyDish(), emptyDish()]
   )
-  const [taggedEmails,   setTaggedEmails]   = useState((meal?.tagged || []).map(t => t.email))
+  const [taggedEmails,   setTaggedEmails]   = useState(
+    isEdit
+      ? (meal.tagged || []).map(t => t.email)
+      : fork
+        ? [fork.user_email, ...(fork.tagged || []).map(t => t.email)]
+            .filter((e, i, a) => e !== myEmail && a.indexOf(e) === i)
+        : []
+  )
   const [friends,        setFriends]        = useState([])
 
   const [restaurants,    setRestaurants]    = useState([])
@@ -123,6 +135,7 @@ export default function MealForm({ meal, onSaved, onCancel }) {
             review:    d.note.trim() || null,
           })),
           tagged_emails: taggedEmails,
+          forked_from_id: isEdit ? undefined : (fork?.id ?? null),
         }),
       })
       if (!res.ok) {
