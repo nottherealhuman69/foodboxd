@@ -13,7 +13,7 @@ import RatingDistribution from '../components/RatingDistribution'
 
 const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Outstanding' }
 
-export default function RestaurantPage({ restaurantName, onBack, onViewReview }) {
+export default function RestaurantPage({ restaurantName, onBack, onViewReview, onLog }) {
   const [data,        setData]        = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -43,8 +43,11 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
   const myAvgRating = myReviews.length > 0
     ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
     : null
+  const myDishNames = new Set(myReviews.map(r => r.dish_name.toLowerCase()))
+  
   if (viewingDish) {
-    return <DishPage dishName={viewingDish} restaurantName={restaurantName} onBack={() => setViewingDish(null)} />
+    return <DishPage dishName={viewingDish} restaurantName={restaurantName}
+            onBack={() => setViewingDish(null)} onLog={onLog} />
   }
 
   return (
@@ -68,6 +71,12 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
                 Page created by <span className={styles.creator}>@{data.created_by}</span>
               </p>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {onLog && (
+                    <button type="button" className={shared.logBtn}
+                            onClick={() => onLog(data.restaurant_name)}>
+                      + Log
+                    </button>
+                  )}
                 {myAvgRating !== null ? (
                   <div className={styles.myRatingBadge}>
                     <StarRating rating={myAvgRating} size={16} />
@@ -76,7 +85,15 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
                     </span>
                   </div>
                 ) : (
-                  <TrylistButton itemType="restaurant" restaurantName={data.restaurant_name} />
+                  <>
+                    {onLog && (
+                      <button type="button" className={shared.logBtn}
+                              onClick={() => onLog(data.restaurant_name)}>
+                        + Log
+                      </button>
+                    )}
+                    <TrylistButton itemType="restaurant" restaurantName={data.restaurant_name} />
+                  </>
                 )}
                 <AddToListButton itemType="restaurant" name={data.restaurant_name} />
                 <ShareButton url={restaurantUrl(data.restaurant_name)} />
@@ -130,6 +147,12 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview })
                     </div>
                   </button>
                   <div className={styles.dishCardTrylist}>
+                    {!myDishNames.has(dish.dish_name.toLowerCase()) && onLog && (
+                      <button type="button" className={shared.logBtn}
+                              onClick={(e) => { e.stopPropagation(); onLog(data.restaurant_name, dish.dish_name) }}>
+                        + Log
+                      </button>
+                    )}
                     <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={data.restaurant_name} />
                   </div>
                 </div>

@@ -15,21 +15,25 @@ const dishFromMeal = (d) => ({
   key: ++uid, id: d.id, name: d.dish_name, rating: d.rating, hover: 0, note: d.review || '', isNew: false,
 })
 
-export default function MealForm({ meal, fork = null, onSaved, onCancel }) {
+export default function MealForm({ meal, fork = null, prefill = null, onSaved, onCancel }) {
   const isEdit  = !!meal
   const src     = meal || fork
   const myEmail = localStorage.getItem('email')
 
-  const [restaurantName, setRestaurantName] = useState(src?.restaurant_name || '')
+  const [restaurantName, setRestaurantName] = useState(
+    src?.restaurant_name || prefill?.restaurantName || ''
+  )
   const [newRestaurant,  setNewRestaurant]  = useState(false)
   const [title,          setTitle]          = useState(src?.title || '')
   const [rating,         setRating]         = useState(src?.rating || 0)
   const [hoverRating,    setHoverRating]    = useState(0)
   const [review,         setReview]         = useState(src?.review || '')
-  const [dishes,         setDishes]         = useState(
+  const [dishes, setDishes] = useState(
     src?.dishes?.length
       ? src.dishes.map(d => ({ ...dishFromMeal(d), id: isEdit ? d.id : null }))
-      : [emptyDish(), emptyDish()]
+      : prefill?.dishName
+        ? [{ ...emptyDish(), name: prefill.dishName }, emptyDish()]
+        : [emptyDish(), emptyDish()]
   )
   const [taggedEmails,   setTaggedEmails]   = useState(
     isEdit

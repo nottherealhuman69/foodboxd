@@ -214,3 +214,16 @@
 
 
 .typePill[data-type='meal'] { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
+
+
+.logBtn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent, #e85d3a);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.logBtn:hover { filter: brightness(1.08); }

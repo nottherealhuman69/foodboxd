@@ -70,11 +70,12 @@ export function SearchDropdown({ id, placeholder, options, value, onChange, disa
   )
 }
 
-export default function CreateReview({ onSave, onMealSaved, draft = null, onClearDraft }) {
+export default function CreateReview({ onSave, onMealSaved, draft = null, prefill = null, onClearDraft }) {
   const myEmail = localStorage.getItem('email')
   const isForkedReview = draft?.kind === 'review'
 
   const [forkOf, setForkOf] = useState(draft || null)
+  const [mealPrefill, setMealPrefill] = useState(prefill)
   const [form, setForm] = useState(isForkedReview ? {
     type:             draft.type,
     restaurantName:   draft.restaurant_name || '',
@@ -88,7 +89,7 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, onClea
     taggedEmails: [draft.user_email, ...(draft.tagged || []).map(t => t.email)]
                     .filter((e, i, a) => e !== myEmail && a.indexOf(e) === i),
   } : {
-    type: draft?.kind === 'meal' ? 'meal' : 'restaurant',
+    type: (draft?.kind === 'meal' || prefill) ? 'meal' : 'restaurant',
     restaurantName: '', dishName: '',
     recipe: '', recipeSource: 'mine', recipeOwnerEmail: '',
     rating: 0, hoverRating: 0, review: '', taggedEmails: [],
@@ -174,15 +175,16 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, onClea
 
   // Resets every field and returns to the dish form. Callers that want a
   // different mode must set `type` *after* calling this.
-  const handleReset = () => {
-    setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', recipeSource: 'mine', recipeOwnerEmail: '', rating: 0, hoverRating: 0, review: '', taggedEmails: [] })
-    setNewRestaurant(false)
-    setNewDish(false)
-    setDishes([])
-    setSaveError('')
-    setForkOf(null)
-    onClearDraft?.()
-  }
+const handleReset = () => {
+  setForm({ type: 'restaurant', restaurantName: '', dishName: '', recipe: '', recipeSource: 'mine', recipeOwnerEmail: '', rating: 0, hoverRating: 0, review: '', taggedEmails: [] })
+  setNewRestaurant(false)
+  setNewDish(false)
+  setDishes([])
+  setSaveError('')
+  setForkOf(null)
+  setMealPrefill(null)
+  onClearDraft?.()
+}
 
   const switchType = (type) => { handleReset(); set('type', type) }
 
@@ -245,7 +247,7 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, onClea
       </div>
 
       {isMeal ? (
-        <MealForm fork={forkOf?.kind === 'meal' ? forkOf : null} onSaved={onMealSaved} />
+        <MealForm fork={forkOf?.kind === 'meal' ? forkOf : null} prefill={mealPrefill} onSaved={onMealSaved} />
       ) : (
         <form onSubmit={handleSubmit} className={styles.form}>
 

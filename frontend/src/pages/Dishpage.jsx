@@ -12,7 +12,7 @@ import ShareButton from '../components/ShareButton'
 import { dishUrl } from '../utils/links'
 import RatingDistribution from '../components/RatingDistribution'
 
-export default function DishPage({ dishName, restaurantName, recipeOwnerEmail, onBack, onViewReview, onViewMeal }) {
+export default function DishPage({ dishName, restaurantName, recipeOwnerEmail, onBack, onViewReview, onViewMeal, onLog }) {
   const isRecipe = !!recipeOwnerEmail
   const [dish,    setDish]    = useState(null)
   const [loading, setLoading] = useState(true)
@@ -44,7 +44,9 @@ const myAvgRating = myReviews.length > 0
   ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
   : null
   if (viewingRestaurant) {
-    return <RestaurantPage restaurantName={restaurantName} onBack={() => setViewingRestaurant(false)} onViewReview={onViewReview} />
+    return <RestaurantPage restaurantName={restaurantName}
+            onBack={() => setViewingRestaurant(false)}
+            onViewReview={onViewReview} onLog={onLog} />
   }
 
   return (
@@ -91,10 +93,24 @@ const myAvgRating = myReviews.length > 0
                     </span>
                   </div>
                 ) : (
-                  <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
+                  <>
+                    {!isRecipe && onLog && (
+                      <button type="button" className={shared.logBtn}
+                              onClick={() => onLog(dish.restaurant_name, dish.dish_name)}>
+                        + Log
+                      </button>
+                    )}
+                    <TrylistButton itemType="dish" dishName={dish.dish_name} restaurantName={dish.restaurant_name} />
+                  </>
                 )}
                 <AddToListButton itemType="dish" name={dish.dish_name} restaurantName={dish.restaurant_name} />
                 <ShareButton url={dishUrl(dish.dish_name, dish.restaurant_name)} />
+                {!isRecipe && onLog && (
+                  <button type="button" className={shared.logBtn}
+                          onClick={() => onLog(dish.restaurant_name, dish.dish_name)}>
+                    + Log
+                  </button>
+                )}
               </div>
             </div>
           </div>

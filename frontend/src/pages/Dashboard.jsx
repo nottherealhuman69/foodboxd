@@ -71,6 +71,7 @@ export default function Dashboard() {
   const closeReview = () => { if (routeReviewId) navigate('/dashboard') } // { id, tab }
   const [mealTab, setMealTab] = useState('comments')
   const [forkDraft, setForkDraft] = useState(null)
+  const [logPrefill, setLogPrefill] = useState(null)   // { restaurantName, dishName, nonce }
   const viewingMeal = routeMealId ? { id: Number(routeMealId), tab: mealTab } : null
   const closeMeal = () => { if (routeMealId) navigate('/dashboard') }
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
@@ -179,8 +180,16 @@ export default function Dashboard() {
   const goTo = (id, filter) => {
     if (id === 'notifs') markNotifsSeen()
     if (id === 'reviews') setReviewFilter(filter || 'All')
+    setLogPrefill(null)          // clicking "Log" in the sidebar gives a blank form
     setActive(id)
     setMenuOpen(false)
+  }
+  const startLog = (restaurantName, dishName = null) => {
+    setForkDraft(null)
+    navigate('/dashboard')       // closes the dish/restaurant overlay
+    goTo('create')
+    // Set after goTo, so goTo's clear doesn't wipe it (React batches these)
+    setLogPrefill({ restaurantName, dishName, nonce: Date.now() })
   }
 
   // Central place to handle "view this user's profile" — redirects to your own
@@ -249,6 +258,7 @@ export default function Dashboard() {
             onBack={closeDish}
             onViewReview={openReview}
             onViewMeal={openMeal}
+            onLog={startLog}
           />
         </div>
       )}
@@ -259,6 +269,7 @@ export default function Dashboard() {
             onBack={closeRestaurant}
             onViewReview={openReview}
             onViewMeal={openMeal}
+            onLog={startLog}
           />
         </div>
       )}
@@ -361,11 +372,14 @@ export default function Dashboard() {
                                     onViewDish={openDish}
                                   />}
         {active === 'create' && <CreateReview
-                                    key={forkDraft ? `fork-${forkDraft.kind}-${forkDraft.id}` : 'blank'}
-                                    draft={forkDraft}
-                                    onClearDraft={() => setForkDraft(null)}
-                                    onSave={handleSave}
-                                    onMealSaved={handleSaveMeal} />}
+                                  key={forkDraft
+                                    ? `fork-${forkDraft.kind}-${forkDraft.id}`
+                                    : logPrefill ? `log-${logPrefill.nonce}` : 'blank'}
+                                  draft={forkDraft}
+                                  prefill={logPrefill}
+                                  onClearDraft={() => setForkDraft(null)}
+                                  onSave={handleSave}
+                                  onMealSaved={handleSaveMeal} />}
         {active === 'search' && <Search
                                     onViewDish={openDish}
                                     onViewRestaurant={openRestaurant}
