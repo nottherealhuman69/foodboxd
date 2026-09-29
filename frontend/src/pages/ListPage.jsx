@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import SortMenu from '../components/SortMenu'
+import { LIST_SORTS, sortListItems } from '../utils/listSort'
 import { apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
@@ -11,6 +13,8 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
+  const [sort, setSort] = useState('list')
+  const sorted = useMemo(() => sortListItems(items, sort), [items, sort])
 
   useEffect(() => {
     setLoading(true)
@@ -44,26 +48,34 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
       )}
 
       {!loading && !error && items.length > 0 && (
-        <div className={styles.itemsList}>
-          {items.map((item, idx) => {
-            const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
-            const handleClick = () => {
-              if (item.item_type === 'dish' && item.restaurant_name) {
-                onViewDish?.(item.name, item.restaurant_name)
-              } else if (item.item_type === 'restaurant') {
-                onViewRestaurant?.(item.name)
-              }
-            }
-            return (
-              <div
-                key={item.id}
-                className={styles.itemCard}
-                style={{ cursor: clickable ? 'pointer' : 'default' }}
-                onClick={clickable ? handleClick : undefined}
-              >
+          <>
+            <SortMenu options={LIST_SORTS} value={sort} onChange={setSort} />
+            <div className={styles.itemsList}>
+              {sorted.map((item, idx) => {
+                const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
+                const handleClick = () => {
+                  if (item.item_type === 'dish' && item.restaurant_name) {
+                    onViewDish?.(item.name, item.restaurant_name)
+                  } else if (item.item_type === 'restaurant') {
+                    onViewRestaurant?.(item.name)
+                  }
+                }
+                return (
+                  <div
+                    key={item.id}
+                    className={styles.itemCard}
+                    style={{ cursor: clickable ? 'pointer' : 'default' }}
+                    onClick={clickable ? handleClick : undefined}
+                  >
                 <span className={styles.itemIndex}>{idx + 1}</span>
                 <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
                                 <div className={styles.itemBody}>
+                                  {item.avg_rating != null && (
+                      <p className={styles.itemSub}>
+                        ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
+                        {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
+                      </p>
+                    )}
                   <p className={styles.itemName}>{item.name}</p>
                   {item.restaurant_name && (
                     <p className={styles.itemSub}>
@@ -84,6 +96,7 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
             )
           })}
         </div>
+        </>
       )}
     </div>
   )

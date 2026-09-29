@@ -1815,7 +1815,20 @@ def remove_list_item(list_id: int, item_id: int, email: str = Depends(get_curren
             raise HTTPException(status_code=404, detail="Item not found")
         cur.execute("DELETE FROM list_items WHERE id = %s", (item_id,))
         db.commit()
-
+# Community avg, review count, and the viewer's own avg for each list item.
+# Recipes have no restaurant, so they get NULLs (and sort last on rating sorts).
+LIST_ITEM_STATS = """
+    LEFT JOIN LATERAL (
+        SELECT ROUND(AVG(r.rating)::numeric, 1)::float AS avg_rating,
+               COUNT(*)                                AS review_count,
+               ROUND((AVG(r.rating) FILTER (WHERE r.user_email = %s))::numeric, 1)::float AS my_rating
+        FROM dish_reviews r
+        WHERE r.type = 'restaurant'
+          AND r.restaurant_name ILIKE CASE WHEN i.item_type = 'restaurant'
+                                           THEN i.name ELSE i.restaurant_name END
+          AND (i.item_type = 'restaurant' OR r.dish_name ILIKE i.name)
+    ) s ON i.item_type IN ('dish', 'restaurant')
+"""
 @app.get("/lists/{list_id}/items")
 def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
@@ -1825,10 +1838,13 @@ def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depe
         )
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="List not found")
-        cur.execute(
-            "SELECT * FROM list_items WHERE list_id = %s ORDER BY added_at ASC",
-            (list_id,)
-        )
+        cur.execute(f"""
+            SELECT i.*, s.avg_rating, s.review_count, s.my_rating
+            FROM list_items i
+            {LIST_ITEM_STATS}
+            WHERE i.list_id = %s
+            ORDER BY i.added_at ASC
+        """, (email, list_id))
         return cur.fetchall()
 
 
@@ -1982,10 +1998,13 @@ def get_group_list_items(list_id: int, email: str = Depends(get_current_user),
                          db=Depends(get_db)):
     with with_cursor(db) as cur:
         _require_read_access(cur, list_id, email)
-        cur.execute("""
-            SELECT * FROM group_list_items
-            WHERE group_list_id = %s ORDER BY added_at ASC
-        """, (list_id,))
+        cur.execute(f"""
+            SELECT i.*, s.avg_rating, s.review_count, s.my_rating
+            FROM group_list_items i
+            {LIST_ITEM_STATS}
+            WHERE i.group_list_id = %s
+            ORDER BY i.added_at ASC
+        """, (email, list_id))
         rows = cur.fetchall()
     return [{**dict(r), "added_by_username": username_from(r["added_by"])} for r in rows]
  

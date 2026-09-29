@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
 import styles from './GroupLists.module.css'
+import SortMenu from '../components/SortMenu'
+import { GROUP_LIST_SORTS, sortListItems } from '../utils/listSort'
 
 /* ── Icons ── */
 function GroupIcon() {
@@ -417,6 +419,8 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
   const [showAdd, setShowAdd]       = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [removing, setRemoving]     = useState({})
+  const [sort, setSort] = useState('list')
+  const sorted = useMemo(() => sortListItems(items, sort, GROUP_LIST_SORTS), [items, sort])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -576,8 +580,10 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
           <button className={styles.addBtn} onClick={() => setShowAdd(true)}><PlusIcon /> Add the first item</button>
         </div>
       ) : (
+        <>
+        <SortMenu options={GROUP_LIST_SORTS} value={sort} onChange={setSort} />
         <div className={styles.itemsList}>
-          {items.map((item, idx) => {
+          {sorted.map((item, idx) => {
             const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
             const open = () => {
               if (item.item_type === 'dish' && item.restaurant_name) onViewDish?.(item.name, item.restaurant_name)
@@ -594,6 +600,12 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
                 <span className={styles.itemIndex}>{idx + 1}</span>
                 <span className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</span>
                 <div className={styles.itemBody}>
+                  {item.avg_rating != null && (
+                    <p className={styles.itemSub}>
+                      ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
+                      {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
+                    </p>
+                  )}
                   <p className={styles.itemName}>{item.name}</p>
                   {item.restaurant_name && (
                     <p className={styles.itemSub}>
@@ -624,6 +636,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
             )
           })}
         </div>
+        </>
       )}
 
       <div className={styles.dangerRow}>

@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import styles from './Mylists.module.css'
+import SortMenu from '../components/SortMenu'
+import { LIST_SORTS, sortListItems } from '../utils/listSort'
 
 /* ── Icons ── */
 function ListsIcon() {
@@ -308,6 +310,9 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
   const [loading, setLoading]   = useState(true)
   const [showAdd, setShowAdd]   = useState(false)
   const [removing, setRemoving] = useState({})
+  const [sort, setSort] = useState('list')
+  const sorted = useMemo(() => sortListItems(items, sort), [items, sort])
+
 
   const token = localStorage.getItem('token')
   const authH = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -338,7 +343,7 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
         <AddItemModal
           listId={list.id}
           onClose={() => setShowAdd(false)}
-          onAdded={item => { setItems(p => [...p, item]); setShowAdd(false) }}
+          onAdded={() => { fetchItems(); setShowAdd(false) }}
         />
       )}
 
@@ -370,8 +375,10 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
       )}
 
       {!loading && items.length > 0 && (
+        <>
+        <SortMenu options={LIST_SORTS} value={sort} onChange={setSort} />
         <div className={styles.itemsList}>
-          {items.map((item, idx) => {
+          {sorted.map((item, idx) => {
             const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
             const handleClick = () => {
               if (item.item_type === 'dish' && item.restaurant_name) {
@@ -390,6 +397,12 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
                 <span className={styles.itemIndex}>{idx + 1}</span>
                 <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
                 <div className={styles.itemBody}>
+                  {item.avg_rating != null && (
+                    <p className={styles.itemSub}>
+                      ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
+                      {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
+                    </p>
+                  )}
                   <p className={styles.itemName}>{item.name}</p>
                                     {item.restaurant_name && (
                     <p className={styles.itemSub}>
@@ -418,6 +431,7 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
             )
           })}
         </div>
+        </>
       )}
     </div>
   )
