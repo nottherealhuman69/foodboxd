@@ -6,6 +6,7 @@ import SortMenu from '../components/SortMenu'
 import ListToolbar from '../components/ListToolbar'
 import { GROUP_LIST_SORTS, sortListItems } from '../utils/listSort'
 import { EMPTY_FILTERS, filterListItems } from '../utils/listFilter'
+import AddListItemModal from '../components/AddListItemModal'
 
 /* ── Icons ── */
 function GroupIcon() {
@@ -261,156 +262,6 @@ function InviteMoreModal({ listId, existingEmails, onClose, onInvited }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Add item modal (group variant)
-   ══════════════════════════════════════════════════════════════════════════ */
-function AddItemModal({ listId, onClose, onAdded }) {
-  const [itemType, setItemType]   = useState('dish')
-  const [name, setName]           = useState('')
-  const [restaurant, setRestaurant] = useState('')
-  const [note, setNote]           = useState('')
-  const [saving, setSaving]       = useState(false)
-  const [err, setErr]             = useState('')
-  const [suggestions, setSuggestions]   = useState([])
-  const [showDropdown, setShowDropdown] = useState(false)
-  const debounceRef = useRef(null)
-
-  const fetchSuggestions = useCallback((q, type) => {
-    if (type === 'recipe' || !q.trim()) { setSuggestions([]); setShowDropdown(false); return }
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await apiFetch(
-          `/api/search/dishes-restaurants?q=${encodeURIComponent(q)}&item_type=${type}`
-        )
-        if (res.ok) {
-          const data = await res.json()
-          setSuggestions(data)
-          setShowDropdown(data.length > 0)
-        }
-      } catch {}
-    }, 250)
-  }, [])
-
-  const handleTypeChange = (t) => {
-    setItemType(t); setName(''); setRestaurant('')
-    setSuggestions([]); setShowDropdown(false); setErr('')
-  }
-
-  const selectSuggestion = (s) => {
-    setName(s.name)
-    if (s.restaurant_name) setRestaurant(s.restaurant_name)
-    setSuggestions([]); setShowDropdown(false)
-  }
-
-  const submit = async () => {
-    if (!name.trim()) { setErr('Enter a name.'); return }
-    if (itemType === 'dish' && !restaurant.trim()) { setErr('Enter the restaurant name.'); return }
-    setSaving(true); setErr('')
-    try {
-      const res = await apiFetch(`/api/group-lists/${listId}/items`, {
-        method: 'POST',
-        body: JSON.stringify({
-          item_type: itemType,
-          name: name.trim(),
-          restaurant_name: itemType === 'dish' ? restaurant.trim() : null,
-          note: note.trim() || null,
-        }),
-      })
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        setErr(d.detail || 'Could not add the item.')
-        return
-      }
-      onAdded(await res.json())
-    } catch { setErr('Could not reach the server.') }
-    finally { setSaving(false) }
-  }
-
-  return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <h3 className={styles.modalTitle}>Add to the group list</h3>
-
-        <div className={styles.field}>
-          <label className={styles.label}>Type</label>
-          <div className={styles.typeRow}>
-            {['dish', 'restaurant', 'recipe'].map(t => (
-              <button
-                key={t}
-                className={`${styles.typeBtn} ${itemType === t ? styles.typeBtnActive : ''}`}
-                onClick={() => handleTypeChange(t)}
-              >
-                <span>{TYPE_ICONS[t]}</span> {TYPE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>
-            {itemType === 'dish' ? 'Dish name' : itemType === 'restaurant' ? 'Restaurant name' : 'Recipe name'}
-          </label>
-          <div className={styles.searchWrap}>
-            <input
-              className={styles.input}
-              placeholder={
-                itemType === 'dish' ? 'e.g. Chicken Biryani'
-                : itemType === 'restaurant' ? 'e.g. Paradise Biryani'
-                : 'e.g. Amma\u2019s dal'
-              }
-              value={name}
-              autoFocus
-              onChange={e => { setName(e.target.value); setErr(''); fetchSuggestions(e.target.value, itemType) }}
-            />
-            {showDropdown && (
-              <div className={styles.suggestions}>
-                {suggestions.map((s, i) => (
-                  <button key={i} className={styles.suggestionItem} onClick={() => selectSuggestion(s)}>
-                    <span>{s.name}</span>
-                    {s.restaurant_name && <span className={styles.suggestionSub}>at {s.restaurant_name}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {itemType === 'dish' && (
-          <div className={styles.field}>
-            <label className={styles.label}>Restaurant</label>
-            <input
-              className={styles.input}
-              placeholder="e.g. Paradise, Secunderabad"
-              value={restaurant}
-              onChange={e => { setRestaurant(e.target.value); setErr('') }}
-            />
-          </div>
-        )}
-
-        <div className={styles.field}>
-          <label className={styles.label}>Note <span className={styles.optional}>optional</span></label>
-          <input
-            className={styles.input}
-            placeholder="Tell the group why"
-            value={note}
-            onChange={e => setNote(e.target.value)}
-          />
-        </div>
-
-        {err && <p className={styles.errText}>{err}</p>}
-
-        <div className={styles.modalActions}>
-          <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button className={styles.primaryBtn} onClick={submit} disabled={saving}>
-            {saving ? 'Adding…' : 'Add item'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
    Group list detail
    ══════════════════════════════════════════════════════════════════════════ */
 function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaurant, onViewUser, currentEmail }) {
@@ -490,10 +341,11 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
   return (
     <div className={styles.page}>
       {showAdd && (
-        <AddItemModal
-          listId={listId}
+        <AddListItemModal
+          endpoint={`/api/group-lists/${listId}/items`}
+          title="Add to the group list"
           onClose={() => setShowAdd(false)}
-          onAdded={item => { setItems(p => [...p, item]); setShowAdd(false); onChanged?.() }}
+          onAdded={() => { load(); setShowAdd(false); onChanged?.() }}
         />
       )}
       {showInvite && (

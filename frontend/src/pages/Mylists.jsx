@@ -4,6 +4,7 @@ import SortMenu from '../components/SortMenu'
 import ListToolbar from '../components/ListToolbar'
 import { LIST_SORTS, sortListItems } from '../utils/listSort'
 import { EMPTY_FILTERS, filterListItems } from '../utils/listFilter'
+import AddListItemModal from '../components/AddListItemModal'
 
 /* ── Icons ── */
 function ListsIcon() {
@@ -138,174 +139,6 @@ function CreateListModal({ onClose, onCreated }) {
   )
 }
 
-/* ── Add Item Modal ── */
-function AddItemModal({ listId, onClose, onAdded }) {
-  const [itemType, setItemType]     = useState('dish')
-  const [name, setName]             = useState('')
-  const [restaurant, setRestaurant] = useState('')
-  const [note, setNote]             = useState('')
-  const [saving, setSaving]         = useState(false)
-  const [err, setErr]               = useState('')
-  const [suggestions, setSuggestions] = useState([])
-  const [showDropdown, setShowDropdown] = useState(false)
-  const debounceRef = useRef(null)
-
-  const token = localStorage.getItem('token')
-
-  const fetchSuggestions = useCallback((q, type) => {
-    if (type === 'recipe' || !q.trim()) { setSuggestions([]); setShowDropdown(false); return }
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/search/dishes-restaurants?q=${encodeURIComponent(q)}&item_type=${type}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        if (res.ok) {
-          const data = await res.json()
-          setSuggestions(data)
-          setShowDropdown(data.length > 0)
-        }
-      } catch {}
-    }, 250)
-  }, [token])
-
-  const handleTypeChange = (t) => {
-    setItemType(t)
-    setName('')
-    setRestaurant('')
-    setSuggestions([])
-    setShowDropdown(false)
-    setErr('')
-  }
-
-  const handleNameChange = (val) => {
-    setName(val)
-    setErr('')
-    fetchSuggestions(val, itemType)
-  }
-
-  const selectSuggestion = (s) => {
-    setName(s.name)
-    if (s.restaurant_name) setRestaurant(s.restaurant_name)
-    setSuggestions([])
-    setShowDropdown(false)
-  }
-
-  const submit = async () => {
-    if (!name.trim()) { setErr('Please enter a name.'); return }
-    if (itemType === 'dish' && !restaurant.trim()) { setErr('Please enter the restaurant name.'); return }
-    setSaving(true); setErr('')
-    try {
-      const res = await fetch(`/api/lists/${listId}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          item_type: itemType,
-          name: name.trim(),
-          restaurant_name: itemType === 'dish' ? restaurant.trim() : null,
-          note: note.trim() || null,
-        }),
-      })
-      if (!res.ok) { const d = await res.json(); setErr(d.detail || 'Failed'); return }
-      const item = await res.json()
-      onAdded(item)
-    } catch { setErr('Could not connect to server.') }
-    finally { setSaving(false) }
-  }
-
-  return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <h3 className={styles.modalTitle}>Add to list</h3>
-
-        <div className={styles.field}>
-          <label className={styles.label}>Type</label>
-          <div className={styles.typeRow}>
-            {['dish', 'restaurant', 'recipe'].map(t => (
-              <button
-                key={t}
-                className={`${styles.typeBtn} ${itemType === t ? styles.typeBtnActive : ''}`}
-                onClick={() => handleTypeChange(t)}
-              >
-                {TYPE_ICONS[t]} {TYPE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>
-            {itemType === 'dish' ? 'Dish name' : itemType === 'restaurant' ? 'Restaurant name' : 'Recipe name'}
-          </label>
-          <div className={styles.searchWrap}>
-            <input
-              className={styles.input}
-              placeholder={
-                itemType === 'dish' ? 'e.g. Chicken Biryani'
-                : itemType === 'restaurant' ? 'e.g. Paradise Biryani'
-                : "e.g. Grandma's Dal Makhani"
-              }
-              value={name}
-              onChange={e => handleNameChange(e.target.value)}
-              autoFocus
-              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-              onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
-            />
-            {showDropdown && (
-              <div className={styles.dropdown}>
-                {suggestions.map((s, i) => (
-                  <button
-                    key={i}
-                    className={styles.dropdownItem}
-                    onMouseDown={() => selectSuggestion(s)}
-                  >
-                    <span className={styles.dropdownName}>{s.name}</span>
-                    {s.restaurant_name && (
-                      <span className={styles.dropdownSub}>{s.restaurant_name}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {itemType === 'dish' && (
-          <div className={styles.field}>
-            <label className={styles.label}>Restaurant</label>
-            <input
-              className={styles.input}
-              placeholder="e.g. Paradise Biryani"
-              value={restaurant}
-              onChange={e => { setRestaurant(e.target.value); setErr('') }}
-            />
-          </div>
-        )}
-
-        <div className={styles.field}>
-          <label className={styles.label}>Note <span className={styles.optional}>(optional)</span></label>
-          <input
-            className={styles.input}
-            placeholder="e.g. The spicy variant is 🔥"
-            value={note}
-            onChange={e => setNote(e.target.value)}
-          />
-        </div>
-
-        {err && <p className={styles.errText}>{err}</p>}
-
-        <div className={styles.modalActions}>
-          <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button className={styles.primaryBtn} onClick={submit} disabled={saving}>
-            {saving ? 'Adding…' : 'Add item'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 /* ── List Detail View ── */
 function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant }) {
   const [items, setItems]       = useState([])
@@ -346,8 +179,9 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
   return (
     <div className={styles.page}>
       {showAdd && (
-        <AddItemModal
-          listId={list.id}
+        <AddListItemModal
+          endpoint={`/api/lists/${list.id}/items`}
+          title="Add to list"
           onClose={() => setShowAdd(false)}
           onAdded={() => { fetchItems(); setShowAdd(false) }}
         />
