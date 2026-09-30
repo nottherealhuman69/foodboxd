@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import SortMenu from '../components/SortMenu'
-import { LIST_SORTS, sortListItems } from '../utils/listSort'
 import { apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
+import ListToolbar from '../components/ListToolbar'
+import { LIST_SORTS, sortListItems } from '../utils/listSort'
+import { EMPTY_FILTERS, filterListItems } from '../utils/listFilter'
 import shared from '../components/shared.module.css'
 import styles from './Mylists.module.css'
 
@@ -13,8 +14,13 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
-  const [sort, setSort] = useState('list')
-  const sorted = useMemo(() => sortListItems(items, sort), [items, sort])
+  const [sort,    setSort]    = useState('list')
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+
+  const visible = useMemo(
+    () => sortListItems(filterListItems(items, filters), sort),
+    [items, filters, sort]
+  )
 
   useEffect(() => {
     setLoading(true)
@@ -48,10 +54,25 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
       )}
 
       {!loading && !error && items.length > 0 && (
-          <>
-            <SortMenu options={LIST_SORTS} value={sort} onChange={setSort} />
+        <>
+          <ListToolbar
+            items={items}
+            filters={filters}
+            onFiltersChange={setFilters}
+            sort={sort}
+            onSortChange={setSort}
+            sortOptions={LIST_SORTS}
+            shownCount={visible.length}
+          />
+
+          {visible.length === 0 ? (
+            <div className={styles.empty}>
+              <p className={styles.emptyTitle}>No items match these filters</p>
+              <button className={styles.addBtn} onClick={() => setFilters(EMPTY_FILTERS)}>Clear filters</button>
+            </div>
+          ) : (
             <div className={styles.itemsList}>
-              {sorted.map((item, idx) => {
+              {visible.map((item, idx) => {
                 const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
                 const handleClick = () => {
                   if (item.item_type === 'dish' && item.restaurant_name) {
@@ -67,35 +88,36 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
                     style={{ cursor: clickable ? 'pointer' : 'default' }}
                     onClick={clickable ? handleClick : undefined}
                   >
-                <span className={styles.itemIndex}>{idx + 1}</span>
-                <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
-                                <div className={styles.itemBody}>
-                                  {item.avg_rating != null && (
-                      <p className={styles.itemSub}>
-                        ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
-                        {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
-                      </p>
-                    )}
-                  <p className={styles.itemName}>{item.name}</p>
-                  {item.restaurant_name && (
-                    <p className={styles.itemSub}>
-                      at{' '}
-                      <button
-                        type="button"
-                        className={styles.restaurantLink}
-                        onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
-                      >
-                        {item.restaurant_name}
-                      </button>
-                    </p>
-                  )}
-                  {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
-                </div>
-                <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
-              </div>
-            )
-          })}
-        </div>
+                    <span className={styles.itemIndex}>{idx + 1}</span>
+                    <div className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</div>
+                    <div className={styles.itemBody}>
+                      <p className={styles.itemName}>{item.name}</p>
+                      {item.restaurant_name && (
+                        <p className={styles.itemSub}>
+                          at{' '}
+                          <button
+                            type="button"
+                            className={styles.restaurantLink}
+                            onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+                          >
+                            {item.restaurant_name}
+                          </button>
+                        </p>
+                      )}
+                      {item.avg_rating != null && (
+                        <p className={styles.itemSub}>
+                          ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
+                          {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
+                        </p>
+                      )}
+                      {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
+                    </div>
+                    <span className={styles.itemTypePill}>{TYPE_LABELS[item.item_type]}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
     </div>

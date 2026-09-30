@@ -3,7 +3,9 @@ import { apiFetch } from '../hooks/useApi'
 import PageState from '../components/PageState'
 import styles from './GroupLists.module.css'
 import SortMenu from '../components/SortMenu'
+import ListToolbar from '../components/ListToolbar'
 import { GROUP_LIST_SORTS, sortListItems } from '../utils/listSort'
+import { EMPTY_FILTERS, filterListItems } from '../utils/listFilter'
 
 /* ── Icons ── */
 function GroupIcon() {
@@ -419,8 +421,12 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
   const [showAdd, setShowAdd]       = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [removing, setRemoving]     = useState({})
-  const [sort, setSort] = useState('list')
-  const sorted = useMemo(() => sortListItems(items, sort, GROUP_LIST_SORTS), [items, sort])
+  const [sort,    setSort]    = useState('list')
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const visible = useMemo(
+    () => sortListItems(filterListItems(items, filters), sort, GROUP_LIST_SORTS),
+    [items, filters, sort]
+  )
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -579,65 +585,82 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
           <p className={styles.emptyHint}>Add the first dish or restaurant — everyone in the group will see it.</p>
           <button className={styles.addBtn} onClick={() => setShowAdd(true)}><PlusIcon /> Add the first item</button>
         </div>
-      ) : (
-        <>
-        <SortMenu options={GROUP_LIST_SORTS} value={sort} onChange={setSort} />
-        <div className={styles.itemsList}>
-          {sorted.map((item, idx) => {
-            const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
-            const open = () => {
-              if (item.item_type === 'dish' && item.restaurant_name) onViewDish?.(item.name, item.restaurant_name)
-              else if (item.item_type === 'restaurant') onViewRestaurant?.(item.name)
-            }
-            const canRemove = isOwner || item.added_by === currentEmail
-            return (
-              <div
-                key={item.id}
-                className={styles.itemCard}
-                style={{ cursor: clickable ? 'pointer' : 'default' }}
-                onClick={clickable ? open : undefined}
-              >
-                <span className={styles.itemIndex}>{idx + 1}</span>
-                <span className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</span>
-                <div className={styles.itemBody}>
-                  {item.avg_rating != null && (
-                    <p className={styles.itemSub}>
-                      ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
-                      {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
-                    </p>
+) : (
+  <>
+    <ListToolbar
+      items={items}
+      filters={filters}
+      onFiltersChange={setFilters}
+      sort={sort}
+      onSortChange={setSort}
+      sortOptions={GROUP_LIST_SORTS}
+      shownCount={visible.length}
+      showAddedBy
+    />
+
+    {visible.length === 0 ? (
+      <div className={styles.empty}>
+        <p className={styles.emptyTitle}>No items match these filters</p>
+        <button className={styles.addBtn} onClick={() => setFilters(EMPTY_FILTERS)}>Clear filters</button>
+      </div>
+        ) : (
+          <div className={styles.itemsList}>
+            {visible.map((item, idx) => {
+              const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
+              const open = () => {
+                if (item.item_type === 'dish' && item.restaurant_name) onViewDish?.(item.name, item.restaurant_name)
+                else if (item.item_type === 'restaurant') onViewRestaurant?.(item.name)
+              }
+              const canRemove = isOwner || item.added_by === currentEmail
+              return (
+                <div
+                  key={item.id}
+                  className={styles.itemCard}
+                  style={{ cursor: clickable ? 'pointer' : 'default' }}
+                  onClick={clickable ? open : undefined}
+                >
+                  <span className={styles.itemIndex}>{idx + 1}</span>
+                  <span className={styles.itemTypeIcon}>{TYPE_ICONS[item.item_type]}</span>
+                  <div className={styles.itemBody}>
+                    <p className={styles.itemName}>{item.name}</p>
+                    {item.restaurant_name && (
+                      <p className={styles.itemSub}>
+                        at{' '}
+                        <button
+                          type="button"
+                          className={styles.restaurantLink}
+                          onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
+                        >
+                          {item.restaurant_name}
+                        </button>
+                      </p>
+                    )}
+                    {item.avg_rating != null && (
+                      <p className={styles.itemSub}>
+                        ★ {item.avg_rating.toFixed(1)} · {item.review_count} review{item.review_count !== 1 ? 's' : ''}
+                        {item.my_rating != null && ` · you: ${item.my_rating.toFixed(1)}`}
+                      </p>
+                    )}
+                    {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
+                    <p className={styles.addedBy}>added by @{item.added_by_username}</p>
+                  </div>
+                  {canRemove && (
+                    <button
+                      className={styles.removeBtn}
+                      onClick={e => { e.stopPropagation(); removeItem(item.id) }}
+                      disabled={!!removing[item.id]}
+                      title="Remove"
+                    >
+                      {removing[item.id] ? <span className={styles.removingDot} /> : <TrashIcon />}
+                    </button>
                   )}
-                  <p className={styles.itemName}>{item.name}</p>
-                  {item.restaurant_name && (
-                    <p className={styles.itemSub}>
-                      at{' '}
-                      <button
-                        type="button"
-                        className={styles.restaurantLink}
-                        onClick={e => { e.stopPropagation(); onViewRestaurant?.(item.restaurant_name) }}
-                      >
-                        {item.restaurant_name}
-                      </button>
-                    </p>
-                  )}
-                  {item.note && <p className={styles.itemNote}>"{item.note}"</p>}
-                  <p className={styles.addedBy}>added by @{item.added_by_username}</p>
                 </div>
-                {canRemove && (
-                  <button
-                    className={styles.removeBtn}
-                    onClick={e => { e.stopPropagation(); removeItem(item.id) }}
-                    disabled={!!removing[item.id]}
-                    title="Remove"
-                  >
-                    {removing[item.id] ? <span className={styles.removingDot} /> : <TrashIcon />}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        </>
-      )}
+              )
+            })}
+          </div>
+        )}
+      </>
+    )}
 
       <div className={styles.dangerRow}>
         {isOwner
