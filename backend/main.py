@@ -691,7 +691,7 @@ def _fork_source(cur, kind: str, forked_from_id):
 
 
 def _check_fork_source(cur, kind: str, fork_id, email: str):
-    """You can only fork a post you're tagged in."""
+    """You can only fork a post you're tagged in, once, and not if you've reposted it."""
     if fork_id is None:
         return None
     if kind == "review":
@@ -700,9 +700,25 @@ def _check_fork_source(cur, kind: str, fork_id, email: str):
         cur.execute("SELECT id FROM meals WHERE id = %s", (fork_id,))
     if not cur.fetchone():
         raise HTTPException(status_code=404, detail="Original post not found")
-    if not _repost_state(cur, kind, fork_id, email)["is_tagged"]:
+
+    state = _repost_state(cur, kind, fork_id, email)
+    if not state["is_tagged"]:
         raise HTTPException(status_code=403, detail="You can only fork posts you're tagged in")
+    if _my_fork(cur, kind, fork_id, email):
+        raise HTTPException(status_code=409, detail="You've already forked this post")
+    if state["user_reposted"]:
+        raise HTTPException(status_code=409, detail="You've reposted this post. Undo the repost to fork it instead")
     return fork_id
+
+def _my_fork(cur, kind: str, post_id: int, email: str):
+    """The caller's fork of this post, if they've made one."""
+    table = "dish_reviews" if kind == "review" else "meals"
+    cur.execute(
+        f"SELECT id FROM {table} WHERE forked_from_id = %s AND user_email = %s ORDER BY id LIMIT 1",
+        (post_id, email),
+    )
+    row = cur.fetchone()
+    return {"kind": kind, "id": row["id"]} if row else None
 
 def _feed_review(cur, review_id: int, viewer: str):
     cur.execute("""
@@ -987,6 +1003,7 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         tagged = _post_tags(cur, "review", review_id)
         repost = _repost_state(cur, "review", review_id, email)
         fork_src = _fork_source(cur, "review", row["forked_from_id"])
+        my_fork  = _my_fork(cur, "review", review_id, email)
     return {
         **serialise_review(row),
         "username":      username_from(row["user_email"]),
@@ -997,7 +1014,8 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         "meal_id":         row.get("meal_id"),
         "tagged":        tagged,
         **repost,
-        "forked_from":    fork_src
+        "forked_from":    fork_src,
+        "my_fork":        my_fork,
     }
 
 @app.post("/posts/{post_type}/{post_id}/repost")
@@ -1009,7 +1027,12 @@ def toggle_repost(post_type: str, post_id: int,
         if post_type == "review":
             cur.execute("SELECT id FROM dish_reviews WHERE id = %s AND meal_id IS NULL", (post_id,))
         else:
-            cur.execute("SELECT id FROM meals WHERE id = %s", (post_id,))
+            if _my_fork(cur, post_type, post_id, email):
+                raise HTTPException(status_code=409, detail="You've already forked this post")
+            cur.execute("""INSERT INTO post_reposts (post_type, post_id, reposter_email)
+                           VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (post_type, post_id, email))
+            reposted = True
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Post not found")
 
@@ -2441,7 +2464,8 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
         dish_rows = cur.fetchall()
         tagged = _post_tags(cur, "meal", meal_id)
         repost = _repost_state(cur, "meal", meal_id, email)
-        fork_src = _fork_source(cur, "meal", row["forked_from_id"])  
+        fork_src = _fork_source(cur, "meal", row["forked_from_id"])
+        my_fork = _my_fork(cur, "meal", meal_id, email)  
     return {
         **serialise_meal(row, dish_rows),
         "like_count":    int(row["like_count"]),
@@ -2450,6 +2474,7 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
         "tagged":        tagged,
         **repost,
         "forked_from":   fork_src,
+        "my_fork":       my_fork,
     }
 
 

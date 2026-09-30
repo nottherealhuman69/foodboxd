@@ -66,3 +66,23 @@ export function ForkBanner({ source, onClear }) {
     </div>
   )
 }
+/**
+ * Replaces Fork + Repost once you've forked a post.
+ *
+ * props:
+ *  - fork: { kind, id }
+ *  - onViewPost?(kind, id)
+ */
+export function ViewForkButton({ fork, onViewPost }) {
+  if (!fork) return null
+  return (
+    <button
+      type="button"
+      className={`${styles.btn} ${styles.done}`}
+      onClick={(e) => { e.stopPropagation(); onViewPost?.(fork.kind, fork.id) }}
+      title="Open your version of this post"
+    >
+      🍴 Forked · View yours
+    </button>
+  )
+}

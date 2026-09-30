@@ -10,7 +10,8 @@ import MealForm from './MealForm'
 import ShareButton from '../components/ShareButton'
 import RepostButton from '../components/RepostButton'
 import { mealUrl } from '../utils/links'
-import ForkButton, { ForkedFrom } from '../components/ForkButton'
+import ForkButton, { ForkedFrom, ViewForkButton } from '../components/ForkButton'
+
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -191,10 +192,18 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
           {meal.user_liked ? '❤️' : '🤍'} {meal.like_count}
         </button>
         <ShareButton url={mealUrl(meal.id)} />
-        {meal.is_tagged && (
-          <RepostButton postType="meal" postId={meal.id} initialReposted={meal.user_reposted} />
-        )}
-        {meal.is_tagged && <ForkButton onFork={() => onFork?.(meal)} />}
+          {meal.is_tagged && !meal.my_fork && (
+            <RepostButton
+              postType="meal"
+              postId={meal.id}
+              initialReposted={meal.user_reposted}
+              onChange={(reposted) => setMeal(prev => ({ ...prev, user_reposted: reposted }))}
+            />
+          )}
+          {meal.is_tagged && !meal.my_fork && !meal.user_reposted && (
+            <ForkButton onFork={() => onFork?.(meal)} />
+          )}
+          <ViewForkButton fork={meal.my_fork} onViewPost={onViewPost} />
       </div>
 
       <div className={styles.tabs}>

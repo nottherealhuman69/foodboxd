@@ -10,7 +10,7 @@ import { reviewUrl } from '../utils/links'
 import shared from '../components/shared.module.css'
 import styles from './ReviewPage.module.css'
 import RepostButton from '../components/RepostButton'
-import ForkButton, { ForkedFrom } from '../components/ForkButton'
+import ForkButton, { ForkedFrom, ViewForkButton } from '../components/ForkButton'
 
 const TABS = [
   { id: 'likes',    label: 'Likes' },
@@ -231,10 +231,18 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
           {review.user_liked ? '❤️' : '🤍'} {review.like_count}
         </button>
         <ShareButton url={reviewUrl(review.id)} />
-        {review.is_tagged && (
-          <RepostButton postType="review" postId={review.id} initialReposted={review.user_reposted} />
-        )}
-        {review.is_tagged && <ForkButton onFork={() => onFork?.(review)} />}
+          {review.is_tagged && !review.my_fork && (
+            <RepostButton
+              postType="review"
+              postId={review.id}
+              initialReposted={review.user_reposted}
+              onChange={(reposted) => setReview(prev => ({ ...prev, user_reposted: reposted }))}
+            />
+          )}
+          {review.is_tagged && !review.my_fork && !review.user_reposted && (
+            <ForkButton onFork={() => onFork?.(review)} />
+          )}
+          <ViewForkButton fork={review.my_fork} onViewPost={onViewPost} />
         {isOwner && (
           <button className={styles.editBtn} onClick={() => setEditing(true)}>Edit</button>
         )}
