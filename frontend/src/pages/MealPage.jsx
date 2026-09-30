@@ -159,8 +159,13 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
       {meal.tagged?.length > 0 && (
         <p style={{ marginTop: 8 }}>
           <TaggedWith tagged={meal.tagged} onViewUser={onViewUser} />
-          <ForkedFrom source={meal.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
         </p>
+      )}
+
+      {meal.forked_from && (
+        <div style={{ marginTop: 8 }}>
+          <ForkedFrom source={meal.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
+        </div>
       )}
 
       {meal.review && <p className={styles.reviewText}>{meal.review}</p>}

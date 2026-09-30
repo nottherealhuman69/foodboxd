@@ -357,6 +357,7 @@ export default function Dashboard() {
                                     onViewUser={viewUser}
                                     onViewReview={openReview}
                                     onViewMeal={openMeal}
+                                    onViewPost={openPost}
                                   />}
         {active === 'reviews' && <Reviews
                                     entries={entries}

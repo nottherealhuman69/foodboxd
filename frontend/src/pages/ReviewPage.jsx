@@ -209,8 +209,13 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
       {review.tagged?.length > 0 && (
         <p style={{ marginTop: 8 }}>
           <TaggedWith tagged={review.tagged} onViewUser={onViewUser} />
-          <ForkedFrom source={review.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
         </p>
+      )}
+
+      {review.forked_from && (
+        <div style={{ marginTop: 8 }}>
+          <ForkedFrom source={review.forked_from} onViewPost={onViewPost} onViewUser={onViewUser} />
+        </div>
       )}
 
       {review.review && <p className={styles.reviewText}>{review.review}</p>}

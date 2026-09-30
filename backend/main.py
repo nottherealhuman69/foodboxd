@@ -721,7 +721,8 @@ def _feed_review(cur, review_id: int, viewer: str):
         return None
     return {**serialise_review(r), "kind": "review",
             "like_count": int(r["like_count"]), "comment_count": int(r["comment_count"]),
-            "user_liked": bool(r["user_liked"]), "tagged": _post_tags(cur, "review", r["id"])}
+            "user_liked": bool(r["user_liked"]), "tagged": _post_tags(cur, "review", r["id"]),
+            "forked_from": _fork_source(cur, "review", r["forked_from_id"])}
 
 
 def _feed_meal(cur, meal_id: int, viewer: str):
@@ -743,7 +744,8 @@ def _feed_meal(cur, meal_id: int, viewer: str):
                 (meal_id,))
     return {**serialise_meal(m, cur.fetchall()),
             "like_count": int(m["like_count"]), "comment_count": int(m["comment_count"]),
-            "user_liked": bool(m["user_liked"]), "tagged": _post_tags(cur, "meal", m["id"])}
+            "user_liked": bool(m["user_liked"]), "tagged": _post_tags(cur, "meal", m["id"]),
+            "forked_from": _fork_source(cur, "meal", m["forked_from_id"])}
 
 
 def _reposts_by(cur, reposter_emails: list, viewer: str, post_type=None, limit: int = 50) -> list:
@@ -1400,6 +1402,7 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
             SELECT
                 r.id, r.user_email, r.dish_name, r.type, r.restaurant_name,
                 r.recipe, r.recipe_owner_email, r.rating, r.review, r.logged_at,
+                r.forked_from_id,
                 COUNT(DISTINCT l.id) AS like_count,
                 COUNT(DISTINCT c.id) AS comment_count,
                 COALESCE(BOOL_OR(l.user_email = %s), FALSE) AS user_liked
@@ -1419,6 +1422,7 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
             "comment_count": int(r["comment_count"]),
             "user_liked":    bool(r["user_liked"]),
             "tagged":        _post_tags(cur, "review", r["id"]),
+            "forked_from":   _fork_source(cur, "review", r["forked_from_id"]),
         } for r in review_rows]
 
         cur.execute(f"""
@@ -1448,6 +1452,7 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
                 "comment_count": int(m["comment_count"]),
                 "user_liked":    bool(m["user_liked"]),
                 "tagged":        _post_tags(cur, "meal", m["id"]),
+                "forked_from":   _fork_source(cur, "meal", m["forked_from_id"]),
             })
             reposts = _reposts_by(cur, friend_emails, email)
 

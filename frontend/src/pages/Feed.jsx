@@ -8,6 +8,7 @@ import styles from './Feed.module.css'
 import CommentThread from '../components/CommentThread'
 import { TaggedWith } from '../components/TagPicker'
 import { RepostedBy } from '../components/RepostButton'
+import { ForkedFrom } from '../components/ForkButton'
 
 function timeAgo(iso) {
   const diff  = Date.now() - new Date(iso).getTime()
@@ -169,7 +170,15 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
             {isMeal ? '🍽️ Meal' : item.type === 'homemade' ? '🏠 Homemade' : '🍽️ Restaurant'}
           </span>
         </div>
-
+          {item.forked_from && (
+            <div style={{ marginBottom: 6 }}>
+              <ForkedFrom source={item.forked_from} onViewPost={(kind, id) =>
+                kind === 'meal'
+                  ? onViewMeal?.(id, 'comments')
+                  : onViewReview?.(id, 'comments')
+              } onViewUser={onViewUser} />
+            </div>
+          )}
         <div className={styles.dishRow}>
           <button
             className={styles.dishName}
