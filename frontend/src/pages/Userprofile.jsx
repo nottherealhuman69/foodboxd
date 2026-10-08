@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../hooks/useApi'
-import { normaliseReview, avgRating } from '../utils/reviews'
+import { normaliseReview, avgRating, openDishFor, hasDishPage } from '../utils/reviews'
 import { StarRating } from '../components/StarRating'
 import { StatGrid, StatCard } from '../components/StatCard'
 import FriendButton from '../components/FriendButton'
@@ -186,11 +186,11 @@ function ReviewCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
     >
       <div className={shared.cardTop}>
         <div>
-          {entry.restaurantName ? (
+          {hasDishPage(entry) ? (
             <button
               type="button"
               className={styles.dishNameLink}
-              onClick={e => { e.stopPropagation(); onViewDish?.(entry.dishName, entry.restaurantName) }}
+              onClick={e => { e.stopPropagation(); openDishFor(entry, onViewDish) }}
             >
               {entry.dishName}
             </button>
@@ -218,7 +218,15 @@ function ReviewCard({ entry, onViewReview, onViewDish, onViewRestaurant }) {
       </div>
       {entry.type === 'homemade' && entry.recipeOwner && (
         <p className={shared.reviewText} style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-          Recipe by @{entry.recipeOwner}
+                    {' · '}
+          <button
+            type="button"
+            className={styles.dishNameLink}
+            style={{ fontSize: 'inherit' }}
+            onClick={e => { e.stopPropagation(); openDishFor(entry, onViewDish) }}
+          >
+            View recipe →
+          </button>
         </p>
       )}
       {entry.review && <p className={shared.reviewText}>{entry.review}</p>}

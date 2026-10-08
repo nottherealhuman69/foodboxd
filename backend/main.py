@@ -247,6 +247,37 @@ def create_tables():
             CREATE UNIQUE INDEX IF NOT EXISTS list_items_unique_idx
             ON list_items (list_id, item_type, name, COALESCE(restaurant_name, ''))
         """)
+        # Old databases have list_items.list_id pointing at the retired user_lists
+        # table. Repoint it at custom_lists. NOT VALID leaves existing rows alone.
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'list_items_list_id_fkey'
+                      AND conrelid = 'list_items'::regclass
+                      AND confrelid <> 'custom_lists'::regclass
+                ) THEN
+                    ALTER TABLE list_items DROP CONSTRAINT list_items_list_id_fkey;
+                    ALTER TABLE list_items
+                        ADD CONSTRAINT list_items_list_id_fkey
+                        FOREIGN KEY (list_id) REFERENCES custom_lists(id)
+                        ON DELETE CASCADE NOT VALID;
+                END IF;
+            END $$;
+        """)
+        cur.execute("ALTER TABLE list_items       ADD COLUMN IF NOT EXISTS recipe_owner_email VARCHAR(255)")
+        cur.execute("ALTER TABLE group_list_items ADD COLUMN IF NOT EXISTS recipe_owner_email VARCHAR(255)")
+        # Older recipe items have no owner: assume whoever added them
+        cur.execute("""
+            UPDATE list_items li SET recipe_owner_email = cl.user_email
+            FROM custom_lists cl
+            WHERE li.list_id = cl.id AND li.item_type = 'recipe' AND li.recipe_owner_email IS NULL
+        """)
+        cur.execute("""
+            UPDATE group_list_items SET recipe_owner_email = added_by
+            WHERE item_type = 'recipe' AND recipe_owner_email IS NULL
+        """)
 
         # ── Public/private accounts ──────────────────────────────────────────
         # FALSE = public (anyone can follow instantly); TRUE = private (follow
@@ -423,6 +454,7 @@ class MealCreate(BaseModel):
 
 class ReviewOut(BaseModel):
     id: int
+    user_email: Optional[str] = None
     dish_name: str
     type: str
     restaurant_name: Optional[str]
@@ -483,12 +515,14 @@ class ListItemCreate(BaseModel):
     name: str
     restaurant_name: Optional[str] = None
     note: Optional[str] = None
+    recipe_owner_email: Optional[str] = None
 
 
 class GroupListCreate(BaseModel):
     name: str
     invite_emails: List[EmailStr] = []
     is_public: bool = False
+    recipe_owner_email: Optional[str] = None
 
  
 class GroupInviteBody(BaseModel):
@@ -1822,11 +1856,12 @@ def add_list_item(list_id: int, body: ListItemCreate, email: str = Depends(get_c
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="This item is already in the list")
 
+        recipe_owner = (body.recipe_owner_email or email) if body.item_type == "recipe" else None
         cur.execute(
-            """INSERT INTO list_items (list_id, item_type, name, restaurant_name, note)
-               VALUES (%s, %s, %s, %s, %s) RETURNING *""",
+            """INSERT INTO list_items (list_id, item_type, name, restaurant_name, note, recipe_owner_email)
+               VALUES (%s, %s, %s, %s, %s, %s) RETURNING *""",
             (list_id, body.item_type, body.name.strip(), restaurant_name,
-             body.note.strip() if body.note else None)
+             body.note.strip() if body.note else None, recipe_owner)
         )
         row = cur.fetchone()
         db.commit()
@@ -2059,11 +2094,12 @@ def add_group_list_item(list_id: int, body: GroupListItemCreate,
                 status_code=409,
                 detail=f"@{username_from(dupe['added_by'])} already added this to the list"
             )
+        recipe_owner = (body.recipe_owner_email or email) if body.item_type == "recipe" else None
         cur.execute("""
-            INSERT INTO group_list_items (group_list_id, added_by, item_type, name, restaurant_name, note)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING *
+            INSERT INTO group_list_items (group_list_id, added_by, item_type, name, restaurant_name, note, recipe_owner_email)
+            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
         """, (list_id, email, body.item_type, body.name.strip(), restaurant_name,
-              body.note.strip() if body.note else None))
+              body.note.strip() if body.note else None, recipe_owner))
         row = cur.fetchone()
         db.commit()
     return {**dict(row), "added_by_username": username_from(email)}

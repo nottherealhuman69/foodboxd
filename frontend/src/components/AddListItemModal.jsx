@@ -25,6 +25,10 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
   const [saving,         setSaving]         = useState(false)
   const [err,            setErr]            = useState('')
 
+  const [recipeSource,     setRecipeSource]     = useState('mine')
+  const [recipeOwnerEmail, setRecipeOwnerEmail] = useState('')
+  const [friends,          setFriends]          = useState([])
+
   // Restaurant catalog, loaded once.
   useEffect(() => {
     apiFetch('/api/restaurants')
@@ -34,6 +38,13 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
       .finally(() => setLoadingCatalog(false))
   }, [])
 
+
+  useEffect(() => {
+    apiFetch('/api/friends')
+      .then(r => r.ok ? r.json() : [])
+      .then(setFriends)
+      .catch(() => {})
+  }, [])
   // Menu for the picked restaurant (dish type only; a new restaurant has no menu).
   useEffect(() => {
     if (itemType !== 'dish' || !restaurantName.trim() || newRestaurant) { setMenu([]); return }
@@ -49,6 +60,7 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
     setItemType(t)
     setRestaurantName(''); setDishName(''); setRecipeName('')
     setNewRestaurant(false); setNewDish(false); setErr('')
+    setRecipeSource('mine'); setRecipeOwnerEmail('')
   }
 
   const toggleNewRestaurant = () => {
@@ -83,6 +95,9 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
         : 'Enter a recipe name.')
       return
     }
+    if (itemType === 'recipe' && recipeSource === 'other' && !recipeOwnerEmail) {
+      setErr('Pick whose recipe it is.'); return
+    }
 
     setSaving(true); setErr('')
     try {
@@ -93,6 +108,7 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
           name:            name.trim(),
           restaurant_name: itemType === 'dish' ? restaurantName.trim() : null,
           note:            note.trim() || null,
+          recipe_owner_email: itemType === 'recipe' && recipeSource === 'other' ? recipeOwnerEmail : null,
         }),
       })
       if (!res.ok) {
@@ -211,6 +227,29 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
               onChange={e => { setRecipeName(e.target.value); setErr('') }}
               autoFocus
             />
+            <label className={styles.label} style={{ marginTop: 12 }}>Whose recipe?</label>
+            <div className={cr.toggle}>
+              <button type="button"
+                className={`${cr.toggleBtn} ${recipeSource === 'mine' ? cr.toggleActive : ''}`}
+                onClick={() => { setRecipeSource('mine'); setRecipeOwnerEmail('') }}>
+                Mine
+              </button>
+              <button type="button"
+                className={`${cr.toggleBtn} ${recipeSource === 'other' ? cr.toggleActive : ''}`}
+                onClick={() => setRecipeSource('other')}>
+                A friend's
+              </button>
+            </div>
+            {recipeSource === 'other' && (
+              <select className={styles.input} style={{ marginTop: 8 }}
+                value={recipeOwnerEmail}
+                onChange={e => { setRecipeOwnerEmail(e.target.value); setErr('') }}>
+                <option value="">Select a friend…</option>
+                {friends.map(f => (
+                  <option key={f.email} value={f.email}>@{f.email.split('@')[0]}</option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 

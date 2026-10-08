@@ -73,12 +73,16 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
           ) : (
             <div className={styles.itemsList}>
               {visible.map((item, idx) => {
-                const clickable = (item.item_type === 'dish' && item.restaurant_name) || item.item_type === 'restaurant'
+                const clickable = (item.item_type === 'dish' && item.restaurant_name)
+               || item.item_type === 'restaurant'
+               || (item.item_type === 'recipe' && item.recipe_owner_email)
                 const handleClick = () => {
                   if (item.item_type === 'dish' && item.restaurant_name) {
                     onViewDish?.(item.name, item.restaurant_name)
                   } else if (item.item_type === 'restaurant') {
                     onViewRestaurant?.(item.name)
+                  } else if (item.item_type === 'recipe' && item.recipe_owner_email) {
+                    onViewDish?.(item.name, null, item.recipe_owner_email)
                   }
                 }
                 return (

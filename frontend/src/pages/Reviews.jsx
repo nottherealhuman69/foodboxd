@@ -4,6 +4,7 @@ import PageState from '../components/PageState'
 import MealCard from '../components/MealCard'
 import shared from '../components/shared.module.css'
 import styles from './Reviews.module.css'
+import { openDishFor, hasDishPage } from '../utils/reviews'
 
 const FILTERS = ['All', 'Restaurant', 'Homemade', 'Meals']
 
@@ -125,11 +126,11 @@ function ReviewCard({ entry, onDelete, onDeleteMeal, onViewReview, onViewMeal, o
     >
       <div className={shared.cardTop}>
         <div>
-          {entry.restaurantName ? (
+          {hasDishPage(entry) ? (
             <button
               type="button"
               className={styles.dishNameLink}
-              onClick={e => { e.stopPropagation(); onViewDish?.(entry.dishName, entry.restaurantName) }}
+              onClick={e => { e.stopPropagation(); openDishFor(entry, onViewDish) }}
             >
               {entry.dishName}
             </button>
@@ -160,6 +161,15 @@ function ReviewCard({ entry, onDelete, onDeleteMeal, onViewReview, onViewMeal, o
         <details className={styles.recipeDetails} onClick={e => e.stopPropagation()}>
           <summary className={styles.recipeSummary}>View recipe</summary>
           <p className={styles.recipeText}>{entry.recipe}</p>
+          {hasDishPage(entry) && (
+            <button
+              type="button"
+              className={styles.dishNameLink}
+              onClick={e => { e.stopPropagation(); openDishFor(entry, onViewDish) }}
+            >
+              Open recipe page →
+            </button>
+          )}
         </details>
       )}
 

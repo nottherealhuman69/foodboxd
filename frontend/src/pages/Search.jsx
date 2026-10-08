@@ -49,20 +49,25 @@ function Stars({ rating }) {
 }
 
 function ReviewCard({ item, onViewDish, onViewRestaurant }) {
+  const isRecipe = item.dishType === 'homemade' && !!item.ownerEmail
+  const clickable = isRecipe || !!item.restaurantName
   const date = new Date(item.loggedAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric'
   })
   return (
     <div
       className={styles.card}
-      style={{ cursor: item.restaurantName ? 'pointer' : 'default' }}
-      onClick={() => item.restaurantName && onViewDish?.(item.dishName, item.restaurantName)}
+      style={{ cursor: clickable ? 'pointer' : 'default' }}
+      onClick={() => {
+        if (isRecipe) onViewDish?.(item.dishName, null, item.ownerEmail)
+        else if (item.restaurantName) onViewDish?.(item.dishName, item.restaurantName)
+      }}
     >
       <div className={styles.cardIcon} data-type="review">✍️</div>
       <div className={styles.cardBody}>
         <div className={styles.cardMeta}>
           <span className={styles.pill} data-type="review">Review</span>
-          <span className={styles.cardSub}>by @{item.user} · {date}</span>
+          <span className={styles.cardSub}>by @{item.user} · {date}{isRecipe && ' · 🏠 Recipe →'}</span>
         </div>
         <h3 className={styles.cardTitle}>
           {item.dishName}
@@ -132,6 +137,8 @@ export default function Search({ onViewDish, onViewRestaurant, onViewUser }) {
           type:           'review',
           dishName:       r.dish_name,
           restaurantName: r.restaurant_name || '',
+          dishType:       r.type,
+          ownerEmail:     r.recipe_owner_email || r.user_email || null,
           review:         r.review || '',
           rating:         r.rating,
           loggedAt:       r.logged_at,

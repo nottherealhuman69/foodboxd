@@ -8,6 +8,7 @@ export function normaliseReview(r) {
     restaurantName: r.restaurant_name ?? '',
     recipe:         r.recipe ?? '',
     recipeOwnerEmail: r.recipe_owner_email ?? null,
+    userEmail:      r.user_email ?? null,
     recipeOwner:    r.recipe_owner ?? (r.recipe_owner_email ? r.recipe_owner_email.split('@')[0] : null),
     rating:         r.rating,
     review:         r.review ?? '',
@@ -48,4 +49,27 @@ export function avgRating(entries) {
 
 export function usernameFrom(email) {
   return email ? email.split('@')[0] : '?'
+}
+
+
+export function recipeOwnerOf(entry) {
+  return entry.recipeOwnerEmail || entry.userEmail || null
+}
+
+// Dish page for restaurant dishes, recipe page for homemade ones.
+export function openDishFor(entry, onViewDish) {
+  if (!onViewDish) return false
+  if (entry.type === 'homemade') {
+    const owner = recipeOwnerOf(entry)
+    if (!owner) return false
+    onViewDish(entry.dishName, null, owner)
+    return true
+  }
+  if (!entry.restaurantName) return false
+  onViewDish(entry.dishName, entry.restaurantName)
+  return true
+}
+
+export function hasDishPage(entry) {
+  return entry.type === 'homemade' ? !!recipeOwnerOf(entry) : !!entry.restaurantName
 }
