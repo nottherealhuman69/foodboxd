@@ -57,11 +57,16 @@ app/
 - **Username convention**: There are no separate usernames — the email prefix (`email.split("@")[0]`) is used as the display username everywhere.
 
 ### Frontend (`frontend/src/`)
-React 19 SPA with React Router v7. Auth token stored in `localStorage` under key `token`. `PrivateRoute` in `App.jsx` gates all protected pages.
+React 19 SPA with React Router v7. `PrivateRoute` in `App.jsx` gates all protected pages.
 
 - **Pages**: `Dashboard`, `Search`, `Feed`, `Profile`, `Userprofile`, `Reviews`, `Createreview`, `Dishpage`, `Restaurantpage`, `Trylist`, `Notifications`, `Login`, `Signup`
-- **No state management library** — component-local state via `useState`/`useEffect`, API calls via `fetch` with `Authorization: Bearer ${localStorage.getItem('token')}` header
-- **API base**: relative `/api/...` paths, proxied to `http://localhost:8000` by the Vite dev server (`vite.config.js` strips the `/api` prefix)
+- **No state management library** — component-local state via `useState`/`useEffect`.
+- **API layer (`src/api/`)**: all backend calls go through it — never call `fetch` directly from a page. One file per backend router with one function per endpoint (74, matching `backend/app/routers/`). Use `import * as api from '../api'`, then e.g. `api.reviews.toggleLike(id)`. Functions return the raw fetch `Response` (callers check `res.ok` / `res.json()`); request bodies are passed as plain objects.
+  - `client.js`: base URL (`VITE_API_URL`, default `/api`), auth header, JSON encoding, and on a 401 for a request that carried a token, clears the session and redirects to `/login`.
+  - `session.js`: the only place that reads/writes the token and email (`localStorage` keys `token`, `email`). Use `api.session.getEmail()` etc.
+  - `api.posts.forKind('review' | 'meal')` returns the reviews or meals module (same function names) for code that handles both.
+  - `useFetch(api.x.y)` in `hooks/useApi.js` takes an api function, not a URL.
+- **API base**: in dev, `/api/...` is proxied to `http://localhost:8000` by the Vite dev server (`vite.config.js` strips the `/api` prefix). Set `VITE_API_URL` to call a backend directly.
 
 ### Key data model notes
 - `dish_reviews.type` is `'restaurant'` or `'homemade'`. Dish/restaurant pages only aggregate `type = 'restaurant'` rows.

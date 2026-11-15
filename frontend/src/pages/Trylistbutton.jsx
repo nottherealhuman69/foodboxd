@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import styles from './TrylistButton.module.css'
 
 export default function TrylistButton({ itemType, dishName, restaurantName }) {
@@ -9,9 +9,7 @@ export default function TrylistButton({ itemType, dishName, restaurantName }) {
 
   useEffect(() => {
     if (!restaurantName) return
-    const params = new URLSearchParams({ item_type: itemType, restaurant_name: restaurantName })
-    if (dishName) params.set('dish_name', dishName)
-    apiFetch(`/api/trylist/check?${params}`)
+    api.trylist.check({ itemType, restaurantName, dishName })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) { setInList(data.in_trylist); setItemId(data.id) } })
       .catch(() => {})
@@ -22,13 +20,10 @@ export default function TrylistButton({ itemType, dishName, restaurantName }) {
     setWorking(true)
     try {
       if (inList && itemId) {
-        const res = await apiFetch(`/api/trylist/${itemId}`, { method: 'DELETE' })
+        const res = await api.trylist.remove(itemId)
         if (res.ok) { setInList(false); setItemId(null) }
       } else {
-        const res = await apiFetch('/api/trylist', {
-          method: 'POST',
-          body: JSON.stringify({ item_type: itemType, dish_name: dishName || null, restaurant_name: restaurantName }),
-        })
+        const res = await api.trylist.add({ item_type: itemType, dish_name: dishName || null, restaurant_name: restaurantName })
         if (res.ok) { const d = await res.json(); setInList(true); setItemId(d.id) }
       }
     } catch {}

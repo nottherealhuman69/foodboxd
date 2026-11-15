@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating } from '../components/StarRating'
 import { StatGrid, StatCard } from '../components/StatCard'
 import PageState from '../components/PageState'
@@ -22,11 +22,11 @@ export default function Profile({
   const [lists, setLists] = useState(null)
   const [listsLoading, setListsLoading] = useState(true)
   const [listsError, setListsError] = useState('')
-  const myEmail = localStorage.getItem('email') || ''
+  const myEmail = api.session.getEmail() || ''
   const cardProps = { onViewReview, onViewMeal, onViewDish, onViewRestaurant, onDeleteMeal }
 
   useEffect(() => {
-    apiFetch('/api/friends')
+    api.social.friends()
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setFriends(data))
       .catch(() => setFriendsError('Could not load friends.'))
@@ -34,7 +34,7 @@ export default function Profile({
   }, [])
 
   useEffect(() => {
-    apiFetch('/api/lists')
+    api.lists.list()
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setLists(data))
       .catch(() => setListsError('Could not load your lists.'))

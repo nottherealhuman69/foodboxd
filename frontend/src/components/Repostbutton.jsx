@@ -1,6 +1,6 @@
 // frontend/src/components/RepostButton.jsx
 import { useState } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import styles from './RepostButton.module.css'
 
 /**
@@ -24,7 +24,7 @@ export default function RepostButton({ postType, postId, initialReposted = false
     const prev = reposted
     setReposted(!prev)                       // optimistic
     try {
-      const res = await apiFetch(`/api/posts/${postType}/${postId}/repost`, { method: 'POST' })
+      const res = await api.posts.toggleRepost(postType, postId)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setReposted(data.reposted)

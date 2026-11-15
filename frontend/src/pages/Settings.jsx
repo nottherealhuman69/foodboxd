@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import styles from './Settings.module.css'
 
 const TABS = [
@@ -40,7 +40,7 @@ function PrivacySection() {
   const [error,     setError]     = useState('')
 
   useEffect(() => {
-    apiFetch('/api/me')
+    api.auth.me()
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => setIsPrivate(!!d.is_private))
       .catch(() => setError('Could not load your privacy setting.'))
@@ -53,10 +53,7 @@ function PrivacySection() {
     setError('')
     setIsPrivate(next) // optimistic
     try {
-      const res = await apiFetch('/api/me/privacy', {
-        method: 'PATCH',
-        body: JSON.stringify({ is_private: next }),
-      })
+      const res = await api.auth.updatePrivacy({ is_private: next })
       if (!res.ok) throw new Error()
       const d = await res.json()
       setIsPrivate(!!d.is_private)
@@ -113,10 +110,7 @@ function SecuritySection() {
     if (next !== confirm) { setError('New passwords do not match.'); return }
     setSaving(true)
     try {
-      const res = await apiFetch('/api/change-password', {
-        method: 'POST',
-        body: JSON.stringify({ current_password: current, new_password: next }),
-      })
+      const res = await api.auth.changePassword({ current_password: current, new_password: next })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.detail || 'Could not change password.')

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { RATING_LABELS } from '../utils/reviews'
 import { StarRating } from '../components/StarRating'
 import FriendButton from '../components/FriendButton'
@@ -119,7 +119,7 @@ export default function Search({ onViewDish, onViewRestaurant, onViewUser }) {
   const [error,     setError]     = useState('')
   const inputRef = useRef(null)
 
-  const myEmail    = localStorage.getItem('email') || ''
+  const myEmail    = api.session.getEmail() || ''
   const myUsername = myEmail.split('@')[0]
 
   useEffect(() => {
@@ -128,8 +128,8 @@ export default function Search({ onViewDish, onViewRestaurant, onViewUser }) {
       setError('')
       try {
         const [revRes, userRes] = await Promise.all([
-          apiFetch('/api/reviews/all'),
-          apiFetch('/api/users/search?q='),
+          api.reviews.all(),
+          api.users.search(''),
         ])
         if (!revRes.ok || !userRes.ok) throw new Error()
         setReviews((await revRes.json()).map(r => ({

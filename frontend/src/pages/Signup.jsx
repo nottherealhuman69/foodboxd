@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import AuthCard from '../components/AuthCard'
+import * as api from '../api'
 import styles from './Auth.module.css'
 
 export default function Signup() {
@@ -21,11 +22,7 @@ export default function Signup() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, password: form.password }),
-      })
+      const res = await api.auth.signup({ email: form.email, password: form.password })
       const data = await res.json()
       if (!res.ok) { setError(data.detail || 'Signup failed'); return }
       navigate('/login', { state: { message: 'Account created! Please sign in.' } })

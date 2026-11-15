@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
 import CommentThread from '../components/CommentThread'
@@ -33,13 +33,13 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
   const [posting,         setPosting]         = useState(false)
   const [editing, setEditing] = useState(false)
 
-  const myEmail = localStorage.getItem('email')
+  const myEmail = api.session.getEmail()
 
   useEffect(() => {
     async function load() {
       setLoading(true); setError('')
       try {
-        const res = await apiFetch(`/api/meals/${mealId}/detail`)
+        const res = await api.meals.detail(mealId)
         if (!res.ok) throw new Error()
         setMeal(await res.json())
       } catch {
@@ -54,14 +54,14 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
   useEffect(() => {
     if (tab === 'likes' && likes === null) {
       setLikesLoading(true)
-      apiFetch(`/api/meals/${mealId}/likes`)
+      api.meals.likes(mealId)
         .then(r => r.ok ? r.json() : [])
         .then(setLikes).catch(() => setLikes([]))
         .finally(() => setLikesLoading(false))
     }
     if (tab === 'comments' && comments === null) {
       setCommentsLoading(true)
-      apiFetch(`/api/meals/${mealId}/comments`)
+      api.meals.comments(mealId)
         .then(r => r.ok ? r.json() : [])
         .then(setComments).catch(() => setComments([]))
         .finally(() => setCommentsLoading(false))
@@ -69,7 +69,7 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
   }, [tab])
 
   const toggleLike = async () => {
-    const res = await apiFetch(`/api/meals/${mealId}/like`, { method: 'POST' })
+    const res = await api.meals.toggleLike(mealId)
     if (!res.ok) return
     const { liked, like_count } = await res.json()
     setMeal(m => ({ ...m, user_liked: liked, like_count }))
@@ -81,10 +81,7 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
     if (!commentText.trim() || posting) return
     setPosting(true)
     try {
-      const res = await apiFetch(`/api/meals/${mealId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
-      })
+      const res = await api.meals.addComment(mealId, { content: commentText.trim(), parent_id: null })
       if (!res.ok) throw new Error()
       const added = await res.json()
       setComments(prev => [...(prev || []), added])
@@ -241,7 +238,7 @@ export default function MealPage({ mealId, initialTab = 'comments', initialEditi
               comments={comments}
               setComments={setComments}
               commentType="meal"
-              basePath={`/api/meals/${mealId}/comments`}
+              postId={mealId}
               myEmail={myEmail}
               onViewUser={onViewUser}
               onCountChange={(delta) => setMeal(m => ({ ...m, comment_count: Math.max(0, m.comment_count + delta) }))}

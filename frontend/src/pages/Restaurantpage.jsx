@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
 import TrylistButton from './TrylistButton'
@@ -25,7 +25,7 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview, o
       setLoading(true)
       setError('')
       try {
-        const res = await apiFetch(`/api/restaurants/${encodeURIComponent(restaurantName)}/page`)
+        const res = await api.places.restaurantPage(restaurantName)
         if (!res.ok) throw new Error()
         setData(await res.json())
       } catch {
@@ -38,7 +38,7 @@ export default function RestaurantPage({ restaurantName, onBack, onViewReview, o
   }, [restaurantName])
 
 
-  const email = localStorage.getItem('email') || ''
+  const email = api.session.getEmail() || ''
   const myReviews = data ? data.reviews.filter(r => r.user_email === email) : []
   const myAvgRating = myReviews.length > 0
     ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length

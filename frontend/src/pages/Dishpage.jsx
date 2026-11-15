@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import PageState from '../components/PageState'
@@ -24,10 +24,9 @@ export default function DishPage({ dishName, restaurantName, recipeOwnerEmail, o
       setLoading(true)
       setError('')
       try {
-      const res = await apiFetch(isRecipe
-        ? `/api/recipes/page?dish_name=${encodeURIComponent(dishName)}&owner=${encodeURIComponent(recipeOwnerEmail)}`
-        : `/api/dishes/${encodeURIComponent(dishName)}/restaurant/${encodeURIComponent(restaurantName)}`
-      )
+      const res = await (isRecipe
+        ? api.places.recipePage(dishName, recipeOwnerEmail)
+        : api.places.dishPage(dishName, restaurantName))
         if (!res.ok) throw new Error()
         setDish(await res.json())
       } catch {
@@ -38,7 +37,7 @@ export default function DishPage({ dishName, restaurantName, recipeOwnerEmail, o
     }
     load()
   }, [dishName, restaurantName])
-const email = localStorage.getItem('email') || ''
+const email = api.session.getEmail() || ''
 const myReviews = dish ? dish.reviews.filter(r => r.user_email === email) : []
 const myAvgRating = myReviews.length > 0
   ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length

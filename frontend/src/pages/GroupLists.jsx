@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import PageState from '../components/PageState'
 import styles from './GroupLists.module.css'
 import SortMenu from '../components/SortMenu'
@@ -61,7 +61,7 @@ function FriendPicker({ selected, onToggle, excludeEmails = [] }) {
   const [query, setQuery]     = useState('')
 
   useEffect(() => {
-    apiFetch('/api/friends')
+    api.social.friends()
       .then(r => (r.ok ? r.json() : []))
       .then(setFriends)
       .catch(() => setFriends([]))
@@ -138,10 +138,7 @@ function CreateGroupListModal({ onClose, onCreated }) {
     if (!name.trim()) { setErr('Give the list a name.'); return }
     setSaving(true); setErr('')
     try {
-      const res = await apiFetch('/api/group-lists', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim(), invite_emails: selected, is_public: isPublic }),
-      })
+      const res = await api.groupLists.create({ name: name.trim(), invite_emails: selected, is_public: isPublic })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
         setErr(d.detail || 'Could not create the list.')
@@ -229,10 +226,7 @@ function InviteMoreModal({ listId, existingEmails, onClose, onInvited }) {
     if (selected.length === 0) { setErr('Pick at least one friend.'); return }
     setSaving(true); setErr('')
     try {
-      const res = await apiFetch(`/api/group-lists/${listId}/invite`, {
-        method: 'POST',
-        body: JSON.stringify({ emails: selected }),
-      })
+      const res = await api.groupLists.invite(listId, { emails: selected })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
         setErr(d.detail || 'Could not send the invites.')
@@ -283,8 +277,8 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
     setLoading(true); setError('')
     try {
       const [lRes, iRes] = await Promise.all([
-        apiFetch(`/api/group-lists/${listId}`),
-        apiFetch(`/api/group-lists/${listId}/items`),
+        api.groupLists.get(listId),
+        api.groupLists.items(listId),
       ])
       if (!lRes.ok) throw new Error()
       setList(await lRes.json())
@@ -298,7 +292,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
   const removeItem = async (itemId) => {
     setRemoving(p => ({ ...p, [itemId]: true }))
     try {
-      const res = await apiFetch(`/api/group-lists/${listId}/items/${itemId}`, { method: 'DELETE' })
+      const res = await api.groupLists.removeItem(listId, itemId)
       if (res.ok) { setItems(p => p.filter(i => i.id !== itemId)); onChanged?.() }
     } catch {}
     finally { setRemoving(p => { const n = { ...p }; delete n[itemId]; return n }) }
@@ -306,22 +300,19 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
 
   const toggleVisibility = async () => {
     const next = !list.is_public
-    const res = await apiFetch(`/api/group-lists/${listId}/visibility`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_public: next }),
-    })
+    const res = await api.groupLists.setVisibility(listId, { is_public: next })
     if (res.ok) { setList(p => ({ ...p, is_public: next })); onChanged?.() }
   }
 
   const leave = async () => {
     if (!confirm('Leave this group list? You\u2019ll stop seeing it, but the list stays for everyone else.')) return
-    const res = await apiFetch(`/api/group-lists/${listId}/leave`, { method: 'POST' })
+    const res = await api.groupLists.leave(listId)
     if (res.ok) { onChanged?.(); onBack() }
   }
 
   const deleteList = async () => {
     if (!confirm('Delete this group list for everyone? This can\u2019t be undone.')) return
-    const res = await apiFetch(`/api/group-lists/${listId}`, { method: 'DELETE' })
+    const res = await api.groupLists.remove(listId)
     if (res.ok) { onChanged?.(); onBack() }
   }
 
@@ -342,7 +333,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
     <div className={styles.page}>
       {showAdd && (
         <AddListItemModal
-          endpoint={`/api/group-lists/${listId}/items`}
+          addItem={body => api.groupLists.addItem(listId, body)}
           title="Add to the group list"
           onClose={() => setShowAdd(false)}
           onAdded={() => { load(); setShowAdd(false); onChanged?.() }}
@@ -530,7 +521,7 @@ function GroupListDetail({ listId, onBack, onChanged, onViewDish, onViewRestaura
    Main Group Lists tab
    ══════════════════════════════════════════════════════════════════════════ */
 export default function GroupLists({ onViewDish, onViewRestaurant, onViewUser, currentEmail }) {
-  const myEmail = currentEmail || localStorage.getItem('email') || ''
+  const myEmail = currentEmail || api.session.getEmail() || ''
   const [lists, setLists]     = useState([])
   const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
@@ -543,8 +534,8 @@ export default function GroupLists({ onViewDish, onViewRestaurant, onViewUser, c
     setLoading(true); setError('')
     try {
       const [lRes, iRes] = await Promise.all([
-        apiFetch('/api/group-lists'),
-        apiFetch('/api/group-lists/invites'),
+        api.groupLists.list(),
+        api.groupLists.invites(),
       ])
       if (!lRes.ok) throw new Error()
       setLists(await lRes.json())
@@ -558,10 +549,7 @@ export default function GroupLists({ onViewDish, onViewRestaurant, onViewUser, c
   const respond = async (groupListId, action) => {
     setActing(p => ({ ...p, [groupListId]: action }))
     try {
-      const res = await apiFetch(`/api/group-lists/${groupListId}/invite`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action }),
-      })
+      const res = await api.groupLists.respondToInvite(groupListId, { action })
       if (res.ok) {
         setInvites(p => p.filter(i => i.group_list_id !== groupListId))
         if (action === 'accept') load()

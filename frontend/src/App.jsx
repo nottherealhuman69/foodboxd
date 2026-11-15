@@ -4,9 +4,10 @@ import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
+import { session } from './api'
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token')
+  const token = session.getToken()
   return token ? children : <Navigate to="/login" replace />
 }
 

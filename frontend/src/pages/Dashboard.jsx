@@ -15,7 +15,7 @@ import ReviewPage from './ReviewPage'
 import MealPage from './MealPage'
 import ListPage from './ListPage'
 import Settings from './Settings'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { normaliseReview, normaliseMeal } from '../utils/reviews'
 import styles from './Dashboard.module.css'
 
@@ -32,7 +32,7 @@ const NAV = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const email  = localStorage.getItem('email') || ''
+  const email  = api.session.getEmail() || ''
   const handle = email.split('@')[0]
   const [active,       setActive]       = useState('profile')
   const [reviewFilter, setReviewFilter] = useState('All')
@@ -77,8 +77,7 @@ export default function Dashboard() {
   const [viewingList,       setViewingList]       = useState(null) // { id, name }
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('email')
+    api.session.clear()
     navigate('/login')
   }, [navigate])
 
@@ -87,8 +86,8 @@ export default function Dashboard() {
     setFetchError('')
     try {
       const [reviewRes, mealRes] = await Promise.all([
-        apiFetch('/api/reviews'),
-        apiFetch('/api/meals'),
+        api.reviews.list(),
+        api.meals.list(),
       ])
       if (reviewRes.status === 401 || mealRes.status === 401) { logout(); return }
       if (!reviewRes.ok || !mealRes.ok) throw new Error()
@@ -109,10 +108,7 @@ export default function Dashboard() {
   const fetchNotifCount = useCallback(async () => {
     try {
       const since = localStorage.getItem('notif_last_seen')
-      const url = since
-        ? `/api/notifications/unseen_count?since=${encodeURIComponent(since)}`
-        : '/api/notifications/unseen_count'
-      const res = await apiFetch(url)
+      const res = await api.notifications.unseenCount(since)
       if (!res.ok) return
       const { count } = await res.json()
       setNotifCount(count)
@@ -133,20 +129,17 @@ export default function Dashboard() {
   }, [fetchNotifCount])
 
   const handleSave = async (formData) => {
-    const res = await apiFetch('/api/reviews', {
-      method: 'POST',
-      body: JSON.stringify({
-        dish_name:          formData.dishName,
-        type:               formData.type,
-        restaurant_name:    formData.restaurantName || null,
-        recipe:             formData.recipe || null,
-        recipe_owner_email: formData.recipeOwnerEmail || null,
-        rating:             formData.rating,
-        review:             formData.review || null,
-        tagged_emails:      formData.taggedEmails || [],
-        forked_from_id: formData.forkedFromId ?? null,
-        ingredients: formData.ingredients || [],
-      }),
+    const res = await api.reviews.create({
+      dish_name:          formData.dishName,
+      type:               formData.type,
+      restaurant_name:    formData.restaurantName || null,
+      recipe:             formData.recipe || null,
+      recipe_owner_email: formData.recipeOwnerEmail || null,
+      rating:             formData.rating,
+      review:             formData.review || null,
+      tagged_emails:      formData.taggedEmails || [],
+      forked_from_id: formData.forkedFromId ?? null,
+      ingredients: formData.ingredients || [],
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -158,7 +151,7 @@ export default function Dashboard() {
   }
 
   const handleDelete = async (id) => {
-    const res = await apiFetch(`/api/reviews/${id}`, { method: 'DELETE' })
+    const res = await api.reviews.remove(id)
     if (res.ok) setEntries(prev => prev.filter(e => !(e.kind !== 'meal' && e.id === id)))
   }
 
@@ -169,7 +162,7 @@ export default function Dashboard() {
   }
 
   const handleDeleteMeal = async (id) => {
-    const res = await apiFetch(`/api/meals/${id}`, { method: 'DELETE' })
+    const res = await api.meals.remove(id)
     if (res.ok) setEntries(prev => prev.filter(e => !(e.kind === 'meal' && e.id === id)))
   }
 
