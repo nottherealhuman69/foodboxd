@@ -145,6 +145,7 @@ export default function Dashboard() {
         review:             formData.review || null,
         tagged_emails:      formData.taggedEmails || [],
         forked_from_id: formData.forkedFromId ?? null,
+        ingredients: formData.ingredients || [],
       }),
     })
     if (!res.ok) {

@@ -372,3 +372,11 @@
 }
 .addDishBtn:hover:not(:disabled) { background: rgba(99, 102, 241, 0.08); }
 .addDishBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+.ingredientRow { display: grid; grid-template-columns: 1fr 80px 84px 32px; gap: 8px; align-items: center; }
+.qtyInput      { text-align: right; }
+@media (max-width: 480px) {
+  .ingredientRow { grid-template-columns: 1fr 64px 72px 28px; }
+}
+

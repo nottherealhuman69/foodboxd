@@ -23,6 +23,7 @@ def serialise_review(row: dict) -> dict:
         "logged_at":       row.get("logged_at"),
         "meal_id":         row.get("meal_id"),
         "forked_from_id": row.get("forked_from_id"),
+        "ingredients": row.get("ingredients", []),
     }
 
 def serialise_meal(meal: dict, dish_rows: list) -> dict:
