@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useFetch, apiFetch } from '../hooks/useApi'
+import { useFetch } from '../hooks/useApi'
+import * as api from '../api'
 import PageState from '../components/PageState'
 import MyLists from './Mylists'
 import styles from './Trylist.module.css'
@@ -67,14 +68,14 @@ const FILTERS = ['All', 'Dishes', 'Restaurants']
 
 export default function Trylist({ onViewDish, onViewRestaurant, onViewUser }) {
   const [tab, setTab] = useState('trylist')
-  const { data: items, loading, error, refetch } = useFetch('/api/trylist')
+  const { data: items, loading, error, refetch } = useFetch(api.trylist.list)
   const [filter,   setFilter]   = useState('All')
   const [removing, setRemoving] = useState({})
 
   const remove = async (id) => {
     setRemoving(prev => ({ ...prev, [id]: true }))
     try {
-      const res = await apiFetch(`/api/trylist/${id}`, { method: 'DELETE' })
+      const res = await api.trylist.remove(id)
       if (res.ok) refetch()
     } catch {}
     finally {

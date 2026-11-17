@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating, StarPicker } from '../components/StarRating'
 import PageState from '../components/PageState'
 import CommentThread from '../components/CommentThread'
@@ -32,13 +32,13 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
   const [commentText,     setCommentText]     = useState('')
   const [posting,         setPosting]         = useState(false)
 
-  const myEmail = localStorage.getItem('email')
+  const myEmail = api.session.getEmail()
 
   async function loadReview() {
     setLoading(true)
     setError('')
     try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/detail`)
+      const res = await api.reviews.detail(reviewId)
       if (!res.ok) throw new Error()
       setReview(await res.json())
     } catch {
@@ -61,7 +61,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
   const loadLikes = async () => {
     setLikesLoading(true)
     try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/likes`)
+      const res = await api.reviews.likes(reviewId)
       if (!res.ok) throw new Error()
       setLikes(await res.json())
     } catch {
@@ -74,7 +74,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
   const loadComments = async () => {
     setCommentsLoading(true)
     try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/comments`)
+      const res = await api.reviews.comments(reviewId)
       if (!res.ok) throw new Error()
       setComments(await res.json())
     } catch {
@@ -93,7 +93,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     const prev = { liked: review.user_liked, count: review.like_count }
     setReview(r => ({ ...r, user_liked: !r.user_liked, like_count: r.like_count + (r.user_liked ? -1 : 1) }))
     try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/like`, { method: 'POST' })
+      const res = await api.reviews.toggleLike(reviewId)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setReview(r => ({ ...r, user_liked: data.liked, like_count: data.like_count }))
@@ -108,10 +108,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
     if (!commentText.trim() || posting) return
     setPosting(true)
     try {
-      const res = await apiFetch(`/api/reviews/${reviewId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
-      })
+      const res = await api.reviews.addComment(reviewId, { content: commentText.trim(), parent_id: null })
       if (!res.ok) throw new Error()
       const newComment = await res.json()
       setComments(prev => [...(prev || []), newComment])
@@ -296,7 +293,7 @@ export default function ReviewPage({ reviewId, initialTab = 'comments', onBack, 
               comments={comments}
               setComments={setComments}
               commentType="review"
-              basePath={`/api/reviews/${reviewId}/comments`}
+              postId={reviewId}
               myEmail={myEmail}
               onViewUser={onViewUser}
               onCountChange={(delta) => setReview(r => ({ ...r, comment_count: Math.max(0, r.comment_count + delta) }))}
@@ -333,7 +330,7 @@ function EditReviewForm({ review, onCancel, onSaved }) {
   const [error,          setError]          = useState('')
 
   useEffect(() => {
-    apiFetch('/api/friends').then(r => r.ok ? r.json() : []).then(setFriends).catch(() => {})
+    api.social.friends().then(r => r.ok ? r.json() : []).then(setFriends).catch(() => {})
   }, [])
 
   const submit = async (e) => {
@@ -342,18 +339,15 @@ function EditReviewForm({ review, onCancel, onSaved }) {
     setSaving(true)
     setError('')
     try {
-      const res = await apiFetch(`/api/reviews/${review.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          dish_name:          dishName.trim(),
-          type:               review.type,
-          restaurant_name:    restaurantName.trim() || null,
-          recipe:             review.type === 'homemade' ? (recipe.trim() || null) : null,
-          recipe_owner_email: review.recipe_owner_email || null,
-          rating,
-          review:             text.trim() || null,
-          tagged_emails:      taggedEmails,
-        }),
+      const res = await api.reviews.update(review.id, {
+        dish_name:          dishName.trim(),
+        type:               review.type,
+        restaurant_name:    restaurantName.trim() || null,
+        recipe:             review.type === 'homemade' ? (recipe.trim() || null) : null,
+        recipe_owner_email: review.recipe_owner_email || null,
+        rating,
+        review:             text.trim() || null,
+        tagged_emails:      taggedEmails,
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

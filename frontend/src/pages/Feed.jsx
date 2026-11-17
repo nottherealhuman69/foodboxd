@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useFetch, apiFetch } from '../hooks/useApi'
+import { useFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarRating } from '../components/StarRating'
 import PageState from '../components/PageState'
 import { usernameFrom } from '../utils/reviews'
@@ -23,7 +24,7 @@ function timeAgo(iso) {
 }
 
 export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewReview, onViewMeal }) {
-  const { data: items, loading, error } = useFetch('/api/feed')
+  const { data: items, loading, error } = useFetch(api.feed.get)
 
   return (
     <div className={styles.page}>
@@ -61,9 +62,9 @@ export default function Feed({ onViewDish, onViewRestaurant, onViewUser, onViewR
 
 function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview, onViewMeal }) {
   const isMeal   = item.kind === 'meal'
-  const base     = isMeal ? `/api/meals/${item.id}` : `/api/reviews/${item.id}`
+  const postApi  = api.posts.forKind(item.kind)
   const username = usernameFrom(item.username || item.user_email)
-  const myEmail  = localStorage.getItem('email')
+  const myEmail  = api.session.getEmail()
 
   const [liked,     setLiked]     = useState(item.user_liked || false)
   const [likeCount, setLikeCount] = useState(item.like_count || 0)
@@ -84,7 +85,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     setLiked(!liked)
     setLikeCount(liked ? likeCount - 1 : likeCount + 1)
     try {
-      const res = await apiFetch(`${base}/like`, { method: 'POST' })
+      const res = await postApi.toggleLike(item.id)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setLiked(data.liked)
@@ -100,7 +101,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
   const loadComments = async () => {
     setCommentsLoading(true)
     try {
-      const res = await apiFetch(`${base}/comments`)
+      const res = await postApi.comments(item.id)
       if (!res.ok) throw new Error()
       setComments(await res.json())
     } catch {
@@ -121,10 +122,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
     if (!commentText.trim() || posting) return
     setPosting(true)
     try {
-      const res = await apiFetch(`${base}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content: commentText.trim(), parent_id: null }),
-      })
+      const res = await postApi.addComment(item.id, { content: commentText.trim(), parent_id: null })
       if (!res.ok) throw new Error()
       const newComment = await res.json()
       setComments(prev => [...(prev || []), newComment])
@@ -249,7 +247,7 @@ function FeedCard({ item, onViewDish, onViewRestaurant, onViewUser, onViewReview
                 comments={comments}
                 setComments={setComments}
                 commentType={isMeal ? 'meal' : 'review'}
-                basePath={`${base}/comments`}
+                postId={item.id}
                 myEmail={myEmail}
                 onViewUser={onViewUser}
                 onCountChange={(delta) => setCommentCount(c => Math.max(0, c + delta))}

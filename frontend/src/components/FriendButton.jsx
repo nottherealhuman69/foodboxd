@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import shared from './shared.module.css'
 
 /**
@@ -20,10 +20,7 @@ export default function FriendButton({ email, initialStatus, isPrivate, onSent, 
   const follow = async () => {
     setLoading(true)
     try {
-      const res = await apiFetch('/api/friends/request', {
-        method: 'POST',
-        body: JSON.stringify({ addressee_email: email }),
-      })
+      const res = await api.social.sendRequest({ addressee_email: email })
       if (!res.ok) throw new Error()
       const data = await res.json()
       const next = data.status === 'accepted' ? 'following' : 'pending_sent'
@@ -40,7 +37,7 @@ export default function FriendButton({ email, initialStatus, isPrivate, onSent, 
   const unfollow = async () => {
     setLoading(true)
     try {
-      const res = await apiFetch(`/api/follow/${encodeURIComponent(email)}`, { method: 'DELETE' })
+      const res = await api.social.unfollow(email)
       if (!res.ok) throw new Error()
       setStatus(null)
       onStatusChange?.(email, null)

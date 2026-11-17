@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import AuthCard from '../components/AuthCard'
+import * as api from '../api'
 import styles from './Auth.module.css'
 
 export default function ResetPassword() {
@@ -21,11 +22,7 @@ export default function ResetPassword() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, new_password: password }),
-      })
+      const res = await api.auth.resetPassword({ token, new_password: password })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setError(data.detail || 'Could not reset password'); return }
       setDone(true)

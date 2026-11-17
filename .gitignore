@@ -9,6 +9,13 @@ dist/
 build/
 .eggs/
 
+# Tests
+.pytest_cache/
+
+# Database dumps (local only, never commit)
+backend/supabase_schema.sql
+*.dump
+
 # Virtual environments
 .env
 venv/

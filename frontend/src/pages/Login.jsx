@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import AuthCard from '../components/AuthCard'
+import * as api from '../api'
 import styles from './Auth.module.css'
 
 export default function Login() {
@@ -19,15 +20,10 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
+      const res = await api.auth.login(form)
       const data = await res.json()
       if (!res.ok) { setError(data.detail || 'Login failed'); return }
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('email', data.email)
+      api.session.save(data.token, data.email)
       navigate('/dashboard')
     } catch {
       setError('Could not reach the server. Please try again.')

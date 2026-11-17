@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarPicker } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import { SearchDropdown } from './Createreview'
@@ -18,7 +18,7 @@ const dishFromMeal = (d) => ({
 export default function MealForm({ meal, fork = null, prefill = null, onSaved, onCancel }) {
   const isEdit  = !!meal
   const src     = meal || fork
-  const myEmail = localStorage.getItem('email')
+  const myEmail = api.session.getEmail()
 
   const [restaurantName, setRestaurantName] = useState(
     src?.restaurant_name || prefill?.restaurantName || ''
@@ -52,7 +52,7 @@ export default function MealForm({ meal, fork = null, prefill = null, onSaved, o
   const [saveError,      setSaveError]      = useState('')
 
   useEffect(() => {
-    apiFetch('/api/friends')
+    api.social.friends()
       .then(r => r.ok ? r.json() : [])
       .then(setFriends)
       .catch(() => {})
@@ -60,7 +60,7 @@ export default function MealForm({ meal, fork = null, prefill = null, onSaved, o
 
   useEffect(() => {
     setLoadingCatalog(true)
-    apiFetch('/api/restaurants')
+    api.places.restaurants()
       .then(r => r.ok ? r.json() : [])
       .then(setRestaurants)
       .catch(() => {})
@@ -69,7 +69,7 @@ export default function MealForm({ meal, fork = null, prefill = null, onSaved, o
 
   useEffect(() => {
     if (!restaurantName.trim() || newRestaurant) { setMenu([]); return }
-    apiFetch(`/api/restaurants/${encodeURIComponent(restaurantName)}/dishes`)
+    api.places.restaurantDishes(restaurantName)
       .then(r => r.ok ? r.json() : [])
       .then(setMenu)
       .catch(() => {})
@@ -125,23 +125,21 @@ export default function MealForm({ meal, fork = null, prefill = null, onSaved, o
     setSaving(true)
     setSaveError('')
     try {
-      const res = await apiFetch(isEdit ? `/api/meals/${meal.id}` : '/api/meals', {
-        method: isEdit ? 'PATCH' : 'POST',
-        body: JSON.stringify({
-          restaurant_name: restaurantName.trim(),
-          title:           title.trim() || null,
-          rating,
-          review:          review.trim() || null,
-          dishes: filled.map(d => ({
-            id:        d.id ?? null,
-            dish_name: d.name.trim(),
-            rating:    d.rating,
-            review:    d.note.trim() || null,
-          })),
-          tagged_emails: taggedEmails,
-          forked_from_id: isEdit ? undefined : (fork?.id ?? null),
-        }),
-      })
+      const body = {
+        restaurant_name: restaurantName.trim(),
+        title:           title.trim() || null,
+        rating,
+        review:          review.trim() || null,
+        dishes: filled.map(d => ({
+          id:        d.id ?? null,
+          dish_name: d.name.trim(),
+          rating:    d.rating,
+          review:    d.note.trim() || null,
+        })),
+        tagged_emails: taggedEmails,
+        forked_from_id: isEdit ? undefined : (fork?.id ?? null),
+      }
+      const res = await (isEdit ? api.meals.update(meal.id, body) : api.meals.create(body))
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.detail || 'Failed to save meal')

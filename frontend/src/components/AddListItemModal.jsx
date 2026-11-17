@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { SearchDropdown } from '../pages/Createreview'
 import styles from '../pages/Mylists.module.css'
 import cr from '../pages/CreateReview.module.css'
@@ -10,7 +10,7 @@ const TYPES = [
   { id: 'recipe',     icon: '📖', label: 'Recipe' },
 ]
 
-export default function AddListItemModal({ endpoint, title = 'Add to list', onClose, onAdded }) {
+export default function AddListItemModal({ addItem, title = 'Add to list', onClose, onAdded }) {
   const [itemType,       setItemType]       = useState('dish')
   const [restaurantName, setRestaurantName] = useState('')
   const [dishName,       setDishName]       = useState('')
@@ -31,7 +31,7 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
 
   // Restaurant catalog, loaded once.
   useEffect(() => {
-    apiFetch('/api/restaurants')
+    api.places.restaurants()
       .then(r => r.ok ? r.json() : [])
       .then(setRestaurants)
       .catch(() => {})
@@ -40,7 +40,7 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
 
 
   useEffect(() => {
-    apiFetch('/api/friends')
+    api.social.friends()
       .then(r => r.ok ? r.json() : [])
       .then(setFriends)
       .catch(() => {})
@@ -49,7 +49,7 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
   useEffect(() => {
     if (itemType !== 'dish' || !restaurantName.trim() || newRestaurant) { setMenu([]); return }
     let cancelled = false
-    apiFetch(`/api/restaurants/${encodeURIComponent(restaurantName)}/dishes`)
+    api.places.restaurantDishes(restaurantName)
       .then(r => r.ok ? r.json() : [])
       .then(data => { if (!cancelled) setMenu(data) })
       .catch(() => {})
@@ -101,15 +101,12 @@ export default function AddListItemModal({ endpoint, title = 'Add to list', onCl
 
     setSaving(true); setErr('')
     try {
-      const res = await apiFetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          item_type:       itemType,
-          name:            name.trim(),
-          restaurant_name: itemType === 'dish' ? restaurantName.trim() : null,
-          note:            note.trim() || null,
-          recipe_owner_email: itemType === 'recipe' && recipeSource === 'other' ? recipeOwnerEmail : null,
-        }),
+      const res = await addItem({
+        item_type:       itemType,
+        name:            name.trim(),
+        restaurant_name: itemType === 'dish' ? restaurantName.trim() : null,
+        note:            note.trim() || null,
+        recipe_owner_email: itemType === 'recipe' && recipeSource === 'other' ? recipeOwnerEmail : null,
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import styles from './AddToListButton.module.css'
 
 /* Personal list ids and group list ids are separate sequences, so #3 can exist
@@ -30,9 +30,9 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
     setLoading(true)
     setError('')
     Promise.all([
-      apiFetch('/api/lists').then(r => (r.ok ? r.json() : Promise.reject())),
+      api.lists.list().then(r => (r.ok ? r.json() : Promise.reject())),
       // A failed group fetch shouldn't sink the personal lists.
-      apiFetch('/api/group-lists').then(r => (r.ok ? r.json() : [])).catch(() => []),
+      api.groupLists.list().then(r => (r.ok ? r.json() : [])).catch(() => []),
     ])
       .then(([personal, groups]) => {
         setLists([
@@ -49,16 +49,11 @@ export default function AddToListButton({ itemType, name, restaurantName }) {
     if (savingId) return
     setSavingId(k)
     try {
-      const endpoint = list.kind === 'group'
-        ? `/api/group-lists/${list.id}/items`
-        : `/api/lists/${list.id}/items`
-      const res = await apiFetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          item_type: itemType,
-          name,
-          restaurant_name: itemType === 'dish' ? restaurantName : null,
-        }),
+      const listApi = list.kind === 'group' ? api.groupLists : api.lists
+      const res = await listApi.addItem(list.id, {
+        item_type: itemType,
+        name,
+        restaurant_name: itemType === 'dish' ? restaurantName : null,
       })
       if (res.ok) {
         setAddedTo(prev => ({ ...prev, [k]: 'added' }))

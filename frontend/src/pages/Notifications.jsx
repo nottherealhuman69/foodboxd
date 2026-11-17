@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import PageState from '../components/PageState'
 import shared from '../components/shared.module.css'
 import styles from './Notifications.module.css'
@@ -28,10 +28,7 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
   const respondToInvite = async (groupListId, action) => {
     setActing(prev => ({ ...prev, [`g${groupListId}`]: action }))
     try {
-      const res = await apiFetch(`/api/group-lists/${groupListId}/invite`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action }),
-      })
+      const res = await api.groupLists.respondToInvite(groupListId, { action })
       if (!res.ok) throw new Error()
       setInvites(prev => prev.filter(i => i.group_list_id !== groupListId))
     } catch {
@@ -46,9 +43,9 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
     setError('')
     try {
       const [reqRes, actRes, invRes] = await Promise.all([
-        apiFetch('/api/friends/requests/pending'),
-        apiFetch('/api/notifications/activity'),
-        apiFetch('/api/group-lists/invites'),
+        api.social.pendingRequests(),
+        api.notifications.activity(),
+        api.groupLists.invites(),
       ])
       if (!reqRes.ok) throw new Error()
       setRequests(await reqRes.json())
@@ -67,10 +64,7 @@ export default function Notifications({ onViewReview, onViewMeal, onViewUser }) 
   const respond = async (id, action) => {
     setActing(prev => ({ ...prev, [id]: action }))
     try {
-      const res = await apiFetch(`/api/friends/requests/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action }),
-      })
+      const res = await api.social.respondToRequest(id, { action })
       if (!res.ok) throw new Error()
       setRequests(prev => prev.filter(r => r.id !== id))
     } catch {

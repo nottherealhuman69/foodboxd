@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import styles from './Mylists.module.css'
+import * as api from '../api'
 import SortMenu from '../components/SortMenu'
 import ListToolbar from '../components/ListToolbar'
 import { LIST_SORTS, sortListItems } from '../utils/listSort'
@@ -73,17 +74,11 @@ function CreateListModal({ onClose, onCreated }) {
   const [saving, setSaving]   = useState(false)
   const [err, setErr]         = useState('')
 
-  const token = localStorage.getItem('token')
-
   const submit = async () => {
     if (!name.trim()) { setErr('Please enter a list name.'); return }
     setSaving(true); setErr('')
     try {
-      const res = await fetch('/api/lists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), is_public: isPublic }),
-      })
+      const res = await api.lists.create({ name: name.trim(), is_public: isPublic })
       if (!res.ok) { const d = await res.json(); setErr(d.detail || 'Failed'); return }
       const created = await res.json()
       onCreated(created)
@@ -153,13 +148,10 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
   )
 
 
-  const token = localStorage.getItem('token')
-  const authH = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/lists/${list.id}/items`, { headers: authH })
+      const res = await api.lists.items(list.id)
       if (res.ok) setItems(await res.json())
     } catch {}
     finally { setLoading(false) }
@@ -170,7 +162,7 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
   const removeItem = async (itemId) => {
     setRemoving(p => ({ ...p, [itemId]: true }))
     try {
-      const res = await fetch(`/api/lists/${list.id}/items/${itemId}`, { method: 'DELETE', headers: authH })
+      const res = await api.lists.removeItem(list.id, itemId)
       if (res.ok) setItems(p => p.filter(i => i.id !== itemId))
     } catch {}
     finally { setRemoving(p => { const n = { ...p }; delete n[itemId]; return n }) }
@@ -180,7 +172,7 @@ function ListDetail({ list, onBack, onListUpdated, onViewDish, onViewRestaurant 
     <div className={styles.page}>
       {showAdd && (
         <AddListItemModal
-          endpoint={`/api/lists/${list.id}/items`}
+          addItem={body => api.lists.addItem(list.id, body)}
           title="Add to list"
           onClose={() => setShowAdd(false)}
           onAdded={() => { fetchItems(); setShowAdd(false) }}
@@ -307,18 +299,15 @@ export default function MyLists({ onViewDish, onViewRestaurant }) {
   const [openList, setOpenList]   = useState(null)
   const [deleting, setDeleting]   = useState({})
 
-  const token = localStorage.getItem('token')
-  const authH = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   const fetchLists = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/lists', { headers: authH })
+      const res = await api.lists.list()
       if (!res.ok) throw new Error()
       setLists(await res.json())
     } catch { setError('Could not load your lists. Please refresh.') }
     finally { setLoading(false) }
-  }, [token])
+  }, [])
 
   useEffect(() => { fetchLists() }, [fetchLists])
 
@@ -326,7 +315,7 @@ export default function MyLists({ onViewDish, onViewRestaurant }) {
     e.stopPropagation()
     setDeleting(p => ({ ...p, [id]: true }))
     try {
-      const res = await fetch(`/api/lists/${id}`, { method: 'DELETE', headers: authH })
+      const res = await api.lists.remove(id)
       if (res.ok) setLists(p => p.filter(l => l.id !== id))
     } catch {}
     finally { setDeleting(p => { const n = { ...p }; delete n[id]; return n }) }

@@ -1,20 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 
-export function authHeaders() {
-  const token = localStorage.getItem('token')
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-}
-
-export function apiFetch(path, options = {}) {
-  return fetch(path, { ...options, headers: { ...authHeaders(), ...options.headers } })
-}
-
 /**
- * useFetch(path, deps?)
+ * useFetch(request, deps?)
+ *   request: a function from src/api that returns a fetch Response,
+ *            e.g. useFetch(api.feed.get)
  * Returns { data, loading, error, refetch }
- * Re-fetches whenever deps change (defaults to [path]).
+ * Re-fetches whenever deps change (defaults to [request]).
  */
-export function useFetch(path, deps) {
+export function useFetch(request, deps) {
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -23,7 +16,7 @@ export function useFetch(path, deps) {
     setLoading(true)
     setError('')
     try {
-      const res = await apiFetch(path)
+      const res = await request()
       if (!res.ok) throw new Error()
       setData(await res.json())
     } catch {
@@ -32,7 +25,7 @@ export function useFetch(path, deps) {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps ?? [path])
+  }, deps ?? [request])
 
   useEffect(() => { refetch() }, [refetch])
 

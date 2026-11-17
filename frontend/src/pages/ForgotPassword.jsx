@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AuthCard from '../components/AuthCard'
+import * as api from '../api'
 import styles from './Auth.module.css'
 
 export default function ForgotPassword() {
@@ -14,11 +15,7 @@ export default function ForgotPassword() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
+      const res = await api.auth.forgotPassword({ email })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError(data.detail || 'Something went wrong. Please try again.')

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import styles from './CommentThread.module.css'
 
 /**
@@ -9,12 +9,12 @@ import styles from './CommentThread.module.css'
  *  - comments:    flat array of { id, user_email, username, content, parent_id, like_count, user_liked }
  *  - setComments: state setter for that flat array
  *  - commentType: 'review' | 'meal'  (routes the like endpoint)
- *  - basePath:    e.g. '/api/reviews/123/comments' or '/api/meals/45/comments'
+ *  - postId:      id of the review or meal the comments belong to
  *  - myEmail
  *  - onViewUser(email)
  *  - onCountChange(delta)  — keep the post's comment_count in sync
  */
-export default function CommentThread({ comments, setComments, commentType, basePath, myEmail, onViewUser, onCountChange }) {
+export default function CommentThread({ comments, setComments, commentType, postId, myEmail, onViewUser, onCountChange }) {
   const roots = comments.filter(c => c.parent_id == null)
   const childrenOf = (id) => comments.filter(c => c.parent_id === id)
 
@@ -24,7 +24,7 @@ export default function CommentThread({ comments, setComments, commentType, base
       ? { ...c, user_liked: !c.user_liked, like_count: c.like_count + (c.user_liked ? -1 : 1) }
       : c))
     try {
-      const res = await apiFetch(`/api/comments/${commentType}/${comment.id}/like`, { method: 'POST' })
+      const res = await api.posts.toggleCommentLike(commentType, comment.id)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setComments(cs => cs.map(c => c.id === comment.id
@@ -36,10 +36,7 @@ export default function CommentThread({ comments, setComments, commentType, base
   }
 
   const postReply = async (parentId, content) => {
-    const res = await apiFetch(basePath, {
-      method: 'POST',
-      body: JSON.stringify({ content, parent_id: parentId }),
-    })
+    const res = await api.posts.forKind(commentType).addComment(postId, { content, parent_id: parentId })
     if (!res.ok) throw new Error()
     const added = await res.json()
     setComments(cs => [...cs, added])
@@ -48,7 +45,7 @@ export default function CommentThread({ comments, setComments, commentType, base
 
   const deleteComment = async (comment) => {
     try {
-      const res = await apiFetch(`${basePath}/${comment.id}`, { method: 'DELETE' })
+      const res = await api.posts.forKind(commentType).deleteComment(postId, comment.id)
       if (!res.ok) throw new Error()
       // Backend cascades child replies — mirror that locally.
       const removed = new Set([comment.id])

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { normaliseReview, avgRating, openDishFor, hasDishPage } from '../utils/reviews'
 import { StarRating } from '../components/StarRating'
 import { StatGrid, StatCard } from '../components/StatCard'
@@ -35,8 +35,8 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
       setError('')
       try {
         const [searchRes, revRes] = await Promise.all([
-          apiFetch(`/api/users/search?q=${encodeURIComponent(userEmail)}`),
-          apiFetch(`/api/users/${encodeURIComponent(userEmail)}/reviews`),
+          api.users.search(userEmail),
+          api.users.reviews(userEmail),
         ])
         if (searchRes.ok) {
           const users = await searchRes.json()
@@ -59,7 +59,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
     setFriends(null)
     setFriendsLoading(true)
     setFriendsError('')
-    apiFetch(`/api/users/${encodeURIComponent(userEmail)}/friends`)
+    api.users.friends(userEmail)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setFriends(data))
       .catch(() => setFriendsError('Could not load friends.'))
@@ -70,7 +70,7 @@ export default function UserProfile({ userEmail, onBack, onViewUser, onViewRevie
     setLists(null)
     setListsLoading(true)
     setListsError('')
-    apiFetch(`/api/users/${encodeURIComponent(userEmail)}/lists`)
+    api.users.lists(userEmail)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setLists(data))
       .catch(() => setListsError('Could not load lists.'))

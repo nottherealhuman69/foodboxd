@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import PageState from '../components/PageState'
 import ListToolbar from '../components/ListToolbar'
 import { LIST_SORTS, sortListItems } from '../utils/listSort'
@@ -25,7 +25,7 @@ export default function ListPage({ listId, listName, onBack, onViewDish, onViewR
   useEffect(() => {
     setLoading(true)
     setError('')
-    apiFetch(`/api/lists/${listId}/items`)
+    api.lists.items(listId)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setItems(data))
       .catch(() => setError('Could not load this list.'))

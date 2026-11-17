@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { apiFetch } from '../hooks/useApi'
+import * as api from '../api'
 import { StarPicker } from '../components/StarRating'
 import { RATING_LABELS } from '../utils/reviews'
 import MealForm from './MealForm'
@@ -71,7 +71,7 @@ export function SearchDropdown({ id, placeholder, options, value, onChange, disa
 }
 
 export default function CreateReview({ onSave, onMealSaved, draft = null, prefill = null, onClearDraft }) {
-  const myEmail = localStorage.getItem('email')
+  const myEmail = api.session.getEmail()
   const isForkedReview = draft?.kind === 'review'
 
   const [forkOf, setForkOf] = useState(draft || null)
@@ -106,7 +106,7 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, prefil
   const [newDish,        setNewDish]        = useState(false)
 
   useEffect(() => {
-    apiFetch('/api/friends')
+    api.social.friends()
       .then(r => r.ok ? r.json() : [])
       .then(setFriends)
       .catch(() => {})
@@ -115,7 +115,7 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, prefil
   useEffect(() => {
     if (form.type !== 'restaurant') return
     setLoadingCatalog(true)
-    apiFetch('/api/restaurants')
+    api.places.restaurants()
       .then(r => r.ok ? r.json() : [])
       .then(setRestaurants)
       .catch(() => {})
@@ -124,7 +124,7 @@ export default function CreateReview({ onSave, onMealSaved, draft = null, prefil
 
   useEffect(() => {
     if (!form.restaurantName || newRestaurant) { setDishes([]); return }
-    apiFetch(`/api/restaurants/${encodeURIComponent(form.restaurantName)}/dishes`)
+    api.places.restaurantDishes(form.restaurantName)
       .then(r => r.ok ? r.json() : [])
       .then(setDishes)
       .catch(() => {})
