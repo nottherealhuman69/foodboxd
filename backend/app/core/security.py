@@ -35,8 +35,11 @@ def create_reset_token(email: str) -> str:
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload["sub"]
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    # Login tokens carry no "purpose"; a password-reset token must not log anyone in.
+    if payload.get("purpose") is not None or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload["sub"]

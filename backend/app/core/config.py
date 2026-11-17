@@ -2,13 +2,16 @@
 
 Required values have no fallback: a missing SECRET_KEY or DATABASE_URL stops the
 app at startup instead of silently running with an insecure default.
+
+Real environment variables win over backend/.env. That is how the tests point the
+app at the test database, and how a server sets its own values in production.
 """
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=True)
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 def _require(name: str) -> str:

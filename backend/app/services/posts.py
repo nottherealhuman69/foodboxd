@@ -2,6 +2,7 @@
 
 from fastapi import HTTPException
 
+from app.services.privacy import can_view_post
 from app.services.social import is_following
 from app.utils import serialise_meal, serialise_review, username_from
 
@@ -178,7 +179,8 @@ def reposts_by(cur, reposter_emails: list, viewer: str, post_type=None, limit: i
     for rp in cur.fetchall():
         loader = feed_review if rp["post_type"] == "review" else feed_meal
         item = loader(cur, rp["post_id"], viewer)
-        if item:
+        # a repost never shows a private post to someone who couldn't see the original
+        if item and can_view_post(cur, viewer, rp["post_type"], rp["post_id"], item["user_email"]):
             out.append({**item,
                         "reposted_by": {"email": rp["reposter_email"],
                                         "username": username_from(rp["reposter_email"])},

@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.core.security import get_current_user
 from app.schemas.reviews import ReviewOut
 from app.services.posts import post_tags, reposts_by, sort_at
+from app.services.privacy import can_view_author
 from app.utils import serialise_meal, username_from, with_cursor
 
 router = APIRouter()
@@ -57,6 +58,8 @@ def get_user_reviews(user_email: str, email: str = Depends(get_current_user), db
         cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="User not found")
+        if not can_view_author(cur, email, user_email):
+            return []      # private account the caller doesn't follow
         cur.execute("""SELECT * FROM dish_reviews
                        WHERE user_email = %s AND meal_id IS NULL
                        ORDER BY logged_at DESC""", (user_email,))
@@ -124,6 +127,8 @@ def get_public_group_lists(user_email: str, email: str = Depends(get_current_use
 @router.get("/users/{user_email}/meals")
 def get_user_meals(user_email: str, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
+        if not can_view_author(cur, email, user_email):
+            return []      # private account the caller doesn't follow
         cur.execute("SELECT * FROM meals WHERE user_email = %s ORDER BY logged_at DESC", (user_email,))
         meals = cur.fetchall()
         out = []

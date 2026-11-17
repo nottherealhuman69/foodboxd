@@ -6,7 +6,7 @@ from app.core.db import get_db
 from app.core.security import get_current_user
 from app.schemas.lists import GroupInviteAction, GroupInviteBody, GroupListCreate, GroupListItemCreate, GroupListVisibility
 from app.services.group_lists import group_membership, invite_friends, require_active_member, require_read_access
-from app.services.lists import LIST_ITEM_STATS
+from app.services.lists import LIST_ITEM_STATS, list_item_stats_params
 from app.utils import username_from, with_cursor
 
 router = APIRouter()
@@ -170,7 +170,7 @@ def get_group_list_items(list_id: int, email: str = Depends(get_current_user),
             {LIST_ITEM_STATS}
             WHERE i.group_list_id = %s
             ORDER BY i.added_at ASC
-        """, (email, list_id))
+        """, list_item_stats_params(email) + (list_id,))
         rows = cur.fetchall()
     return [{**dict(r), "added_by_username": username_from(r["added_by"])} for r in rows]
 

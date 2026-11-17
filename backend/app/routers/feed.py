@@ -78,7 +78,7 @@ def get_feed(email: str = Depends(get_current_user), db=Depends(get_db)):
                 "tagged":        post_tags(cur, "meal", m["id"]),
                 "forked_from":   fork_source(cur, "meal", m["forked_from_id"]),
             })
-            reposts = reposts_by(cur, friend_emails, email)
+        reposts = reposts_by(cur, friend_emails, email)
 
     by_key = {}
     for item in reviews + meals + reposts:

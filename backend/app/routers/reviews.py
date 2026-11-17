@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.core.security import get_current_user
 from app.schemas.posts import CommentCreate
 from app.schemas.reviews import ReviewCreate, ReviewOut, ReviewUpdate
+from app.services.privacy import require_visible_review, visible_author_sql
 from app.services.posts import check_fork_source, delete_post_extras, find_my_fork, fork_source, post_tags, repost_state, reposts_by, set_post_tags, sort_at
 from app.services.recipes import clean_ingredients, load_ingredients, set_ingredients
 from app.services.validation import valid_rating
@@ -52,8 +53,9 @@ def create_review(body: ReviewCreate, email: str = Depends(get_current_user), db
             set_ingredients(cur, row["id"], ingredients)
         set_post_tags(cur, "review", row["id"], email, body.tagged_emails)
         tagged = post_tags(cur, "review", row["id"])
-        db.commit()   
-    return {**dict(row), "tagged": tagged, "ingredients": load_ingredients(cur, row["id"])}
+        saved_ingredients = load_ingredients(cur, row["id"])
+        db.commit()
+    return {**dict(row), "tagged": tagged, "ingredients": saved_ingredients}
 
 
 @router.get("/reviews", response_model=List[ReviewOut])
@@ -107,6 +109,7 @@ def get_review_detail(review_id: int, email: str = Depends(get_current_user), db
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Review not found")
+        require_visible_review(cur, review_id, email)
         tagged = post_tags(cur, "review", review_id)
         repost = repost_state(cur, "review", review_id, email)
         fork_src = fork_source(cur, "review", row["forked_from_id"])
@@ -169,16 +172,15 @@ def update_review(review_id: int, body: ReviewUpdate, email: str = Depends(get_c
             set_ingredients(cur, row["id"], ingredients)
         set_post_tags(cur, "review", review_id, email, body.tagged_emails)
         tagged = post_tags(cur, "review", review_id)
+        saved_ingredients = load_ingredients(cur, review_id)
         db.commit()
-    return {**dict(row), "tagged": tagged, "ingredients": load_ingredients(cur, row["id"])}
+    return {**dict(row), "tagged": tagged, "ingredients": saved_ingredients}
 
 
 @router.get("/reviews/{review_id}/likes")
 def get_likes(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Review not found")
+        require_visible_review(cur, review_id, email)
         cur.execute("""
             SELECT user_email, created_at FROM review_likes
             WHERE review_id = %s ORDER BY created_at DESC
@@ -193,9 +195,7 @@ def get_likes(review_id: int, email: str = Depends(get_current_user), db=Depends
 @router.post("/reviews/{review_id}/like")
 def toggle_like(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Review not found")
+        require_visible_review(cur, review_id, email)
         cur.execute("SELECT id FROM review_likes WHERE review_id = %s AND user_email = %s", (review_id, email))
         if cur.fetchone():
             cur.execute("DELETE FROM review_likes WHERE review_id = %s AND user_email = %s", (review_id, email))
@@ -212,9 +212,7 @@ def toggle_like(review_id: int, email: str = Depends(get_current_user), db=Depen
 @router.get("/reviews/{review_id}/comments")
 def get_comments(review_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Review not found")
+        require_visible_review(cur, review_id, email)
         cur.execute("""
             SELECT c.id, c.user_email, c.content, c.created_at, c.parent_id,
                    COUNT(cl.id) AS like_count,
@@ -236,9 +234,7 @@ def add_comment(review_id: int, body: CommentCreate, email: str = Depends(get_cu
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="Comment cannot be empty")
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM dish_reviews WHERE id = %s", (review_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Review not found")
+        require_visible_review(cur, review_id, email)
         if body.parent_id is not None:
             cur.execute("SELECT id FROM review_comments WHERE id = %s AND review_id = %s",
                         (body.parent_id, review_id))
@@ -269,9 +265,10 @@ def delete_comment(review_id: int, comment_id: int, email: str = Depends(get_cur
 @router.get("/reviews/all")
 def get_all_reviews(email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("""
+        cur.execute(f"""
             SELECT r.*, u.email AS user_email
             FROM dish_reviews r JOIN users u ON u.email = r.user_email
+            WHERE {visible_author_sql("r.user_email")}
             ORDER BY r.logged_at DESC
-        """)
+        """, (email, email))
         return [serialise_review(r) for r in cur.fetchall()]

@@ -7,20 +7,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 foodboxd/
   backend/        # FastAPI app — package in backend/app/, entry point backend/main.py
+                  # migrations/ + alembic.ini: database schema (Alembic)
   frontend/       # React + Vite SPA
-  .venv/          # Python virtualenv (ignore)
 ```
 
 ## Commands
 
-**Backend** (run from `backend/`, so the `app` package is importable):
+**Backend** (Python env: the conda env `foodboxd`; run from `backend/`, so the `app` package is importable):
 ```bash
-# activate venv first (Windows)
-.venv\Scripts\activate
-
+conda activate foodboxd
 cd backend
 uvicorn main:app --reload        # dev server on :8000 (same as uvicorn app.main:app)
 ```
+
+**Database migrations** (Alembic, run from `backend/`):
+```bash
+alembic upgrade head                    # apply new migrations to DATABASE_URL (the real DB)
+alembic -x db=test upgrade head         # same, against TEST_DATABASE_URL (local test DB)
+alembic current                         # which migration a database is on
+alembic revision -m "add x" --rev-id 0003   # new migration file in migrations/versions/
+```
+**Tests** (pytest, run from `backend/`; needs `TEST_DATABASE_URL` in `backend/.env` pointing at a local Postgres):
+```bash
+pip install -r requirements-dev.txt     # once
+pytest                                  # whole suite
+pytest tests/test_reviews.py -k likes   # one file / matching tests
+```
+`tests/conftest.py` refuses any non-localhost test DB, rebuilds the schema with the migrations, and empties every table before each test. Use the `client`, `make_user` / `alice` / `bob` / `carol` fixtures and `tests/helpers.py` (`follow`, `review`, `meal`, ...). Bugs found but not yet fixed live in `tests/test_known_issues.py` as `xfail(strict=True)` tests; when you fix one, delete its marker.
+
+The app does **not** create or change tables at startup. Every schema change is a new migration file (raw SQL via `op.execute`, with a `downgrade()`); never edit a migration that has already been applied to the real database.
 
 **Frontend** (run from `frontend/`):
 ```bash
@@ -37,9 +52,8 @@ FastAPI app split into layers. `backend/main.py` is only a shim that re-exports 
 
 ```
 app/
-  main.py          # creates the FastAPI app, CORS, startup hook, includes every router
+  main.py          # creates the FastAPI app, CORS, includes every router
   core/            # config.py (env settings), db.py (get_db), security.py (hashing, JWT, get_current_user)
-  db/schema.py     # create_tables(): runs once at startup; source of truth for the DB schema
   routers/         # one APIRouter per area: auth, reviews, meals, posts, users, social, feed,
                    # places, trylist, lists, group_lists, notifications
   schemas/         # Pydantic request/response models, grouped the same way
@@ -53,7 +67,8 @@ app/
 
 - **Auth**: JWT tokens (HS256, 24h expiry) via `Authorization: Bearer <token>`. `get_current_user` dependency extracts `email` from the token and passes it as a string to every protected endpoint.
 - **DB**: Raw `psycopg2` with `RealDictCursor` (rows as dicts). No ORM. `get_db` yields a connection per request. `DATABASE_URL` and `SECRET_KEY` are loaded from `backend/.env`.
-- **Tables**: `users`, `dish_reviews`, `recipe_ingredients`, `meals`, `meal_likes`, `meal_comments`, `meal_comment_likes`, `review_likes`, `review_comments`, `review_comment_likes`, `friendships`, `trylists`, `custom_lists`, `list_items`, `group_lists`, `group_list_members`, `group_list_items`, `post_tags`, `post_reposts`, `schema_flags`
+- **Schema**: defined by the migrations in `backend/migrations/versions/` (source of truth). `0001_baseline` is the schema as it existed in the real database; `0002` removes unused leftovers.
+- **Tables**: `users`, `dish_reviews`, `recipe_ingredients`, `meals`, `meal_likes`, `meal_comments`, `meal_comment_likes`, `review_likes`, `review_comments`, `review_comment_likes`, `friendships`, `trylists`, `custom_lists`, `list_items`, `group_lists`, `group_list_members`, `group_list_items`, `post_tags`, `post_reposts`
 - **Username convention**: There are no separate usernames — the email prefix (`email.split("@")[0]`) is used as the display username everywhere.
 
 ### Frontend (`frontend/src/`)

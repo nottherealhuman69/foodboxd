@@ -7,6 +7,7 @@ from app.core.security import get_current_user
 from app.schemas.meals import MealCreate
 from app.schemas.posts import CommentCreate
 from app.services.meals import load_meal
+from app.services.privacy import require_visible_meal
 from app.services.posts import check_fork_source, delete_post_extras, find_my_fork, fork_source, post_tags, repost_state, reposts_by, set_post_tags, sort_at
 from app.services.validation import valid_rating
 from app.utils import serialise_meal, username_from, with_cursor
@@ -90,9 +91,8 @@ def get_my_meals(email: str = Depends(get_current_user), db=Depends(get_db)):
 @router.get("/meals/{meal_id}")
 def get_meal(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
+        require_visible_meal(cur, meal_id, email)
         meal, dish_rows = load_meal(cur, meal_id)
-        if not meal:
-            raise HTTPException(status_code=404, detail="Meal not found")
         tagged = post_tags(cur, "meal", meal_id)
     return {**serialise_meal(meal, dish_rows), "tagged": tagged}
 
@@ -197,6 +197,7 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Meal not found")
+        require_visible_meal(cur, meal_id, email)
         cur.execute("""
             SELECT id, dish_name, rating, review FROM dish_reviews
             WHERE meal_id = %s ORDER BY id ASC
@@ -221,9 +222,7 @@ def get_meal_detail(meal_id: int, email: str = Depends(get_current_user), db=Dep
 @router.post("/meals/{meal_id}/like")
 def toggle_meal_like(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM meals WHERE id = %s", (meal_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Meal not found")
+        require_visible_meal(cur, meal_id, email)
         cur.execute("SELECT id FROM meal_likes WHERE meal_id = %s AND user_email = %s", (meal_id, email))
         if cur.fetchone():
             cur.execute("DELETE FROM meal_likes WHERE meal_id = %s AND user_email = %s", (meal_id, email))
@@ -240,6 +239,7 @@ def toggle_meal_like(meal_id: int, email: str = Depends(get_current_user), db=De
 @router.get("/meals/{meal_id}/likes")
 def get_meal_likes(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
+        require_visible_meal(cur, meal_id, email)
         cur.execute("""
             SELECT user_email, created_at FROM meal_likes
             WHERE meal_id = %s ORDER BY created_at DESC
@@ -254,6 +254,7 @@ def get_meal_likes(meal_id: int, email: str = Depends(get_current_user), db=Depe
 @router.get("/meals/{meal_id}/comments")
 def get_meal_comments(meal_id: int, email: str = Depends(get_current_user), db=Depends(get_db)):
     with with_cursor(db) as cur:
+        require_visible_meal(cur, meal_id, email)
         cur.execute("""
             SELECT c.id, c.user_email, c.content, c.created_at, c.parent_id,
                    COUNT(cl.id) AS like_count,
@@ -283,9 +284,7 @@ def add_meal_comment(meal_id: int, body: CommentCreate,
     if not content:
         raise HTTPException(status_code=400, detail="Comment cannot be empty")
     with with_cursor(db) as cur:
-        cur.execute("SELECT id FROM meals WHERE id = %s", (meal_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Meal not found")
+        require_visible_meal(cur, meal_id, email)
         if body.parent_id is not None:
             cur.execute("SELECT id FROM meal_comments WHERE id = %s AND meal_id = %s",
                         (body.parent_id, meal_id))

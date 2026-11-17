@@ -14,9 +14,13 @@ from app.utils import with_cursor
 
 router = APIRouter()
 
+MIN_PASSWORD_LENGTH = 6
+
 
 @router.post("/signup", status_code=201)
 def signup(body: SignupRequest, db=Depends(get_db)):
+    if len(body.password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     with with_cursor(db) as cur:
         cur.execute("SELECT id FROM users WHERE email = %s", (body.email,))
         if cur.fetchone():
@@ -49,7 +53,7 @@ def me(email: str = Depends(get_current_user), db=Depends(get_db)):
 
 @router.post("/change-password")
 def change_password(body: ChangePasswordRequest, email: str = Depends(get_current_user), db=Depends(get_db)):
-    if len(body.new_password) < 6:
+    if len(body.new_password) < MIN_PASSWORD_LENGTH:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     with with_cursor(db) as cur:
         cur.execute("SELECT hashed_password FROM users WHERE email = %s", (email,))
@@ -89,7 +93,7 @@ def forgot_password(body: ForgotPasswordRequest, db=Depends(get_db)):
 
 @router.post("/reset-password")
 def reset_password(body: ResetPasswordRequest, db=Depends(get_db)):
-    if len(body.new_password) < 6:
+    if len(body.new_password) < MIN_PASSWORD_LENGTH:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     try:
         payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])

@@ -1,24 +1,17 @@
-"""FastAPI application: middleware, startup and router registration."""
-from contextlib import asynccontextmanager
+"""FastAPI application: middleware and router registration.
 
+The database schema is managed by Alembic (backend/migrations/), not at startup.
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import CORS_ORIGINS
-from app.db.schema import create_tables
 from app.routers import (
     auth, feed, group_lists, lists, meals, notifications,
     places, posts, reviews, social, trylist, users,
 )
 
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    create_tables()
-    yield
-
-
-app = FastAPI(title="Dishlog API", lifespan=lifespan)
+app = FastAPI(title="Dishlog API")
 
 app.add_middleware(
     CORSMiddleware,

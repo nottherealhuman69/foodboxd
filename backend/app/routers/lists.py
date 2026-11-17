@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.db import get_db
 from app.core.security import get_current_user
 from app.schemas.lists import ListCreate, ListItemCreate
-from app.services.lists import LIST_ITEM_STATS
+from app.services.lists import LIST_ITEM_STATS, list_item_stats_params
 from app.utils import with_cursor
 
 router = APIRouter()
@@ -111,5 +111,5 @@ def get_list_items(list_id: int, email: str = Depends(get_current_user), db=Depe
             {LIST_ITEM_STATS}
             WHERE i.list_id = %s
             ORDER BY i.added_at ASC
-        """, (email, list_id))
+        """, list_item_stats_params(email) + (list_id,))
         return cur.fetchall()
